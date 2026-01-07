@@ -1,33 +1,34 @@
 import { create } from "@bufbuild/protobuf";
-import {
-  NodeTemplateSchema,
-  WidgetType,
-  RenderMode,
-  TaskStatus,
-  TaskUpdateSchema,
-} from "../../generated/flowcraft/v1/core/node_pb";
+
 import {
   ActionExecutionStrategy,
   ActionTemplateSchema,
 } from "../../generated/flowcraft/v1/core/action_pb";
 import { MutationSource } from "../../generated/flowcraft/v1/core/base_pb";
+import {
+  NodeTemplateSchema,
+  RenderMode,
+  TaskStatus,
+  TaskUpdateSchema,
+  WidgetType,
+} from "../../generated/flowcraft/v1/core/node_pb";
 import { MutationListSchema } from "../../generated/flowcraft/v1/core/service_pb";
-import { toProtoNodeData, toProtoNode } from "../../utils/protoAdapter";
-import { NodeRegistry, type NodeExecutionContext } from "../registry";
 import { isDynamicNode } from "../../types";
+import { toProtoNode, toProtoNodeData } from "../../utils/protoAdapter";
 import { incrementVersion } from "../db";
+import { type NodeExecutionContext, NodeRegistry } from "../registry";
 
 async function executeAiGen(ctx: NodeExecutionContext) {
-  const { actionId, taskId, node, emitTaskUpdate, emitMutation } = ctx;
+  const { actionId, emitMutation, emitTaskUpdate, node, taskId } = ctx;
 
-  if (actionId !== "gen") return;
+  if (actionId !== "flowcraft.action.node.generator.run") return;
 
   emitTaskUpdate(
     create(TaskUpdateSchema, {
-      taskId: taskId,
-      status: TaskStatus.TASK_PROCESSING,
-      progress: 0,
       message: "Initializing AI model...",
+      progress: 0,
+      status: TaskStatus.TASK_PROCESSING,
+      taskId: taskId,
     }),
   );
 
@@ -46,8 +47,8 @@ async function executeAiGen(ctx: NodeExecutionContext) {
             operation: {
               case: "updateNode",
               value: {
-                id: node.id,
                 data: protoNode.state,
+                id: node.id,
                 presentation: protoNode.presentation,
               },
             },
@@ -60,45 +61,45 @@ async function executeAiGen(ctx: NodeExecutionContext) {
 
   emitTaskUpdate(
     create(TaskUpdateSchema, {
-      taskId: taskId,
-      status: TaskStatus.TASK_COMPLETED,
-      progress: 100,
       message: "Image generated successfully!",
+      progress: 100,
+      status: TaskStatus.TASK_COMPLETED,
+      taskId: taskId,
     }),
   );
 }
 
 NodeRegistry.register({
-  template: create(NodeTemplateSchema, {
-    templateId: "tpl-ai-gen",
-    displayName: "Image Generator",
-    menuPath: ["AI", "Generation"],
-    defaultState: toProtoNodeData({
-      label: "Stable Diffusion",
-      modes: [RenderMode.MODE_WIDGETS],
-      activeMode: RenderMode.MODE_WIDGETS,
-      widgets: [
-        {
-          id: "p1",
-          type: WidgetType.WIDGET_TEXT,
-          label: "Prompt",
-          value: "A futuristic city",
-        },
-        {
-          id: "b1",
-          type: WidgetType.WIDGET_BUTTON,
-          label: "Generate",
-          value: "task:gen",
-        },
-      ],
-    }),
-  }),
   actions: [
     create(ActionTemplateSchema, {
-      id: "gen",
-      label: "Trigger Generation",
+      id: "flowcraft.action.node.generator.run",
+      label: "Run Content Generation",
       strategy: ActionExecutionStrategy.EXECUTION_BACKGROUND,
     }),
   ],
   execute: executeAiGen,
+  template: create(NodeTemplateSchema, {
+    defaultState: toProtoNodeData({
+      activeMode: RenderMode.MODE_WIDGETS,
+      label: "Stable Diffusion",
+      modes: [RenderMode.MODE_WIDGETS],
+      widgets: [
+        {
+          id: "p1",
+          label: "Prompt",
+          type: WidgetType.WIDGET_TEXT,
+          value: "A futuristic city",
+        },
+        {
+          id: "b1",
+          label: "Generate",
+          type: WidgetType.WIDGET_BUTTON,
+          value: "task:flowcraft.action.node.generator.run",
+        },
+      ],
+    }),
+    displayName: "AI Content Generator",
+    menuPath: ["AI", "Generation"],
+    templateId: "flowcraft.node.ai.generator",
+  }),
 });

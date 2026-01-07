@@ -1,13 +1,15 @@
+import type { XYPosition } from "@xyflow/react";
+
+import { create } from "@bufbuild/protobuf";
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { type AppNode, type DynamicNodeData, AppNodeType } from "../types";
-import type { XYPosition } from "@xyflow/react";
+
 import {
-  GraphMutationSchema,
   type GraphMutation,
+  GraphMutationSchema,
 } from "../generated/flowcraft/v1/core/service_pb";
-import { create } from "@bufbuild/protobuf";
 import { type MutationContext } from "../store/flowStore";
+import { type AppNode, AppNodeType, type DynamicNodeData } from "../types";
 import { toProtoNode } from "../utils/protoAdapter";
 
 export const useNodeOperations = (
@@ -25,17 +27,17 @@ export const useNodeOperations = (
       initialHeight = 200,
     ) => {
       const newNode: AppNode = {
-        id: uuidv4(),
-        type: AppNodeType.DYNAMIC,
-        position,
-        measured: { width: initialWidth, height: initialHeight },
-        style: { width: initialWidth, height: initialHeight },
         data: {
           label: "Loading...",
-          typeId: templateId,
           modes: [],
+          typeId: templateId,
           ...initialData,
         } as DynamicNodeData,
+        id: uuidv4(),
+        measured: { height: initialHeight, width: initialWidth },
+        position,
+        style: { height: initialHeight, width: initialWidth },
+        type: AppNodeType.DYNAMIC,
       };
 
       applyMutations([
@@ -78,5 +80,5 @@ export const useNodeOperations = (
     [applyMutations],
   );
 
-  return { addNode, deleteNode, deleteEdge };
+  return { addNode, deleteEdge, deleteNode };
 };

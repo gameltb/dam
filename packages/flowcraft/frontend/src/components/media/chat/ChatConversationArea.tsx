@@ -1,12 +1,16 @@
-import React, { useState } from "react";
 import {
-  MessageSquare,
+  Check,
   Edit2,
+  MessageSquare,
   RotateCcw,
   Trash2,
   X,
-  Check,
 } from "lucide-react";
+import React, { useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+
 import {
   Conversation,
   ConversationContent,
@@ -14,44 +18,42 @@ import {
 } from "../../ai-elements/conversation";
 import {
   Message,
-  MessageContent,
-  MessageResponse,
-  MessageActions,
   MessageAction,
+  MessageActions,
+  MessageAttachment,
+  MessageAttachments,
   MessageBranch,
   MessageBranchContent,
-  MessageBranchSelector,
-  MessageBranchPrevious,
   MessageBranchNext,
   MessageBranchPage,
+  MessageBranchPrevious,
+  MessageBranchSelector,
+  MessageContent,
+  MessageResponse,
   MessageToolbar,
-  MessageAttachments,
-  MessageAttachment,
 } from "../../ai-elements/message";
 import { type ChatMessage, type ChatStatus } from "./types";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 
 interface Props {
   history: ChatMessage[];
-  streamingContent: string;
-  status: ChatStatus;
   isUploading: boolean;
-  onRegenerate: (index: number) => void;
   onDelete: (id: string) => void;
   onEdit: (id: string, newContent: string) => void;
+  onRegenerate: (index: number) => void;
+  status: ChatStatus;
+  streamingContent: string;
 }
 
 export const ChatConversationArea: React.FC<Props> = ({
   history,
-  streamingContent,
-  status,
   isUploading,
-  onRegenerate,
   onDelete,
   onEdit,
+  onRegenerate,
+  status,
+  streamingContent,
 }) => {
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<null | string>(null);
   const [editContent, setEditContent] = useState("");
 
   const handleStartEdit = (msg: ChatMessage) => {
@@ -84,8 +86,8 @@ export const ChatConversationArea: React.FC<Props> = ({
                     <div className="flex flex-wrap gap-1 mb-2">
                       {m.contextNodes.map((cn) => (
                         <div
-                          key={cn.id}
                           className="bg-primary/10 text-[10px] px-1.5 py-0.5 rounded border border-primary/20 flex items-center gap-1"
+                          key={cn.id}
                         >
                           <MessageSquare size={10} /> {cn.label}
                         </div>
@@ -96,7 +98,7 @@ export const ChatConversationArea: React.FC<Props> = ({
                   {m.attachments && m.attachments.length > 0 && (
                     <MessageAttachments className="mb-2">
                       {m.attachments.map((file, i) => (
-                        <MessageAttachment key={i} data={file} />
+                        <MessageAttachment data={file} key={i} />
                       ))}
                     </MessageAttachments>
                   )}
@@ -104,30 +106,30 @@ export const ChatConversationArea: React.FC<Props> = ({
                   {editingId === m.id ? (
                     <div className="flex flex-col gap-2 min-w-[300px]">
                       <Textarea
-                        value={editContent}
+                        className="min-h-[100px] bg-background/50"
                         onChange={(e) => {
                           setEditContent(e.target.value);
                         }}
-                        className="min-h-[100px] bg-background/50"
                         placeholder="Edit message..."
+                        value={editContent}
                       />
                       <div className="flex justify-end gap-2">
                         <Button
+                          className="h-7 px-2"
+                          onClick={handleCancelEdit}
                           size="sm"
                           variant="ghost"
-                          onClick={handleCancelEdit}
-                          className="h-7 px-2"
                         >
-                          <X size={14} className="mr-1" /> Cancel
+                          <X className="mr-1" size={14} /> Cancel
                         </Button>
                         <Button
-                          size="sm"
+                          className="h-7 px-2"
                           onClick={() => {
                             handleSaveEdit(m.id);
                           }}
-                          className="h-7 px-2"
+                          size="sm"
                         >
-                          <Check size={14} className="mr-1" /> Save & Regenerate
+                          <Check className="mr-1" size={14} /> Save & Regenerate
                         </Button>
                       </div>
                     </div>
@@ -141,29 +143,29 @@ export const ChatConversationArea: React.FC<Props> = ({
                     <MessageToolbar>
                       <MessageActions>
                         <MessageAction
-                          tooltip="Edit"
                           onClick={() => {
                             handleStartEdit(m);
                           }}
+                          tooltip="Edit"
                         >
                           <Edit2 size={12} />
                         </MessageAction>
                         {m.role === "assistant" && (
                           <MessageAction
-                            tooltip="Regenerate"
                             onClick={() => {
                               onRegenerate(idx);
                             }}
+                            tooltip="Regenerate"
                           >
                             <RotateCcw size={12} />
                           </MessageAction>
                         )}
                         <MessageAction
-                          tooltip="Delete"
+                          className="hover:text-destructive"
                           onClick={() => {
                             onDelete(m.id);
                           }}
-                          className="hover:text-destructive"
+                          tooltip="Delete"
                         >
                           <Trash2 size={12} />
                         </MessageAction>

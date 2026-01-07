@@ -1,87 +1,92 @@
-import React from "react";
+import type {
+  ColorMode,
+  OnConnect,
+  OnConnectEnd,
+  OnConnectStart,
+  OnEdgesChange,
+  OnMoveEnd,
+  OnNodesChange,
+  ReactFlowInstance,
+  Edge as RFEdge,
+} from "@xyflow/react";
+
 import {
-  ReactFlow,
   Background,
   BackgroundVariant,
   Controls,
   MiniMap,
+  ReactFlow,
   SelectionMode,
 } from "@xyflow/react";
+import React from "react";
+
 import {
-  nodeTypes,
-  edgeTypes,
   defaultEdgeOptions,
+  edgeTypes,
+  nodeTypes,
   snapGrid,
 } from "../../flowConfig";
+import { type HelperLines } from "../../hooks/useHelperLines";
+import { type AppNode } from "../../types";
 import { HelperLinesRenderer } from "../HelperLinesRenderer";
 import { Notifications } from "../Notifications";
-import { type AppNode } from "../../types";
-import type {
-  Edge as RFEdge,
-  OnNodesChange,
-  OnEdgesChange,
-  OnConnect,
-  OnMoveEnd,
-  ColorMode,
-} from "@xyflow/react";
-import { type HelperLines } from "../../hooks/useHelperLines";
 
 interface FlowCanvasProps {
-  nodes: AppNode[];
-  edges: RFEdge[];
-  onNodesChange: OnNodesChange<AppNode>;
-  onEdgesChange: OnEdgesChange;
-  onConnect: OnConnect;
-  onInit: (instance: any) => void;
-  onNodeDragStart: (e: any, node: AppNode) => void;
-  onNodeDragStop: (e: any, node: AppNode) => void;
-  onConnectStart: (e: any, params: any) => void;
-  onConnectEnd: (e: any) => void;
-  onNodeContextMenu: (e: any, node: AppNode) => void;
-  onEdgeContextMenu: (e: any, edge: RFEdge) => void;
-  onSelectionContextMenu: (e: any, nodes: AppNode[]) => void;
-  onPaneContextMenu: (e: any) => void;
-  onMoveEnd: OnMoveEnd;
-  theme: string;
   dragMode: "pan" | "select";
+  edges: RFEdge[];
   helperLines: HelperLines;
+  nodes: AppNode[];
+  onConnect: OnConnect;
+  onConnectEnd: OnConnectEnd;
+  onConnectStart: OnConnectStart;
+  onEdgeContextMenu: (e: React.MouseEvent, edge: RFEdge) => void;
+  onEdgesChange: OnEdgesChange;
+  onInit: (instance: ReactFlowInstance<AppNode>) => void;
+  onMoveEnd: OnMoveEnd;
+  onNodeContextMenu: (e: React.MouseEvent, node: AppNode) => void;
+  onNodeDragStart: (e: React.MouseEvent, node: AppNode) => void;
+  onNodeDragStop: (e: React.MouseEvent, node: AppNode) => void;
+  onNodesChange: OnNodesChange<AppNode>;
+  onPaneContextMenu: (e: MouseEvent | React.MouseEvent) => void;
+  onSelectionContextMenu: (e: React.MouseEvent, nodes: AppNode[]) => void;
+  theme: string;
 }
 
 export const FlowCanvas: React.FC<FlowCanvasProps> = (props) => {
   return (
     <ReactFlow
-      nodes={props.nodes}
+      colorMode={props.theme as ColorMode}
+      defaultEdgeOptions={defaultEdgeOptions}
       edges={props.edges}
-      onNodesChange={props.onNodesChange}
-      onEdgesChange={props.onEdgesChange}
-      onConnect={props.onConnect}
-      onInit={props.onInit}
-      nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
+      fitView
+      nodes={props.nodes}
+      nodeTypes={nodeTypes}
+      onConnect={props.onConnect}
+      onConnectEnd={props.onConnectEnd}
+      onConnectStart={props.onConnectStart}
+      onEdgeContextMenu={props.onEdgeContextMenu}
+      onEdgesChange={props.onEdgesChange}
+      onInit={props.onInit}
+      onMoveEnd={props.onMoveEnd}
+      onNodeContextMenu={props.onNodeContextMenu}
       onNodeDragStart={props.onNodeDragStart}
       onNodeDragStop={props.onNodeDragStop}
-      onConnectStart={props.onConnectStart}
-      onConnectEnd={props.onConnectEnd}
-      onNodeContextMenu={props.onNodeContextMenu}
-      onEdgeContextMenu={props.onEdgeContextMenu}
-      onSelectionContextMenu={props.onSelectionContextMenu}
+      onNodesChange={props.onNodesChange}
       onPaneContextMenu={props.onPaneContextMenu}
-      onMoveEnd={props.onMoveEnd}
-      fitView
-      colorMode={props.theme as ColorMode}
-      selectionMode={SelectionMode.Partial}
+      onSelectionContextMenu={props.onSelectionContextMenu}
       panOnDrag={props.dragMode === "pan" ? [0, 1] : [1]}
+      selectionMode={SelectionMode.Partial}
       selectionOnDrag={props.dragMode === "select"}
       selectNodesOnDrag={false}
-      snapToGrid={false}
       snapGrid={snapGrid}
-      defaultEdgeOptions={defaultEdgeOptions}
+      snapToGrid={false}
     >
-      <Background variant={BackgroundVariant.Dots} gap={15} size={1} />
+      <Background gap={15} size={1} variant={BackgroundVariant.Dots} />
       <Controls />
       <MiniMap
-        style={{ borderRadius: "8px", overflow: "hidden" }}
         maskColor="var(--xy-minimap-mask-background-color)"
+        style={{ borderRadius: "8px", overflow: "hidden" }}
       />
       <Notifications />
       <HelperLinesRenderer lines={props.helperLines} />

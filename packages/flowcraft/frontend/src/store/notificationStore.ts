@@ -3,20 +3,19 @@ import { create } from "zustand";
 export interface Notification {
   id: number;
   message: string;
-  type: "success" | "error" | "info";
   timestamp: Date;
+  type: "error" | "info" | "success";
 }
 
 interface NotificationState {
-  notifications: Notification[];
   addNotification: (
     notification: Omit<Notification, "id" | "timestamp">,
   ) => void;
   clearNotifications: () => void;
+  notifications: Notification[];
 }
 
 export const useNotificationStore = create<NotificationState>((set) => ({
-  notifications: [],
   addNotification: (notification) => {
     set((state) => ({
       notifications: [
@@ -28,4 +27,5 @@ export const useNotificationStore = create<NotificationState>((set) => ({
   clearNotifications: () => {
     set({ notifications: [] });
   },
+  notifications: [],
 }));

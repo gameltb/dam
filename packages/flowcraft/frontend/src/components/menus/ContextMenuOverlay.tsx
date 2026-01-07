@@ -1,41 +1,59 @@
+import { type Edge } from "@xyflow/react";
 import React from "react";
-import { NodeContextMenu } from "./NodeContextMenu";
+
+import { type ActionTemplate } from "../../generated/flowcraft/v1/core/action_pb";
+import { type NodeTemplate } from "../../generated/flowcraft/v1/core/node_pb";
+import { type AppNode, AppNodeType, type MediaType } from "../../types";
 import { EdgeContextMenu } from "./EdgeContextMenu";
 import { GalleryItemContextMenu } from "./GalleryItemContextMenu";
+import { NodeContextMenu } from "./NodeContextMenu";
 import { PaneContextMenu } from "./PaneContextMenu";
-import { AppNodeType } from "../../types";
 
 interface Props {
-  contextMenu: any;
-  nodes: any[];
-  edges: any[];
-  templates: any[];
-  availableActions: any[];
-  onClose: () => void;
-  onDeleteNode: (id: string) => void;
-  onDeleteEdge: (id: string) => void;
-  onOpenEditor: (id: string) => void;
-  onCopy: () => void;
-  onDuplicate: () => void;
-  onGroup: () => void;
+  availableActions: ActionTemplate[];
+  contextMenu: null | {
+    edgeId?: string;
+    galleryItemType?: MediaType;
+    galleryItemUrl?: string;
+    nodeId?: string;
+    x: number;
+    y: number;
+  };
+  edges: Edge[];
+  nodes: AppNode[];
+  onAddNode: (t: NodeTemplate) => void;
   onAutoLayout: () => void;
+  onClose: () => void;
+  onCopy: () => void;
+  onDeleteEdge: (id: string) => void;
+  onDeleteNode: (id: string) => void;
+  onDuplicate: () => void;
+  onExecuteAction: (a: ActionTemplate) => void;
+  onGroup: () => void;
+  onOpenEditor: (id: string) => void;
   onPaste: () => void;
-  onAddNode: (t: any) => void;
-  onExecuteAction: (a: any) => void;
+  templates: NodeTemplate[];
 }
 
 export const ContextMenuOverlay: React.FC<Props> = (props) => {
   if (!props.contextMenu) return null;
-  const { contextMenu, nodes, edges } = props;
+  const { contextMenu, edges, nodes } = props;
 
   return (
     <>
-      {(contextMenu.nodeId || nodes.some((n) => n.selected)) && (
+      {(contextMenu.nodeId ?? nodes.some((n) => n.selected)) && (
         <NodeContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          nodeId={contextMenu.nodeId || ""}
+          dynamicActions={props.availableActions.map((a) => ({
+            id: a.id,
+            name: a.label,
+            onClick: () => {
+              props.onExecuteAction(a);
+            },
+            path: a.path,
+          }))}
+          nodeId={contextMenu.nodeId ?? ""}
           onClose={props.onClose}
+          onCopy={props.onCopy}
           onDelete={() => {
             if (contextMenu.nodeId) {
               const node = nodes.find((n) => n.id === contextMenu.nodeId);
@@ -62,13 +80,10 @@ export const ContextMenuOverlay: React.FC<Props> = (props) => {
             }
             props.onClose();
           }}
-          onFocus={() => {}}
-          onOpenEditor={() => {
-            if (contextMenu.nodeId) props.onOpenEditor(contextMenu.nodeId);
-            props.onClose();
-          }}
-          onCopy={props.onCopy}
           onDuplicate={props.onDuplicate}
+          onFocus={() => {
+            /* empty */
+          }}
           onGroupSelected={
             nodes.some((n) => n.selected) ? props.onGroup : undefined
           }
@@ -78,20 +93,16 @@ export const ContextMenuOverlay: React.FC<Props> = (props) => {
               ? props.onAutoLayout
               : undefined
           }
-          dynamicActions={props.availableActions.map((a) => ({
-            id: a.id,
-            name: a.label,
-            path: a.path,
-            onClick: () => {
-              props.onExecuteAction(a);
-            },
-          }))}
+          onOpenEditor={() => {
+            if (contextMenu.nodeId) props.onOpenEditor(contextMenu.nodeId);
+            props.onClose();
+          }}
+          x={contextMenu.x}
+          y={contextMenu.y}
         />
       )}
       {contextMenu.edgeId && !nodes.some((n) => n.selected) && (
         <EdgeContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
           edgeId={contextMenu.edgeId}
           onClose={props.onClose}
           onDelete={() => {
@@ -107,23 +118,25 @@ export const ContextMenuOverlay: React.FC<Props> = (props) => {
                 .forEach((e) => {
                   props.onDeleteEdge(e.id);
                 });
-            } else {
+            } else if (contextMenu.edgeId) {
               props.onDeleteEdge(contextMenu.edgeId);
             }
             props.onClose();
           }}
+          x={contextMenu.x}
+          y={contextMenu.y}
         />
       )}
       {contextMenu.galleryItemUrl && (
         <GalleryItemContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          url={contextMenu.galleryItemUrl}
           onClose={props.onClose}
           onExtract={(url) => {
             console.log("Extract", url);
             props.onClose();
           }}
+          url={contextMenu.galleryItemUrl}
+          x={contextMenu.x}
+          y={contextMenu.y}
         />
       )}
       {!contextMenu.nodeId &&
@@ -131,20 +144,10 @@ export const ContextMenuOverlay: React.FC<Props> = (props) => {
         !contextMenu.galleryItemUrl &&
         !nodes.some((n) => n.selected) && (
           <PaneContextMenu
-            x={contextMenu.x}
-            y={contextMenu.y}
-            templates={props.templates}
             onAddNode={props.onAddNode}
             onAutoLayout={props.onAutoLayout}
             onClose={props.onClose}
-            onPaste={props.onPaste}
             onCopy={nodes.some((n) => n.selected) ? props.onCopy : undefined}
-            onDuplicate={
-              nodes.some((n) => n.selected) ? props.onDuplicate : undefined
-            }
-            onGroupSelected={
-              nodes.some((n) => n.selected) ? props.onGroup : undefined
-            }
             onDeleteSelected={
               nodes.some((n) => n.selected) || edges.some((e) => e.selected)
                 ? () => {
@@ -162,6 +165,16 @@ export const ContextMenuOverlay: React.FC<Props> = (props) => {
                   }
                 : undefined
             }
+            onDuplicate={
+              nodes.some((n) => n.selected) ? props.onDuplicate : undefined
+            }
+            onGroupSelected={
+              nodes.some((n) => n.selected) ? props.onGroup : undefined
+            }
+            onPaste={props.onPaste}
+            templates={props.templates}
+            x={contextMenu.x}
+            y={contextMenu.y}
           />
         )}
     </>

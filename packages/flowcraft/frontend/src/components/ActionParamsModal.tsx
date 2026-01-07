@@ -1,23 +1,26 @@
-import React from "react";
-import Form from "@rjsf/core";
 import type { IChangeEvent } from "@rjsf/core";
+
+import Form from "@rjsf/core";
 import validator from "@rjsf/validator-ajv8";
+import React from "react";
+
 import type { ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
+
 import { getSchemaForTemplate } from "../utils/schemaRegistry";
 
 interface ActionParamsModalProps {
   action: ActionTemplate;
-  onConfirm: (params: Record<string, unknown>) => void;
   onCancel: () => void;
+  onConfirm: (params: Record<string, unknown>) => void;
 }
 
 export const ActionParamsModal: React.FC<ActionParamsModalProps> = ({
   action,
-  onConfirm,
   onCancel,
+  onConfirm,
 }) => {
   const schema = React.useMemo(() => {
-    return getSchemaForTemplate(action.id, action.paramsSchemaJson);
+    return getSchemaForTemplate(action.id, action.paramsSchema);
   }, [action]);
 
   React.useEffect(() => {
@@ -39,49 +42,49 @@ export const ActionParamsModal: React.FC<ActionParamsModalProps> = ({
 
   const handleSubmit = (data: IChangeEvent) => {
     if (data.formData) {
-      onConfirm(data.formData);
+      onConfirm(data.formData as Record<string, unknown>);
     }
   };
 
   return (
     <div
       style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0,0,0,0.6)",
-        display: "flex",
         alignItems: "center",
-        justifyContent: "center",
-        zIndex: 10000,
         backdropFilter: "blur(4px)",
+        backgroundColor: "rgba(0,0,0,0.6)",
+        bottom: 0,
+        display: "flex",
+        justifyContent: "center",
+        left: 0,
+        position: "fixed",
+        right: 0,
+        top: 0,
+        zIndex: 10000,
       }}
     >
       <div
         style={{
           backgroundColor: "var(--panel-bg)",
-          padding: "24px",
-          borderRadius: "12px",
-          width: "500px",
-          maxHeight: "80vh",
-          overflowY: "auto",
           border: "1px solid var(--node-border)",
+          borderRadius: "12px",
           boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
           color: "var(--text-color)",
+          maxHeight: "80vh",
+          overflowY: "auto",
+          padding: "24px",
+          width: "500px",
         }}
       >
-        <h3 style={{ marginTop: 0, color: "var(--primary-color)" }}>
+        <h3 style={{ color: "var(--primary-color)", marginTop: 0 }}>
           {action.label}
         </h3>
 
         <div className="rjsf-container" style={{ margin: "20px 0" }}>
           <Form
+            onSubmit={handleSubmit}
             schema={schema}
             uiSchema={uiSchema}
             validator={validator}
-            onSubmit={handleSubmit}
           >
             <div
               style={{
@@ -92,30 +95,30 @@ export const ActionParamsModal: React.FC<ActionParamsModalProps> = ({
               }}
             >
               <button
-                type="button"
                 onClick={onCancel}
                 style={{
-                  padding: "8px 16px",
-                  borderRadius: "6px",
                   background: "none",
                   border: "1px solid var(--node-border)",
+                  borderRadius: "6px",
                   color: "var(--text-color)",
                   cursor: "pointer",
+                  padding: "8px 16px",
                 }}
+                type="button"
               >
                 Cancel
               </button>
               <button
-                type="submit"
                 style={{
-                  padding: "8px 16px",
-                  borderRadius: "6px",
                   background: "var(--primary-color)",
                   border: "none",
+                  borderRadius: "6px",
                   color: "#fff",
                   cursor: "pointer",
                   fontWeight: 600,
+                  padding: "8px 16px",
                 }}
+                type="submit"
               >
                 Execute Action
               </button>

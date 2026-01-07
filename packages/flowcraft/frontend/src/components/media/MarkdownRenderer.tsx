@@ -27,27 +27,27 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   if (isEditing) {
     return (
       <textarea
-        className="nodrag nopan"
         autoFocus
-        value={localValue}
+        className="nodrag nopan"
+        onBlur={handleBlur}
         onChange={(e) => {
           setLocalValue(e.target.value);
         }}
-        onBlur={handleBlur}
         style={{
-          width: "100%",
-          height: "100%",
           backgroundColor: "#1e1e1e",
-          color: "#d4d4d4",
           border: "none",
-          padding: "10px",
+          borderRadius: "inherit",
+          boxSizing: "border-box",
+          color: "#d4d4d4",
           fontFamily: "monospace",
           fontSize: "13px",
-          resize: "none",
+          height: "100%",
           outline: "none",
-          boxSizing: "border-box",
-          borderRadius: "inherit",
+          padding: "10px",
+          resize: "none",
+          width: "100%",
         }}
+        value={localValue}
       />
     );
   }
@@ -56,17 +56,17 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     <div
       onDoubleClick={handleDoubleClick}
       style={{
-        width: "100%",
-        height: "100%",
-        padding: "12px",
-        overflowY: "auto",
-        fontSize: "14px",
-        lineHeight: "1.6",
-        color: "#e0e0e0",
         backgroundColor: "#1a1a1a",
-        boxSizing: "border-box",
-        cursor: "text",
         borderRadius: "inherit",
+        boxSizing: "border-box",
+        color: "#e0e0e0",
+        cursor: "text",
+        fontSize: "14px",
+        height: "100%",
+        lineHeight: "1.6",
+        overflowY: "auto",
+        padding: "12px",
+        width: "100%",
       }}
     >
       {/* Basic MD rendering simulation for now, can be replaced with a real MD parser later */}

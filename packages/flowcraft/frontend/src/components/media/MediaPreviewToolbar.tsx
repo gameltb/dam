@@ -1,61 +1,62 @@
-import React from "react";
-import { IconButton } from "../base/IconButton";
 import {
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
+  Focus,
   Maximize,
   Minimize,
+  RotateCw,
   X,
-  Focus,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
+import React from "react";
+
+import { IconButton } from "../base/IconButton";
 
 interface MediaPreviewToolbarProps {
-  label: string;
   activeIndex: number;
-  totalItems: number;
   isImage: boolean;
   isVideo: boolean;
-  videoMode: "fit" | "original";
+  label: string;
+  onClose: (e: React.MouseEvent) => void;
+  onReset: () => void;
+  onRotate: (e?: React.MouseEvent) => void;
+  onSetVideoMode: (mode: "fit" | "original") => void;
   onZoomIn: (e?: React.MouseEvent) => void;
   onZoomOut: (e?: React.MouseEvent) => void;
-  onRotate: (e?: React.MouseEvent) => void;
-  onReset: () => void;
-  onSetVideoMode: (mode: "fit" | "original") => void;
-  onClose: (e: React.MouseEvent) => void;
+  totalItems: number;
+  videoMode: "fit" | "original";
 }
 
 export const MediaPreviewToolbar: React.FC<MediaPreviewToolbarProps> = ({
-  label,
   activeIndex,
-  totalItems,
   isImage,
   isVideo,
-  videoMode,
+  label,
+  onClose,
+  onReset,
+  onRotate,
+  onSetVideoMode,
   onZoomIn,
   onZoomOut,
-  onRotate,
-  onReset,
-  onSetVideoMode,
-  onClose,
+  totalItems,
+  videoMode,
 }) => {
   return (
     <div
       style={{
+        alignItems: "center",
+        background: "linear-gradient(to bottom, rgba(0,0,0,0.8), transparent)",
+        boxSizing: "border-box",
+        color: "white",
+        display: "flex",
+        justifyContent: "space-between",
+        padding: "20px 40px",
         position: "absolute",
         top: 0,
         width: "100%",
-        padding: "20px 40px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        color: "white",
-        background: "linear-gradient(to bottom, rgba(0,0,0,0.8), transparent)",
-        boxSizing: "border-box",
         zIndex: 100,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+      <div style={{ alignItems: "center", display: "flex", gap: "20px" }}>
         <div style={{ display: "flex", flexDirection: "column" }}>
           <span
             style={{
@@ -73,56 +74,56 @@ export const MediaPreviewToolbar: React.FC<MediaPreviewToolbarProps> = ({
 
         <div
           style={{
-            display: "flex",
-            backgroundColor: "rgba(255,255,255,0.05)",
-            borderRadius: "10px",
-            padding: "4px",
-            gap: "4px",
             backdropFilter: "blur(10px)",
+            backgroundColor: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: "10px",
+            display: "flex",
+            gap: "4px",
+            padding: "4px",
           }}
         >
           {isImage && (
             <>
               <IconButton
-                onClick={onZoomIn}
                 icon={<ZoomIn size={18} />}
                 label="Zoom In"
+                onClick={onZoomIn}
               />
               <IconButton
-                onClick={onZoomOut}
                 icon={<ZoomOut size={18} />}
                 label="Zoom Out"
+                onClick={onZoomOut}
               />
               <IconButton
-                onClick={onRotate}
                 icon={<RotateCw size={18} />}
                 label="Rotate"
+                onClick={onRotate}
               />
               <IconButton
-                onClick={onReset}
                 icon={<Focus size={18} />}
                 label="Reset View"
+                onClick={onReset}
               />
             </>
           )}
           {isVideo && (
             <>
               <IconButton
-                onClick={() => {
-                  onSetVideoMode("fit");
-                }}
                 active={videoMode === "fit"}
                 icon={<Minimize size={18} />}
                 label="Fit to View"
+                onClick={() => {
+                  onSetVideoMode("fit");
+                }}
               />
               <IconButton
-                onClick={() => {
-                  onSetVideoMode("original");
-                }}
                 active={videoMode === "original"}
                 icon={<Maximize size={18} />}
                 label="Original Size"
+                onClick={() => {
+                  onSetVideoMode("original");
+                }}
               />
             </>
           )}
@@ -130,16 +131,16 @@ export const MediaPreviewToolbar: React.FC<MediaPreviewToolbarProps> = ({
       </div>
 
       <IconButton
-        onClick={onClose}
         icon={<X size={20} />}
         label="Close"
+        onClick={onClose}
         style={{
-          width: "40px",
-          height: "40px",
-          borderRadius: "12px",
           backgroundColor: "rgba(255, 59, 48, 0.15)",
           borderColor: "rgba(255, 59, 48, 0.2)",
+          borderRadius: "12px",
           color: "#ff3b30",
+          height: "40px",
+          width: "40px",
         }}
       />
     </div>

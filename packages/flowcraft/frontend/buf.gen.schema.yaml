@@ -1,6 +1,6 @@
 version: v2
 inputs:
-  - directory: schema/flowcraft/v1/params
+  - directory: schema/flowcraft/v1/actions
 plugins:
   - remote: buf.build/bufbuild/protoschema-jsonschema
     out: src/generated/schemas

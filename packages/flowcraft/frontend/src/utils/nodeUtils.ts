@@ -1,18 +1,27 @@
-import { type AppNode, isDynamicNode, type ClientPort } from "../types";
 import { MediaType, PortStyle } from "../generated/flowcraft/v1/core/node_pb";
+import { type AppNode, type ClientPort, isDynamicNode } from "../types";
 
 /**
- * Maps a MIME type string to the appropriate MediaType enum.
+ * Dehydrates a node by ensuring it only contains serializable data.
  */
-export function getMediaTypeFromMime(mimeType?: string): MediaType {
-  if (!mimeType) return MediaType.MEDIA_UNSPECIFIED;
+export function dehydrateNode<T>(obj: T): T {
+  if (obj === null || typeof obj !== "object") {
+    return obj;
+  }
 
-  if (mimeType.startsWith("image/")) return MediaType.MEDIA_IMAGE;
-  if (mimeType.startsWith("video/")) return MediaType.MEDIA_VIDEO;
-  if (mimeType.startsWith("audio/")) return MediaType.MEDIA_AUDIO;
-  if (mimeType === "text/markdown") return MediaType.MEDIA_MARKDOWN;
+  if (Array.isArray(obj)) {
+    return obj.map(dehydrateNode) as unknown as T;
+  }
 
-  return MediaType.MEDIA_UNSPECIFIED;
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    // Skip functions and undefined values
+    if (typeof value === "function" || value === undefined) {
+      continue;
+    }
+    result[key] = dehydrateNode(value);
+  }
+  return result as T;
 }
 
 /**
@@ -37,12 +46,12 @@ export function findPort(
     return {
       id: widget.inputPortId,
       label: widget.label,
-      type: {
-        mainType: "string",
-        itemType: "",
-        isGeneric: false,
-      },
       style: PortStyle.CIRCLE,
+      type: {
+        isGeneric: false,
+        itemType: "",
+        mainType: "string",
+      },
     };
   }
 
@@ -50,26 +59,17 @@ export function findPort(
 }
 
 /**
- * Dehydrates a node by ensuring it only contains serializable data.
+ * Maps a MIME type string to the appropriate MediaType enum.
  */
-export function dehydrateNode<T>(obj: T): T {
-  if (obj === null || typeof obj !== "object") {
-    return obj;
-  }
+export function getMediaTypeFromMime(mimeType?: string): MediaType {
+  if (!mimeType) return MediaType.MEDIA_UNSPECIFIED;
 
-  if (Array.isArray(obj)) {
-    return obj.map(dehydrateNode) as unknown as T;
-  }
+  if (mimeType.startsWith("image/")) return MediaType.MEDIA_IMAGE;
+  if (mimeType.startsWith("video/")) return MediaType.MEDIA_VIDEO;
+  if (mimeType.startsWith("audio/")) return MediaType.MEDIA_AUDIO;
+  if (mimeType === "text/markdown") return MediaType.MEDIA_MARKDOWN;
 
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    // Skip functions and undefined values
-    if (typeof value === "function" || value === undefined) {
-      continue;
-    }
-    result[key] = dehydrateNode(value);
-  }
-  return result as T;
+  return MediaType.MEDIA_UNSPECIFIED;
 }
 
 /**

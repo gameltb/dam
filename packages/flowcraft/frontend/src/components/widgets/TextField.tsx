@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 export interface TextFieldProps {
-  value: string;
-  onChange: (value: string) => void;
   label?: string;
+  onChange: (value: string) => void;
   placeholder?: string;
+  value: string;
 }
 
 export const TextField: React.FC<TextFieldProps> = ({
-  value,
-  onChange,
   label,
+  onChange,
   placeholder,
+  value,
 }) => {
   const [localValue, setLocalValue] = useState(value);
 
@@ -38,16 +38,16 @@ export const TextField: React.FC<TextFieldProps> = ({
     <div className="widget text-field">
       {label && <label>{label}</label>}
       <input
-        type="text"
         className="nodrag"
-        value={localValue}
+        onBlur={handleBlur}
         onChange={(e) => {
           setLocalValue(e.target.value);
         }}
-        onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        style={{ width: "100%", boxSizing: "border-box" }}
+        style={{ boxSizing: "border-box", width: "100%" }}
+        type="text"
+        value={localValue}
       />
     </div>
   );

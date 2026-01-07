@@ -1,20 +1,21 @@
 import React from "react";
+
 import { MenuContainer } from "./MenuContainer";
 
 interface GalleryItemContextMenuProps {
+  onClose: () => void;
+  onExtract: (url: string) => void;
+  url: string;
   x: number;
   y: number;
-  url: string;
-  onExtract: (url: string) => void;
-  onClose: () => void;
 }
 
 export const GalleryItemContextMenu: React.FC<GalleryItemContextMenuProps> = ({
+  onClose,
+  onExtract,
+  url,
   x,
   y,
-  url,
-  onExtract,
-  onClose,
 }) => (
   <MenuContainer x={x} y={y}>
     <div className="fc-menu-section">

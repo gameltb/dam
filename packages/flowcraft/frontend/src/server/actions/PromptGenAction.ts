@@ -1,26 +1,29 @@
 import { create } from "@bufbuild/protobuf";
+import { v4 as uuidv4 } from "uuid";
+
 import {
-  ActionTemplateSchema,
   ActionExecutionStrategy,
+  ActionTemplateSchema,
 } from "../../generated/flowcraft/v1/core/action_pb";
-import { NodeRegistry, type ActionHandlerContext } from "../registry";
-import { serverGraph, incrementVersion } from "../db";
 import { NodeSchema } from "../../generated/flowcraft/v1/core/node_pb";
 import { MutationListSchema } from "../../generated/flowcraft/v1/core/service_pb";
-import { v4 as uuidv4 } from "uuid";
 import { fromProtoNode, toProtoNode } from "../../utils/protoAdapter";
+import { incrementVersion, serverGraph } from "../db";
 import { addChatMessage } from "../db";
+import { type ActionHandlerContext, NodeRegistry } from "../registry";
 
-async function handlePromptGen(ctx: ActionHandlerContext) {
-  const { sourceNodeId, contextNodeIds = [], params, emitMutation } = ctx;
-  const prompt = (params.prompt as string) || "Generate from prompt";
+function handlePromptGen(ctx: ActionHandlerContext): Promise<void> {
+  const { contextNodeIds = [], emitMutation, params, sourceNodeId } = ctx;
+  const prompt =
+    (params.case === "promptGen" ? params.value.prompt : "") ||
+    "Generate from prompt";
 
   const targetNodes = serverGraph.nodes.filter(
     (n) => contextNodeIds.includes(n.id) || n.id === sourceNodeId,
   );
 
   const contextText = targetNodes
-    .map((n) => `[Node ${n.id}]: ${n.data.label || n.data.displayName}`)
+    .map((n) => `[Node ${n.id}]: ${n.data.label ?? "Untitled"}`)
     .join("\n");
 
   const maxY = Math.max(
@@ -35,36 +38,49 @@ async function handlePromptGen(ctx: ActionHandlerContext) {
 
   const userMsgId = uuidv4();
   addChatMessage({
-    id: userMsgId,
-    parentId: null,
-    role: "user",
     content: contextText
       ? `Context:\n${contextText}\n\nPrompt: ${prompt}`
       : prompt,
+    id: userMsgId,
     nodeId: newNodeId,
+    parentId: null,
+    role: "user",
   });
 
   const newNode = fromProtoNode(
     create(NodeSchema, {
       nodeId: newNodeId,
+
       nodeKind: 1,
-      templateId: "tpl-ai-chat",
+
       presentation: {
-        position: { x: avgX, y: maxY + 50 },
-        width: 400,
         height: 500,
+
         isInitialized: true,
+
+        position: { x: avgX, y: maxY + 50 },
+
+        width: 400,
       },
+
       state: {
         displayName: "Prompt Result",
-        metadata: {
-          conversation_head_id: userMsgId,
+
+        extension: {
+          case: "chat",
+
+          value: {
+            conversationHeadId: userMsgId,
+          },
         },
       },
+
+      templateId: "flowcraft.node.ai.conversational",
     }),
   );
 
   serverGraph.nodes.push(newNode);
+
   incrementVersion();
 
   emitMutation(
@@ -74,17 +90,24 @@ async function handlePromptGen(ctx: ActionHandlerContext) {
           operation: { case: "addNode", value: { node: toProtoNode(newNode) } },
         },
       ],
+
       source: 2,
     }),
   );
+
+  return Promise.resolve();
 }
 
 NodeRegistry.registerGlobalAction(
   create(ActionTemplateSchema, {
-    id: "prompt-gen",
+    id: "flowcraft.action.graph.prompt_to_chat",
+
     label: "Generate from Prompt",
+
     path: ["AI Tools"],
+
     strategy: ActionExecutionStrategy.EXECUTION_BACKGROUND,
   }),
+
   handlePromptGen,
 );

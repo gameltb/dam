@@ -1,22 +1,22 @@
 import React from "react";
 
 interface VideoRendererProps {
-  url: string;
   autoPlay?: boolean;
-  muted?: boolean;
   controls?: boolean;
+  muted?: boolean;
   onDimensionsLoad?: (ratio: number) => void;
+  url: string;
 }
 
 export const VideoRenderer: React.FC<VideoRendererProps> = ({
-  url,
   autoPlay = false,
-  muted = true,
   controls = false,
+  muted = true,
   onDimensionsLoad,
+  url,
 }) => {
   const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    const { videoWidth, videoHeight } = e.currentTarget;
+    const { videoHeight, videoWidth } = e.currentTarget;
     if (videoWidth && videoHeight && onDimensionsLoad) {
       onDimensionsLoad(videoWidth / videoHeight);
     }
@@ -25,23 +25,23 @@ export const VideoRenderer: React.FC<VideoRendererProps> = ({
   return (
     <div
       style={{
-        width: "100%",
-        height: "100%",
-        display: "flex",
         alignItems: "center",
+        display: "flex",
+        height: "100%",
         justifyContent: "center",
         overflow: "hidden",
+        width: "100%",
       }}
     >
       <video
-        src={url}
         autoPlay={autoPlay}
-        muted={muted}
         controls={controls}
-        onLoadedMetadata={handleLoadedMetadata}
-        loop
         draggable={false}
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        loop
+        muted={muted}
+        onLoadedMetadata={handleLoadedMetadata}
+        src={url}
+        style={{ height: "100%", objectFit: "cover", width: "100%" }}
       />
     </div>
   );

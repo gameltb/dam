@@ -1,66 +1,68 @@
-import React, { useState } from "react";
 import { type Node as RFNode } from "@xyflow/react";
-import { RenderMode } from "../../generated/flowcraft/v1/core/node_pb";
+import React, { useState } from "react";
+
 import type { DynamicNodeData } from "../../types";
-import { NodeInfoPanel } from "./NodeInfoPanel";
+
+import { RenderMode } from "../../generated/flowcraft/v1/core/node_pb";
 import { cn } from "../../lib/utils";
+import { NodeInfoPanel } from "./NodeInfoPanel";
 
 export interface BaseNodeProps<T extends RFNode> {
-  id: string;
   data: T["data"];
-  type?: string;
-  selected?: boolean;
-  width?: number;
+  handles?: React.ReactNode;
   height?: number;
-  x?: number;
-  y?: number;
-  measured?: { width?: number; height?: number };
-  style?: React.CSSProperties;
+  id: string;
   initialMode?: RenderMode;
-  renderMedia?: React.ComponentType<{
-    id: string;
-    data: T["data"];
-    onOverflowChange: (overflow: "visible" | "hidden") => void;
-  }>;
-  renderWidgets?: React.ComponentType<{
-    id: string;
-    data: T["data"];
-    onToggleMode: () => void;
-  }>;
+  measured?: { height?: number; width?: number };
+  onOverflowChange?: (overflow: "hidden" | "visible") => void;
   renderChat?: React.ComponentType<{
-    id: string;
     data: T["data"];
+    id: string;
     updateNodeData: (nodeId: string, data: Partial<DynamicNodeData>) => void;
   }>;
-  handles?: React.ReactNode;
-  wrapperStyle?: React.CSSProperties;
-  onOverflowChange?: (overflow: "visible" | "hidden") => void;
+  renderMedia?: React.ComponentType<{
+    data: T["data"];
+    id: string;
+    onOverflowChange: (overflow: "hidden" | "visible") => void;
+  }>;
+  renderWidgets?: React.ComponentType<{
+    data: T["data"];
+    id: string;
+    onToggleMode: () => void;
+  }>;
+  selected?: boolean;
+  style?: React.CSSProperties;
+  type?: string;
   updateNodeData?: (nodeId: string, data: Partial<DynamicNodeData>) => void;
+  width?: number;
+  wrapperStyle?: React.CSSProperties;
+  x?: number;
+  y?: number;
 }
 
 export function BaseNode<T extends RFNode>({
-  id,
   data,
-  type,
-  selected,
-  measured,
-  width,
+  handles,
   height,
-  x,
-  y,
+  id,
   initialMode = RenderMode.MODE_WIDGETS,
+  measured,
+  onOverflowChange,
+  renderChat: RenderChat,
   renderMedia: RenderMedia,
   renderWidgets: RenderWidgets,
-  renderChat: RenderChat,
-  handles,
-  wrapperStyle,
-  onOverflowChange,
+  selected,
+  type,
   updateNodeData,
+  width,
+  wrapperStyle,
+  x,
+  y,
   ...rest
 }: BaseNodeProps<T>) {
   const [internalMode, setInternalMode] = useState<RenderMode>(initialMode);
   // Default to visible so handles are never cut off
-  const [overflow, setOverflow] = useState<"visible" | "hidden">("visible");
+  const [overflow, setOverflow] = useState<"hidden" | "visible">("visible");
 
   const mode = (data as DynamicNodeData).activeMode ?? internalMode;
   const isMedia = mode === RenderMode.MODE_MEDIA;
@@ -87,7 +89,7 @@ export function BaseNode<T extends RFNode>({
     }
   };
 
-  const handleOverflowChange = (newOverflow: "visible" | "hidden") => {
+  const handleOverflowChange = (newOverflow: "hidden" | "visible") => {
     setOverflow(newOverflow);
     onOverflowChange?.(newOverflow);
   };
@@ -96,10 +98,10 @@ export function BaseNode<T extends RFNode>({
     <>
       {selected && (
         <NodeInfoPanel
+          height={measured?.height ?? height ?? 0}
           nodeId={id}
           templateId={nodeType}
           width={measured?.width ?? width ?? 0}
-          height={measured?.height ?? height ?? 0}
           x={x ?? 0}
           y={y ?? 0}
         />
@@ -116,23 +118,23 @@ export function BaseNode<T extends RFNode>({
       >
         {isMedia && RenderMedia && (
           <RenderMedia
-            id={id}
             data={data as DynamicNodeData}
+            id={id}
             {...rest}
             onOverflowChange={handleOverflowChange}
           />
         )}
         {isChat && RenderChat && updateNodeData && (
           <RenderChat
-            id={id}
             data={data as DynamicNodeData}
+            id={id}
             updateNodeData={updateNodeData}
           />
         )}
         {!isMedia && !isChat && RenderWidgets && (
           <RenderWidgets
-            id={id}
             data={data as DynamicNodeData}
+            id={id}
             {...rest}
             onToggleMode={toggleMode}
           />

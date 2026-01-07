@@ -1,21 +1,6 @@
+import { CheckIcon, GlobeIcon } from "lucide-react";
 import React, { useState } from "react";
-import { GlobeIcon, CheckIcon } from "lucide-react";
-import {
-  PromptInput,
-  PromptInputTextarea,
-  PromptInputSubmit,
-  PromptInputTools,
-  PromptInputBody,
-  PromptInputFooter,
-  type PromptInputMessage,
-  PromptInputButton,
-  PromptInputAttachments,
-  PromptInputAttachment,
-  PromptInputActionAddAttachments,
-  PromptInputActionMenu,
-  PromptInputActionMenuTrigger,
-  PromptInputActionMenuContent,
-} from "../../ai-elements/prompt-input";
+
 import {
   ModelSelector,
   ModelSelectorContent,
@@ -25,21 +10,37 @@ import {
   ModelSelectorName,
   ModelSelectorTrigger,
 } from "../../ai-elements/model-selector";
+import {
+  PromptInput,
+  PromptInputActionAddAttachments,
+  PromptInputActionMenu,
+  PromptInputActionMenuContent,
+  PromptInputActionMenuTrigger,
+  PromptInputAttachment,
+  PromptInputAttachments,
+  PromptInputBody,
+  PromptInputButton,
+  PromptInputFooter,
+  type PromptInputMessage,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
+} from "../../ai-elements/prompt-input";
 import { Suggestion, Suggestions } from "../../ai-elements/suggestion";
 import { type ChatStatus, type ContextNode } from "./types";
 
 const MODELS = [
-  { id: "gpt-4o", name: "GPT-4o", chefSlug: "openai", providers: ["openai"] },
+  { chefSlug: "openai", id: "gpt-4o", name: "GPT-4o", providers: ["openai"] },
   {
+    chefSlug: "openai",
     id: "gpt-4o-mini",
     name: "GPT-4o Mini",
-    chefSlug: "openai",
     providers: ["openai"],
   },
   {
+    chefSlug: "anthropic",
     id: "claude-3-5-sonnet",
     name: "Claude 3.5 Sonnet",
-    chefSlug: "anthropic",
     providers: ["anthropic"],
   },
 ];
@@ -51,25 +52,25 @@ const SUGGESTIONS = [
 ];
 
 interface Props {
-  status: ChatStatus;
-  onSubmit: (msg: PromptInputMessage, model: string, search: boolean) => void;
   droppedNodes: ContextNode[];
-  setDroppedNodes: (n: ContextNode[]) => void;
-  selectedModel: string;
   onModelChange: (m: string) => void;
-  useWebSearch: boolean;
+  onSubmit: (msg: PromptInputMessage, model: string, search: boolean) => void;
   onWebSearchChange: (v: boolean) => void;
+  selectedModel: string;
+  setDroppedNodes: (n: ContextNode[]) => void;
+  status: ChatStatus;
+  useWebSearch: boolean;
 }
 
 export const ChatInputArea: React.FC<Props> = ({
-  status,
-  onSubmit,
   droppedNodes,
-  setDroppedNodes,
-  selectedModel,
   onModelChange,
-  useWebSearch,
+  onSubmit,
   onWebSearchChange,
+  selectedModel,
+  setDroppedNodes,
+  status,
+  useWebSearch,
 }) => {
   const [inputText, setInputText] = useState("");
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
@@ -86,15 +87,15 @@ export const ChatInputArea: React.FC<Props> = ({
           <div className="flex flex-wrap gap-2 px-2">
             {droppedNodes.map((n) => (
               <div
-                key={n.id}
                 className="group flex items-center gap-1.5 bg-primary/10 text-primary px-2 py-1 rounded-md text-xs border border-primary/20"
+                key={n.id}
               >
                 <span>{n.label}</span>
                 <button
+                  className="hover:text-destructive"
                   onClick={() => {
                     setDroppedNodes(droppedNodes.filter((i) => i.id !== n.id));
                   }}
-                  className="hover:text-destructive"
                 >
                   ×
                 </button>
@@ -108,7 +109,7 @@ export const ChatInputArea: React.FC<Props> = ({
             <Suggestion
               key={s}
               onClick={() => {
-                onSubmit({ text: s, files: [] }, selectedModel, useWebSearch);
+                onSubmit({ files: [], text: s }, selectedModel, useWebSearch);
               }}
               suggestion={s}
             />
@@ -118,16 +119,16 @@ export const ChatInputArea: React.FC<Props> = ({
         <div className="px-2 pb-2">
           <PromptInput onSubmit={handleSubmit}>
             <PromptInputAttachments>
-              {(f) => <PromptInputAttachment key={f.id} data={f} />}
+              {(f) => <PromptInputAttachment data={f} key={f.id} />}
             </PromptInputAttachments>
             <PromptInputBody>
               <PromptInputTextarea
-                placeholder="Ask anything..."
+                className="min-h-[44px]"
                 onChange={(e) => {
                   setInputText(e.target.value);
                 }}
+                placeholder="Ask anything..."
                 value={inputText}
-                className="min-h-[44px]"
               />
             </PromptInputBody>
             <PromptInputFooter>
@@ -147,8 +148,8 @@ export const ChatInputArea: React.FC<Props> = ({
                   <GlobeIcon size={14} />
                 </PromptInputButton>
                 <ModelSelector
-                  open={modelSelectorOpen}
                   onOpenChange={setModelSelectorOpen}
+                  open={modelSelectorOpen}
                 >
                   <ModelSelectorTrigger asChild>
                     <PromptInputButton>
@@ -163,11 +164,11 @@ export const ChatInputArea: React.FC<Props> = ({
                         {MODELS.map((m) => (
                           <ModelSelectorItem
                             key={m.id}
-                            value={m.id}
                             onSelect={() => {
                               onModelChange(m.id);
                               setModelSelectorOpen(false);
                             }}
+                            value={m.id}
                           >
                             <ModelSelectorName>{m.name}</ModelSelectorName>
                             {selectedModel === m.id && (

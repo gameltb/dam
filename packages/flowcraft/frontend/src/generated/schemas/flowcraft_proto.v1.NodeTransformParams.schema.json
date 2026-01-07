@@ -1,17 +1,15 @@
 {
-  "$id": "flowcraft.v1.params.NodeTransformParams.schema.json",
+  "$id": "flowcraft_proto.v1.NodeTransformParams.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "*\n 基于选中节点上下文生成内容的参数",
   "properties": {
     "instruction": {
       "default": "",
-      "description": "用户输入的指令或提示词",
       "type": "string"
     },
     "style": {
       "default": "",
-      "description": "生成风格",
       "type": "string"
     }
   },

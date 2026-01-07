@@ -1,13 +1,14 @@
-import React, { useState, useCallback } from "react";
+import React, { useCallback, useState } from "react";
+import { toast } from "react-hot-toast";
+
 import { useNodeStream } from "../../hooks/useNodeStream";
 import { useFlowStore } from "../../store/flowStore";
 import { type DynamicNodeData } from "../../types";
-import { type ContextNode, type ChatStatus } from "./chat/types";
-import { useChatHistory } from "./chat/useChatHistory";
-import { useChatActions } from "./chat/useChatActions";
 import { ChatConversationArea } from "./chat/ChatConversationArea";
 import { ChatInputArea } from "./chat/ChatInputArea";
-import { toast } from "react-hot-toast";
+import { type ChatStatus, type ContextNode } from "./chat/types";
+import { useChatActions } from "./chat/useChatActions";
+import { useChatHistory } from "./chat/useChatHistory";
 
 interface ChatBotProps {
   nodeId: string;
@@ -17,10 +18,10 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
   const node = useFlowStore((s) => s.nodes.find((n) => n.id === nodeId));
   const updateNodeData = useFlowStore((s) => s.updateNodeData);
   const data = node?.data as DynamicNodeData;
-  const metadata = (data?.metadata || {}) as Record<string, unknown>;
-  const conversationHeadId = metadata.conversation_head_id as
-    | string
-    | undefined;
+  const conversationHeadId =
+    data.extension?.case === "chat"
+      ? data.extension.value.conversationHeadId
+      : undefined;
 
   const [status, setStatus] = useState<ChatStatus>("ready");
   const [streamingContent, setStreamingContent] = useState("");
@@ -38,26 +39,26 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
   // 2. 流式处理
   useNodeStream(
     nodeId,
-    useCallback(
-      (chunk, isDone) => {
-        if (isDone) {
-          setStatus("ready");
-          setStreamingContent("");
-          setIsUploading(false);
-        } else {
-          setStatus("streaming");
-          setStreamingContent((prev) => prev + chunk);
-        }
-      },
-      [nodeId],
-    ),
+    useCallback((chunk, isDone) => {
+      if (isDone) {
+        setStatus("ready");
+        setStreamingContent("");
+        setIsUploading(false);
+      } else {
+        setStatus("streaming");
+        setStreamingContent((prev) => prev + chunk);
+      }
+    }, []),
   );
 
   const handleRegenerate = (index: number) => {
     const targetMsg = history[index];
     if (targetMsg) {
       updateNodeData(nodeId, {
-        metadata: { ...metadata, conversation_head_id: targetMsg.id },
+        extension: {
+          case: "chat",
+          value: { conversationHeadId: targetMsg.id, isHistoryCleared: false },
+        },
       });
       toast.success("Rolled back to this point.");
     }
@@ -69,9 +70,11 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
 
     const prevMsg = idx > 0 ? history[idx - 1] : null;
     const newHead = prevMsg ? prevMsg.id : "";
-
     updateNodeData(nodeId, {
-      metadata: { ...metadata, conversation_head_id: newHead },
+      extension: {
+        case: "chat",
+        value: { conversationHeadId: newHead, isHistoryCleared: false },
+      },
     });
     // Optimistically update history
     setHistory(history.slice(0, idx));
@@ -86,9 +89,11 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
 
     // Rollback to parent
     updateNodeData(nodeId, {
-      metadata: { ...metadata, conversation_head_id: newHead },
+      extension: {
+        case: "chat",
+        value: { conversationHeadId: newHead, isHistoryCleared: false },
+      },
     });
-
     // Optimistically truncate history
     const slicedHistory = history.slice(0, idx);
     setHistory(slicedHistory);
@@ -132,24 +137,24 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
     >
       <ChatConversationArea
         history={history}
-        streamingContent={streamingContent}
-        status={status}
         isUploading={isUploading}
-        onRegenerate={handleRegenerate}
         onDelete={handleDeleteMessage}
         onEdit={handleEdit}
+        onRegenerate={handleRegenerate}
+        status={status}
+        streamingContent={streamingContent}
       />
       <ChatInputArea
-        status={status}
         droppedNodes={droppedNodes}
-        setDroppedNodes={setDroppedNodes}
-        selectedModel={selectedModel}
         onModelChange={setSelectedModel}
-        useWebSearch={useWebSearch}
-        onWebSearchChange={setUseWebSearch}
         onSubmit={(msg, model, search) => {
           void sendMessage(msg.text, model, search, msg.files, droppedNodes);
         }}
+        onWebSearchChange={setUseWebSearch}
+        selectedModel={selectedModel}
+        setDroppedNodes={setDroppedNodes}
+        status={status}
+        useWebSearch={useWebSearch}
       />
     </div>
   );

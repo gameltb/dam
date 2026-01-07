@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package flowcraft_proto.v1;
 
+import "google/protobuf/struct.proto";
+
 enum ActionExecutionStrategy {
   EXECUTION_IMMEDIATE = 0;
   EXECUTION_BACKGROUND = 1;
@@ -13,7 +15,7 @@ message ActionTemplate {
   string label = 2;
   repeated string path = 3;
   ActionExecutionStrategy strategy = 4;
-  string params_schema_json = 5; // JSON Schema for required inputs
+  google.protobuf.Struct params_schema = 5; // JSON Schema for required inputs
 }
 
 message ActionDiscoveryRequest {
@@ -25,9 +27,22 @@ message ActionDiscoveryResponse {
   repeated ActionTemplate actions = 1;
 }
 
+import "flowcraft/v1/actions/ai.proto";
+import "flowcraft/v1/actions/chat.proto";
+
 message ActionExecutionRequest {
   string action_id = 1;
   string source_node_id = 2;
   repeated string context_node_ids = 3;
-  string params_json = 4;
+  
+  // Strong-typed parameters
+  oneof params {
+    google.protobuf.Struct params_struct = 10; // Fallback for dynamic/unmapped actions
+    
+    // AI Related
+    PromptGenParams prompt_gen = 20;
+    NodeTransformParams transform = 21;
+    ImageEnhanceParams enhance = 22;
+    ChatActionParams chat_generate = 23;
+  }
 }

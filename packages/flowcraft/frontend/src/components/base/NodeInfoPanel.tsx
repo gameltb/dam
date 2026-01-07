@@ -1,20 +1,21 @@
 import React from "react";
+
 import { cn } from "../../lib/utils";
 
 interface NodeInfoPanelProps {
+  height: number;
   nodeId: string;
   templateId: string;
   width: number;
-  height: number;
   x: number;
   y: number;
 }
 
 export const NodeInfoPanel: React.FC<NodeInfoPanelProps> = ({
+  height,
   nodeId,
   templateId,
   width,
-  height,
   x,
   y,
 }) => (

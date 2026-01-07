@@ -1,46 +1,48 @@
-import { useCallback, useState, useEffect } from "react";
+import type { Edge, Node } from "@xyflow/react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-import type { Node, Edge } from "@xyflow/react";
+
+import { useCallback, useEffect, useState } from "react";
+
 import { useFlowStore } from "../store/flowStore";
-import { type MediaType, FlowEvent } from "../types";
+import { FlowEvent, type MediaType } from "../types";
 
 export const useContextMenu = (): {
-  contextMenu: {
-    x: number;
-    y: number;
-    nodeId?: string;
-    edgeId?: string;
-    galleryItemUrl?: string;
-    galleryItemType?: MediaType;
-  } | null;
-  onPaneContextMenu: (event: ReactMouseEvent | MouseEvent) => void;
-  onNodeContextMenu: (event: ReactMouseEvent, node: Node) => void;
-  onEdgeContextMenu: (event: ReactMouseEvent, edge: Edge) => void;
-  onSelectionContextMenu: (event: ReactMouseEvent) => void;
-  onPaneClick: () => void;
   closeContextMenu: () => void;
   closeContextMenuAndClear: () => void;
+  contextMenu: null | {
+    edgeId?: string;
+    galleryItemType?: MediaType;
+    galleryItemUrl?: string;
+    nodeId?: string;
+    x: number;
+    y: number;
+  };
+  onEdgeContextMenu: (event: ReactMouseEvent, edge: Edge) => void;
+  onNodeContextMenu: (event: ReactMouseEvent, node: Node) => void;
   onNodeDragStop: () => void;
+  onPaneClick: () => void;
+  onPaneContextMenu: (event: MouseEvent | ReactMouseEvent) => void;
+  onSelectionContextMenu: (event: ReactMouseEvent) => void;
   setContextMenu: React.Dispatch<
-    React.SetStateAction<{
+    React.SetStateAction<null | {
+      edgeId?: string;
+      galleryItemType?: MediaType;
+      galleryItemUrl?: string;
+      nodeId?: string;
       x: number;
       y: number;
-      nodeId?: string;
-      edgeId?: string;
-      galleryItemUrl?: string;
-      galleryItemType?: MediaType;
-    } | null>
+    }>
   >;
 } => {
   const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
-  const [contextMenu, setContextMenu] = useState<{
+  const [contextMenu, setContextMenu] = useState<null | {
+    edgeId?: string;
+    galleryItemType?: MediaType;
+    galleryItemUrl?: string;
+    nodeId?: string;
     x: number;
     y: number;
-    nodeId?: string;
-    edgeId?: string;
-    galleryItemUrl?: string;
-    galleryItemType?: MediaType;
-  } | null>(null);
+  }>(null);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -62,7 +64,7 @@ export const useContextMenu = (): {
   }, [contextMenu]);
 
   const onPaneContextMenu = useCallback(
-    (event: ReactMouseEvent | MouseEvent) => {
+    (event: MouseEvent | ReactMouseEvent) => {
       const target = event.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
         event.stopPropagation();
@@ -91,7 +93,7 @@ export const useContextMenu = (): {
       }
 
       event.preventDefault();
-      setContextMenu({ x: event.clientX, y: event.clientY, nodeId: node.id });
+      setContextMenu({ nodeId: node.id, x: event.clientX, y: event.clientY });
     },
     [],
   );
@@ -105,7 +107,7 @@ export const useContextMenu = (): {
       }
 
       event.preventDefault();
-      setContextMenu({ x: event.clientX, y: event.clientY, edgeId: edge.id });
+      setContextMenu({ edgeId: edge.id, x: event.clientX, y: event.clientY });
     },
     [],
   );
@@ -142,15 +144,15 @@ export const useContextMenu = (): {
   }, []);
 
   return {
-    contextMenu,
-    onPaneContextMenu,
-    onNodeContextMenu,
-    onEdgeContextMenu,
-    onSelectionContextMenu,
-    onPaneClick,
     closeContextMenu,
     closeContextMenuAndClear,
+    contextMenu,
+    onEdgeContextMenu,
+    onNodeContextMenu,
     onNodeDragStop,
+    onPaneClick,
+    onPaneContextMenu,
+    onSelectionContextMenu,
     setContextMenu,
   };
 };

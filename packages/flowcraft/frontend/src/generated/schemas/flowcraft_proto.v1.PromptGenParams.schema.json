@@ -1,5 +1,5 @@
 {
-  "$id": "flowcraft.v1.params.PromptGenParams.schema.json",
+  "$id": "flowcraft_proto.v1.PromptGenParams.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "*\n AI 提示词生成动作的参数",
@@ -23,12 +23,10 @@
           "type": "string"
         }
       ],
-      "default": 0,
-      "description": "引导系数"
+      "default": 0
     },
     "^(negativePrompt)$": {
       "default": "",
-      "description": "负向提示词",
       "type": "string"
     }
   },
@@ -52,17 +50,14 @@
           "type": "string"
         }
       ],
-      "default": 0,
-      "description": "引导系数"
+      "default": 0
     },
     "negative_prompt": {
       "default": "",
-      "description": "负向提示词",
       "type": "string"
     },
     "prompt": {
       "default": "",
-      "description": "正向提示词",
       "type": "string"
     },
     "steps": {
@@ -77,8 +72,7 @@
           "type": "string"
         }
       ],
-      "default": 0,
-      "description": "生成步数"
+      "default": 0
     }
   },
   "title": "Prompt Gen Params",

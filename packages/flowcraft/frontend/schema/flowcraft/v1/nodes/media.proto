@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package flowcraft_proto.v1;
+
+message VisualNodeState {
+  string url = 1;
+  string mime_type = 2;
+  string alt_text = 3;
+}
+
+message DocumentNodeState {
+  string content = 1;
+  string mime_type = 2;
+}
+
+message AcousticNodeState {
+  string url = 1;
+  float duration = 2;
+}

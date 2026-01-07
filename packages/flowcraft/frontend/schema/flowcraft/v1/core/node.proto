@@ -2,7 +2,11 @@ syntax = "proto3";
 
 package flowcraft_proto.v1;
 
+import "google/protobuf/struct.proto";
 import "flowcraft/v1/core/base.proto";
+import "flowcraft/v1/nodes/chat.proto";
+import "flowcraft/v1/nodes/ai_gen.proto";
+import "flowcraft/v1/nodes/media.proto";
 
 message Node {
   string node_id = 1;           // UUID Instance ID
@@ -23,7 +27,7 @@ message NodeTemplate {
   NodeData default_state = 4;
   int32 default_width = 5;
   int32 default_height = 6;
-  string widgets_schema_json = 7; // JSON Schema for all widgets in this node
+  google.protobuf.Struct widgets_schema = 7; // JSON Schema for all widgets in this node
 }
 
 message NodeData {
@@ -36,10 +40,19 @@ message NodeData {
   repeated Port input_ports = 6;
   repeated Port output_ports = 7;
   
-  map<string, string> metadata = 8;
+  map<string, string> metadata = 8; // Still keep for general small markers
   string task_id = 11;
-  string widgets_values_json = 12; // JSON values for schema-driven widgets
-  string widgets_schema_json = 13; // Optional override schema at node level
+  google.protobuf.Struct widgets_values = 12; // Values for schema-driven widgets
+  google.protobuf.Struct widgets_schema = 13; // Optional override schema at node level
+
+  // Node Type Specific Extensions
+  oneof extension {
+    ChatNodeState chat = 20;
+    AiGenNodeState ai_gen = 21;
+    VisualNodeState visual = 22;
+    DocumentNodeState document = 23;
+    AcousticNodeState acoustic = 24;
+  }
 }
 
 enum RenderMode {
@@ -92,7 +105,7 @@ message Widget {
   string id = 1;
   WidgetType type = 2;
   string label = 3;
-  string value_json = 4; 
+  google.protobuf.Value value = 4; 
   WidgetConfig config = 5;
   repeated WidgetOption options = 6;
   bool is_readonly = 7;
@@ -146,5 +159,5 @@ message TaskUpdate {
   TaskStatus status = 2;
   double progress = 3;
   string message = 4;
-  string result_json = 5;
+  google.protobuf.Value result = 5;
 }

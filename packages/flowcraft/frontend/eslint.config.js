@@ -5,6 +5,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 import prettier from "eslint-plugin-prettier/recommended";
 import unusedImports from "eslint-plugin-unused-imports";
+import perfectionist from "eslint-plugin-perfectionist";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
@@ -22,10 +23,11 @@ export default defineConfig([
     },
     extends: [
       js.configs.recommended,
-      ...tseslint.configs.strictTypeChecked,
-      ...tseslint.configs.stylisticTypeChecked,
+      tseslint.configs.strictTypeChecked,
+      tseslint.configs.stylisticTypeChecked,
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
+      perfectionist.configs["recommended-natural"],
     ],
     languageOptions: {
       ecmaVersion: "latest",

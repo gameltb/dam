@@ -1,16 +1,17 @@
 import React from "react";
+
 import { cn } from "../../lib/utils";
 
 export interface MenuContainerProps {
+  children: React.ReactNode;
   x: number;
   y: number;
-  children: React.ReactNode;
 }
 
 export const MenuContainer: React.FC<MenuContainerProps> = ({
+  children,
   x,
   y,
-  children,
 }) => (
   <div
     className={cn(
@@ -18,8 +19,8 @@ export const MenuContainer: React.FC<MenuContainerProps> = ({
       "context-menu-container",
     )}
     style={{
-      top: y,
       left: x,
+      top: y,
     }}
   >
     {children}

@@ -1,45 +1,46 @@
 import React, { useState } from "react";
+
 import { type NodeTemplate } from "../../types";
 
 export interface MenuNode {
-  label: string;
-  template?: NodeTemplate;
   action?: { id: string; name: string; onClick: () => void };
   children?: MenuNode[];
+  label: string;
+  template?: NodeTemplate;
 }
 
 export const GenericSubMenu: React.FC<{
+  depth?: number;
   label: string;
   nodes: MenuNode[];
   onAdd?: (tpl: NodeTemplate) => void;
-  depth?: number;
-}> = ({ label, nodes, onAdd, depth = 0 }) => {
+}> = ({ depth = 0, label, nodes, onAdd }) => {
   const [isOpen, setIsExpanded] = useState(false);
 
   const itemStyle: React.CSSProperties = {
-    padding: "8px 12px",
-    cursor: "pointer",
-    fontSize: "12px",
-    color: "var(--text-color)",
-    display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: "8px",
-    transition: "background 0.2s",
-    position: "relative",
-    width: "100%",
     boxSizing: "border-box",
+    color: "var(--text-color)",
+    cursor: "pointer",
+    display: "flex",
+    fontSize: "12px",
+    gap: "8px",
+    justifyContent: "space-between",
+    padding: "8px 12px",
+    position: "relative",
+    transition: "background 0.2s",
+    width: "100%",
   };
 
   return (
     <div
-      style={{ position: "relative", width: "100%" }}
       onMouseEnter={() => {
         setIsExpanded(true);
       }}
       onMouseLeave={() => {
         setIsExpanded(false);
       }}
+      style={{ position: "relative", width: "100%" }}
     >
       <div
         style={{
@@ -54,16 +55,16 @@ export const GenericSubMenu: React.FC<{
       {isOpen && (
         <div
           style={{
-            position: "absolute",
-            left: "100%",
-            top: 0,
+            backdropFilter: "blur(10px)",
             backgroundColor: "var(--panel-bg)",
             border: "1px solid var(--node-border)",
             borderRadius: "8px",
             boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+            left: "100%",
             minWidth: "160px",
             padding: "4px 0",
-            backdropFilter: "blur(10px)",
+            position: "absolute",
+            top: 0,
             zIndex: 1001 + depth,
           }}
         >
@@ -71,11 +72,11 @@ export const GenericSubMenu: React.FC<{
             if (node.children && node.children.length > 0) {
               return (
                 <GenericSubMenu
+                  depth={depth + 1}
                   key={`${node.label}-${String(i)}`}
                   label={node.label}
                   nodes={node.children}
                   onAdd={onAdd}
-                  depth={depth + 1}
                 />
               );
             }
@@ -84,7 +85,9 @@ export const GenericSubMenu: React.FC<{
               return (
                 <div
                   key={tpl.templateId}
-                  style={itemStyle}
+                  onClick={() => {
+                    onAdd(tpl);
+                  }}
                   onMouseEnter={(e) =>
                     (e.currentTarget.style.backgroundColor =
                       "rgba(100, 108, 255, 0.15)")
@@ -92,9 +95,7 @@ export const GenericSubMenu: React.FC<{
                   onMouseLeave={(e) =>
                     (e.currentTarget.style.backgroundColor = "transparent")
                   }
-                  onClick={() => {
-                    onAdd(tpl);
-                  }}
+                  style={itemStyle}
                 >
                   + {node.label}
                 </div>
@@ -105,7 +106,7 @@ export const GenericSubMenu: React.FC<{
               return (
                 <div
                   key={action.id}
-                  style={itemStyle}
+                  onClick={action.onClick}
                   onMouseEnter={(e) =>
                     (e.currentTarget.style.backgroundColor =
                       "rgba(100, 108, 255, 0.15)")
@@ -113,7 +114,7 @@ export const GenericSubMenu: React.FC<{
                   onMouseLeave={(e) =>
                     (e.currentTarget.style.backgroundColor = "transparent")
                   }
-                  onClick={action.onClick}
+                  style={itemStyle}
                 >
                   ⚡ {node.label}
                 </div>
@@ -128,10 +129,10 @@ export const GenericSubMenu: React.FC<{
 };
 
 export const NodeSubMenu: React.FC<{
+  depth?: number;
   label: string;
   nodes: MenuNode[];
   onAdd: (tpl: NodeTemplate) => void;
-  depth?: number;
-}> = ({ label, nodes, onAdd, depth = 0 }) => (
-  <GenericSubMenu label={label} nodes={nodes} onAdd={onAdd} depth={depth} />
+}> = ({ depth = 0, label, nodes, onAdd }) => (
+  <GenericSubMenu depth={depth} label={label} nodes={nodes} onAdd={onAdd} />
 );

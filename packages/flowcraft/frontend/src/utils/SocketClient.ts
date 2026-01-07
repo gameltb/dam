@@ -1,74 +1,175 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { createClient, ConnectError, Code } from "@connectrpc/connect";
 import { toast } from "react-hot-toast";
-import {
-  FlowService,
-  type FlowMessage,
-  type SyncRequest,
-  type GraphSnapshot,
-  type GraphMutation,
-  type StreamChunk,
-  type TemplateDiscoveryResponse,
-} from "../generated/flowcraft/v1/core/service_pb";
-import { type TaskUpdate } from "../generated/flowcraft/v1/core/node_pb";
-import { type WidgetSignal } from "../generated/flowcraft/v1/core/signals_pb";
+
 import { type ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
-import { type TaskDefinition, MutationSource } from "../types";
+import { type TaskUpdate } from "../generated/flowcraft/v1/core/node_pb";
+import {
+  type FlowMessage,
+  FlowService,
+  type GraphMutation,
+  type GraphSnapshot,
+  type NodeEvent,
+  type SyncRequest,
+  type TemplateDiscoveryResponse,
+  type WidgetStreamEvent,
+} from "../generated/flowcraft/v1/core/service_pb";
+import { type WidgetSignal } from "../generated/flowcraft/v1/core/signals_pb";
+import { MutationSource, type TaskDefinition } from "../types";
 
 export enum SocketStatus {
-  DISCONNECTED = "disconnected",
-  CONNECTING = "connecting",
-  INITIALIZING = "initializing",
   CONNECTED = "connected",
+  CONNECTING = "connecting",
+  DISCONNECTED = "disconnected",
   ERROR = "error",
+  INITIALIZING = "initializing",
 }
 
-interface SocketEvents {
-  snapshot: (data: GraphSnapshot) => void;
-  yjsUpdate: (data: Uint8Array) => void;
-  mutations: (data: GraphMutation[]) => void;
-  actions: (data: ActionTemplate[]) => void;
-  taskUpdate: (data: TaskDefinition) => void;
-  widgetSignal: (data: WidgetSignal) => void;
-  streamChunk: (data: StreamChunk) => void;
-  templates: (data: TemplateDiscoveryResponse) => void;
-  error: (error: unknown) => void;
-  statusChange: (status: SocketStatus) => void;
-}
+type Handler<K extends keyof SocketEventMap> = (
+  data: SocketEventMap[K],
+) => void;
 
-type Handler<K extends keyof SocketEvents> = SocketEvents[K];
-
-function mapTaskUpdateToDefinition(update: TaskUpdate): TaskDefinition {
-  return {
-    taskId: update.taskId,
-    type: "remote-task",
-    label: update.message,
-    source: MutationSource.SOURCE_REMOTE_TASK,
-    status: update.status,
-    progress: update.progress,
-    message: update.message,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    mutationIds: [],
+interface SocketEventMap {
+  actions: ActionTemplate[];
+  error: unknown;
+  mutations: GraphMutation[];
+  nodeEvent: NodeEvent;
+  "nodeEvent:widgetStream": {
+    event: WidgetStreamEvent;
+    nodeId: string;
   };
+  snapshot: GraphSnapshot;
+  statusChange: SocketStatus;
+  taskUpdate: TaskDefinition;
+  templates: TemplateDiscoveryResponse;
+  widgetSignal: WidgetSignal;
+  yjsUpdate: Uint8Array;
 }
 
 class SocketClientImpl {
-  private handlers: Partial<{ [K in keyof SocketEvents]: Handler<K>[] }> = {};
-  private streamHandlers: Record<string, (chunk: string) => void> = {};
   private activeStreamAbort: AbortController | null = null;
   private currentBaseUrl =
     typeof window !== "undefined"
       ? window.location.origin
       : "http://localhost:3000";
-  private currentStatus: SocketStatus = SocketStatus.DISCONNECTED;
-
   private transport = createConnectTransport({
     baseUrl: this.currentBaseUrl,
   });
-
   private client = createClient(FlowService, this.transport);
+
+  private currentStatus: SocketStatus = SocketStatus.DISCONNECTED;
+
+  private handlers: Partial<{ [K in keyof SocketEventMap]: Handler<K>[] }> = {};
+
+  async getChatHistory(headId: string) {
+    try {
+      return await this.client.getChatHistory({ headId });
+    } catch (e) {
+      console.error("[SocketClient] Failed to get chat history:", e);
+      throw e;
+    }
+  }
+
+  public getStatus() {
+    return this.currentStatus;
+  }
+
+  off<K extends keyof SocketEventMap>(event: K, handler: Handler<K>) {
+    const list = this.handlers[event];
+    if (!list) return;
+    // @ts-expect-error - TS cannot verify generic key assignment in Partial record
+    this.handlers[event] = list.filter((h) => h !== handler);
+  }
+
+  on<K extends keyof SocketEventMap>(event: K, handler: Handler<K>) {
+    let list = this.handlers[event];
+    if (!list) {
+      list = [];
+      this.handlers[event] = list as (typeof this.handlers)[K];
+    }
+    list.push(handler);
+  }
+
+  async send(wrapper: { payload: FlowMessage["payload"] }) {
+    const payload = wrapper.payload;
+    if (payload.case === undefined) return;
+
+    try {
+      switch (payload.case) {
+        case "actionDiscovery": {
+          const res = await this.client.discoverActions(payload.value);
+          this.emit("actions", res.actions);
+          break;
+        }
+
+        case "actionExecute":
+          await this.client.executeAction(payload.value);
+          break;
+
+        case "actions":
+        case "error":
+        case "nodeEvent":
+        case "snapshot":
+        case "taskUpdate":
+        case "templates":
+          console.warn(
+            `[SocketClient] Client tried to send server-only message type: ${payload.case}`,
+          );
+          break;
+
+        case "mutations": {
+          await this.client.applyMutations(payload.value);
+          break;
+        }
+
+        case "nodeUpdate":
+          await this.client.updateNode(payload.value);
+          break;
+
+        case "syncRequest":
+          void this.startStream(payload.value);
+          break;
+
+        case "taskCancel":
+          await this.client.cancelTask(payload.value);
+          break;
+
+        case "templateDiscovery": {
+          const res = await this.client.discoverTemplates(payload.value);
+          this.emit("templates", res);
+          break;
+        }
+
+        case "viewportUpdate":
+          await this.client.updateViewport(payload.value);
+          break;
+
+        case "widgetSignal":
+          await this.client.sendWidgetSignal(payload.value);
+          break;
+
+        case "widgetUpdate":
+          await this.client.updateWidget(payload.value);
+          break;
+
+        case "yjsUpdate":
+          // Client rarely sends Yjs updates directly via send, but it's possible
+          break;
+
+        default: {
+          // Use type narrowing to ensure all cases are handled
+          const _exhaustiveCheck: never = payload;
+          return _exhaustiveCheck;
+        }
+      }
+    } catch (e) {
+      console.error("gRPC Error:", e);
+      toast.error(
+        `Operation failed: ${e instanceof Error ? e.message : "Unknown error"}`,
+      );
+      this.emit("error", e);
+    }
+  }
 
   public updateBaseUrl(newUrl: string) {
     if (!newUrl) return;
@@ -102,120 +203,68 @@ class SocketClientImpl {
     }
   }
 
-  public getStatus() {
-    return this.currentStatus;
-  }
-
-  private setStatus(status: SocketStatus) {
-    this.currentStatus = status;
-    this.emit("statusChange", status);
-  }
-
-  on<K extends keyof SocketEvents>(event: K, handler: Handler<K>) {
-    if (!this.handlers[event]) {
-      this.handlers[event] = [] as any;
-    }
-    this.handlers[event]!.push(handler);
-  }
-
-  off<K extends keyof SocketEvents>(event: K, handler: Handler<K>) {
-    const list = this.handlers[event];
-    if (!list) return;
-    this.handlers[event] = list.filter((h) => h !== handler) as any;
-  }
-
-  private emit<K extends keyof SocketEvents>(
+  private emit<K extends keyof SocketEventMap>(
     event: K,
-    data: Parameters<SocketEvents[K]>[0],
+    data: SocketEventMap[K],
   ) {
     const handlers = this.handlers[event];
     if (handlers) {
-      (handlers as ((arg: typeof data) => void)[]).forEach((h) => {
+      handlers.forEach((h: Handler<K>) => {
         h(data);
       });
     }
   }
 
-  registerStreamHandler(
-    nodeId: string,
-    widgetId: string,
-    handler: (chunk: string) => void,
-  ) {
-    this.streamHandlers[`${nodeId}-${widgetId}`] = handler;
-  }
+  private handleIncomingMessage(msg: FlowMessage) {
+    const payload = msg.payload;
+    if (payload.case === undefined) return;
 
-  async getChatHistory(headId: string) {
-    try {
-      return await this.client.getChatHistory({ headId });
-    } catch (e) {
-      console.error("[SocketClient] Failed to get chat history:", e);
-      throw e;
-    }
-  }
+    switch (payload.case) {
+      case "actions":
+        this.emit("actions", payload.value.actions);
+        break;
+      case "mutations":
+        this.emit("mutations", payload.value.mutations);
+        break;
+      case "nodeEvent": {
+        const event = payload.value;
+        this.emit("nodeEvent", event);
 
-  async send(wrapper: { payload: FlowMessage["payload"] }) {
-    if (wrapper.payload.case === undefined) return;
-
-    try {
-      switch (wrapper.payload.case) {
-        case "syncRequest":
-          void this.startStream(wrapper.payload.value);
-          break;
-
-        case "nodeUpdate":
-          await this.client.updateNode(wrapper.payload.value);
-          break;
-
-        case "widgetUpdate":
-          await this.client.updateWidget(wrapper.payload.value);
-          break;
-
-        case "widgetSignal":
-          await this.client.sendWidgetSignal(wrapper.payload.value);
-          break;
-
-        case "actionExecute":
-          await this.client.executeAction(wrapper.payload.value);
-          break;
-
-        case "actionDiscovery": {
-          const res = await this.client.discoverActions(wrapper.payload.value);
-          this.emit("actions", res.actions);
-          break;
+        // Dispatch granular events based on payload case
+        if (event.payload.case === "widgetStream") {
+          this.emit("nodeEvent:widgetStream", {
+            event: event.payload.value,
+            nodeId: event.nodeId,
+          });
         }
-
-        case "mutations": {
-          await this.client.applyMutations(wrapper.payload.value);
-          break;
-        }
-
-        case "templateDiscovery": {
-          const res = await this.client.discoverTemplates(
-            wrapper.payload.value,
-          );
-          this.emit("templates", res);
-          break;
-        }
-
-        case "taskCancel":
-          await this.client.cancelTask(wrapper.payload.value);
-          break;
-
-        case "viewportUpdate":
-          await this.client.updateViewport(wrapper.payload.value);
-          break;
-
-        default:
-          // Use type narrowing to ensure all cases are handled if possible
-          console.warn("Unknown message type:", (wrapper.payload as any).case);
+        break;
       }
-    } catch (e) {
-      console.error("gRPC Error:", e);
-      toast.error(
-        `Operation failed: ${e instanceof Error ? e.message : "Unknown error"}`,
-      );
-      this.emit("error", e);
+      case "snapshot":
+        this.emit("snapshot", payload.value);
+        break;
+      case "taskUpdate":
+        this.emit("taskUpdate", mapTaskUpdateToDefinition(payload.value));
+        break;
+      case "templates":
+        this.emit("templates", payload.value);
+        break;
+      case "widgetSignal": {
+        const signal = payload.value;
+        void import("../store/flowStore").then(({ useFlowStore }) => {
+          useFlowStore.getState().handleIncomingWidgetSignal(signal);
+        });
+        this.emit("widgetSignal", signal);
+        break;
+      }
+      case "yjsUpdate":
+        this.emit("yjsUpdate", payload.value);
+        break;
     }
+  }
+
+  private setStatus(status: SocketStatus) {
+    this.currentStatus = status;
+    this.emit("statusChange", status);
   }
 
   private async startStream(req: SyncRequest) {
@@ -246,7 +295,7 @@ class SocketClientImpl {
         // After first message (usually snapshot), if we are still initializing, set to connected
         if (this.currentStatus === SocketStatus.INITIALIZING) {
           this.setStatus(SocketStatus.CONNECTED);
-          toast.success("Ready", { id: toastId, duration: 2000 });
+          toast.success("Ready", { duration: 2000, id: toastId });
         }
       }
     } catch (e) {
@@ -262,8 +311,8 @@ class SocketClientImpl {
       if (e instanceof ConnectError) {
         console.error("ConnectError Details:", {
           code: e.code,
-          message: e.message,
           details: e.details,
+          message: e.message,
           rawMessage: e.rawMessage,
         });
       }
@@ -282,52 +331,21 @@ class SocketClientImpl {
       }
     }
   }
+}
 
-  private handleIncomingMessage(msg: FlowMessage) {
-    const payload = msg.payload;
-    if (payload.case === undefined) return;
-
-    switch (payload.case) {
-      case "snapshot":
-        this.emit("snapshot", payload.value);
-        break;
-      case "yjsUpdate":
-        this.emit("yjsUpdate", payload.value);
-        break;
-      case "mutations":
-        this.emit("mutations", payload.value.mutations);
-        break;
-      case "actions":
-        this.emit("actions", payload.value.actions);
-        break;
-      case "templates":
-        this.emit("templates", payload.value);
-        break;
-      case "taskUpdate":
-        this.emit("taskUpdate", mapTaskUpdateToDefinition(payload.value));
-        break;
-      case "widgetSignal": {
-        const signal = payload.value;
-        void import("../store/flowStore").then(({ useFlowStore }) => {
-          useFlowStore.getState().handleIncomingWidgetSignal(signal);
-        });
-        this.emit("widgetSignal", signal);
-        break;
-      }
-      case "streamChunk": {
-        const val = payload.value;
-        const nodeId = val.nodeId;
-        const widgetId = val.widgetId;
-        const handlerKey = `${nodeId}-${widgetId}`;
-        const handler = this.streamHandlers[handlerKey];
-        if (handler) {
-          handler(val.chunkData);
-        }
-        this.emit("streamChunk", val);
-        break;
-      }
-    }
-  }
+function mapTaskUpdateToDefinition(update: TaskUpdate): TaskDefinition {
+  return {
+    createdAt: Date.now(),
+    label: update.message,
+    message: update.message,
+    mutationIds: [],
+    progress: update.progress,
+    source: MutationSource.SOURCE_REMOTE_TASK,
+    status: update.status,
+    taskId: update.taskId,
+    type: "remote-task",
+    updatedAt: Date.now(),
+  };
 }
 
 export const socketClient = new SocketClientImpl();

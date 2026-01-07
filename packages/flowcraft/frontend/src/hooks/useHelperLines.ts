@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
 import { type Node, type XYPosition } from "@xyflow/react";
+import { useCallback, useState } from "react";
 
 export interface HelperLines {
   horizontal?: number;
@@ -12,14 +12,14 @@ const SNAP_DISTANCE = 10;
  * Hook to calculate snapping and helper lines using absolute coordinates.
  */
 export function useHelperLines(): {
-  helperLines: HelperLines;
-  setHelperLines: React.Dispatch<React.SetStateAction<HelperLines>>;
   calculateLines: (
     draggingNode: Node,
     allNodes: Node[],
     shouldUpdateState: boolean,
     overriddenPosition?: XYPosition,
-  ) => { snappedPosition: XYPosition; helperLines: HelperLines };
+  ) => { helperLines: HelperLines; snappedPosition: XYPosition };
+  helperLines: HelperLines;
+  setHelperLines: React.Dispatch<React.SetStateAction<HelperLines>>;
 } {
   const [helperLines, setHelperLines] = useState<HelperLines>({});
 
@@ -71,19 +71,19 @@ export function useHelperLines(): {
       );
 
       const draggingRect = {
-        width: draggingNode.measured?.width ?? 0,
         height: draggingNode.measured?.height ?? 0,
+        width: draggingNode.measured?.width ?? 0,
         x: draggingAbsPos.x,
         y: draggingAbsPos.y,
       };
 
       const draggingNodes = [
-        { x: draggingRect.x, type: "left" },
-        { x: draggingRect.x + draggingRect.width / 2, type: "v-center" },
-        { x: draggingRect.x + draggingRect.width, type: "right" },
-        { y: draggingRect.y, type: "top" },
-        { y: draggingRect.y + draggingRect.height / 2, type: "h-center" },
-        { y: draggingRect.y + draggingRect.height, type: "bottom" },
+        { type: "left", x: draggingRect.x },
+        { type: "v-center", x: draggingRect.x + draggingRect.width / 2 },
+        { type: "right", x: draggingRect.x + draggingRect.width },
+        { type: "top", y: draggingRect.y },
+        { type: "h-center", y: draggingRect.y + draggingRect.height / 2 },
+        { type: "bottom", y: draggingRect.y + draggingRect.height },
       ];
 
       // Final snapped absolute position
@@ -92,19 +92,19 @@ export function useHelperLines(): {
       for (const node of targetNodesForSnapping) {
         const nodeAbsPos = getAbsolutePosition(node, allNodes);
         const nodeRect = {
-          width: node.measured?.width ?? 0,
           height: node.measured?.height ?? 0,
+          width: node.measured?.width ?? 0,
           x: nodeAbsPos.x,
           y: nodeAbsPos.y,
         };
 
         const targetNodes = [
-          { x: nodeRect.x, type: "left" },
-          { x: nodeRect.x + nodeRect.width / 2, type: "v-center" },
-          { x: nodeRect.x + nodeRect.width, type: "right" },
-          { y: nodeRect.y, type: "top" },
-          { y: nodeRect.y + nodeRect.height / 2, type: "h-center" },
-          { y: nodeRect.y + nodeRect.height, type: "bottom" },
+          { type: "left", x: nodeRect.x },
+          { type: "v-center", x: nodeRect.x + nodeRect.width / 2 },
+          { type: "right", x: nodeRect.x + nodeRect.width },
+          { type: "top", y: nodeRect.y },
+          { type: "h-center", y: nodeRect.y + nodeRect.height / 2 },
+          { type: "bottom", y: nodeRect.y + nodeRect.height },
         ];
 
         // Snap X
@@ -154,14 +154,14 @@ export function useHelperLines(): {
           snappedRelativePos.y -= parentAbsPos.y;
         }
       }
-      return { snappedPosition: snappedRelativePos, helperLines: result };
+      return { helperLines: result, snappedPosition: snappedRelativePos };
     },
     [],
   );
 
   return {
+    calculateLines,
     helperLines,
     setHelperLines,
-    calculateLines,
   };
 }

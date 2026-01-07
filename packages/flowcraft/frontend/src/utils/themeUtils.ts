@@ -9,18 +9,18 @@ export const getPortColor = (type?: ClientPort["type"]): string => {
 
   // 使用 mainType 作为主要 Key
   const typeMap: Record<string, string> = {
-    string: "var(--port-color-string, #4caf50)",
-    number: "var(--port-color-number, #2196f3)",
-    boolean: "var(--port-color-boolean, #f44336)",
-    image: "var(--port-color-image, #9c27b0)",
-    video: "var(--port-color-video, #673ab7)",
     audio: "var(--port-color-audio, #3f51b5)",
-    model: "var(--port-color-model, #ff9800)",
-    tensor: "var(--port-color-tensor, #ffeb3b)",
+    boolean: "var(--port-color-boolean, #f44336)",
     exec: "var(--port-color-exec, #ffffff)",
+    image: "var(--port-color-image, #9c27b0)",
+    model: "var(--port-color-model, #ff9800)",
+    number: "var(--port-color-number, #2196f3)",
+    string: "var(--port-color-string, #4caf50)",
+    tensor: "var(--port-color-tensor, #ffeb3b)",
+    video: "var(--port-color-video, #673ab7)",
   };
 
-  const mainTypeStr = type.mainType ?? "any";
+  const mainTypeStr = type.mainType;
   const baseColor =
     typeMap[mainTypeStr.toLowerCase()] ?? "var(--port-color-default, #9e9e9e)";
 
@@ -34,7 +34,7 @@ export const getPortColor = (type?: ClientPort["type"]): string => {
 export const getPortShape = (type?: ClientPort["type"]): PortStyle => {
   if (!type) return PortStyle.CIRCLE;
 
-  const mainTypeStr = type.mainType ?? "any";
+  const mainTypeStr = type.mainType;
   if (mainTypeStr.toLowerCase() === "exec") {
     return PortStyle.DASH; // 执行流通常使用特殊形状
   }

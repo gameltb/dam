@@ -1,24 +1,25 @@
-import React, { memo } from "react";
 import { useNodeConnections } from "@xyflow/react";
-import { PortHandle } from "../base/PortHandle";
+import React, { memo } from "react";
+
 import { type ClientPort } from "../../types";
 import { getPortColor, getPortShape } from "../../utils/themeUtils";
+import { PortHandle } from "../base/PortHandle";
 
 interface PortLabelRowProps {
-  nodeId: string;
   inputPort?: ClientPort;
+  nodeId: string;
   outputPort?: ClientPort;
 }
 
 export const PortLabelRow: React.FC<PortLabelRowProps> = memo(
-  ({ nodeId, inputPort, outputPort }) => {
+  ({ inputPort, nodeId, outputPort }) => {
     const inputConnections = useNodeConnections({
-      handleType: "target",
       handleId: inputPort?.id,
+      handleType: "target",
     });
     const outputConnections = useNodeConnections({
-      handleType: "source",
       handleId: outputPort?.id,
+      handleType: "source",
     });
 
     const isInputConnected = inputConnections.length > 0;
@@ -27,48 +28,48 @@ export const PortLabelRow: React.FC<PortLabelRowProps> = memo(
     return (
       <div
         style={{
-          display: "flex",
           alignItems: "center",
-          height: "24px",
-          position: "relative",
-          width: "100%",
           boxSizing: "border-box",
+          display: "flex",
+          height: "24px",
           justifyContent: "space-between",
           padding: "0 12px",
+          position: "relative",
+          width: "100%",
         }}
       >
         <div
           style={{
-            display: "flex",
             alignItems: "center",
-            gap: "8px",
+            display: "flex",
             flex: 1,
+            gap: "8px",
+            height: "100%",
             minWidth: 0,
             position: "relative",
-            height: "100%",
           }}
         >
           {inputPort && (
             <>
               <PortHandle
-                nodeId={nodeId}
-                portId={inputPort.id}
-                type="target"
-                style={getPortShape(inputPort.type)}
                 color={getPortColor(inputPort.type)}
                 description={inputPort.description}
+                nodeId={nodeId}
+                portId={inputPort.id}
                 sideOffset={12}
+                style={getPortShape(inputPort.type)}
+                type="target"
               />
               {inputPort.label && (
                 <div
                   style={{
+                    color: "var(--text-color)",
                     fontSize: "11px",
                     fontWeight: 600,
-                    color: "var(--text-color)",
-                    whiteSpace: "nowrap",
+                    opacity: isInputConnected ? 1 : 0.6,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
-                    opacity: isInputConnected ? 1 : 0.6,
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {inputPort.label}
@@ -80,15 +81,15 @@ export const PortLabelRow: React.FC<PortLabelRowProps> = memo(
 
         <div
           style={{
-            display: "flex",
             alignItems: "center",
-            gap: "8px",
+            display: "flex",
             flex: 1,
-            minWidth: 0,
-            justifyContent: "flex-end",
-            textAlign: "right",
-            position: "relative",
+            gap: "8px",
             height: "100%",
+            justifyContent: "flex-end",
+            minWidth: 0,
+            position: "relative",
+            textAlign: "right",
           }}
         >
           {outputPort && (
@@ -96,26 +97,26 @@ export const PortLabelRow: React.FC<PortLabelRowProps> = memo(
               {outputPort.label && (
                 <div
                   style={{
+                    color: "var(--text-color)",
                     fontSize: "11px",
                     fontWeight: 600,
-                    color: "var(--text-color)",
-                    whiteSpace: "nowrap",
+                    opacity: isOutputConnected ? 1 : 0.6,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
-                    opacity: isOutputConnected ? 1 : 0.6,
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {outputPort.label}
                 </div>
               )}
               <PortHandle
-                nodeId={nodeId}
-                portId={outputPort.id}
-                type="source"
-                style={getPortShape(outputPort.type)}
                 color={getPortColor(outputPort.type)}
                 description={outputPort.description}
+                nodeId={nodeId}
+                portId={outputPort.id}
                 sideOffset={12}
+                style={getPortShape(outputPort.type)}
+                type="source"
               />
             </>
           )}{" "}

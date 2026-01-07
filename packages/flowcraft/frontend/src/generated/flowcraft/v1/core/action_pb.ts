@@ -4,13 +4,18 @@
 
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Message } from "@bufbuild/protobuf";
+import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
+import type { ImageEnhanceParams, NodeTransformParams, PromptGenParams } from "../actions/ai_pb";
+import { file_flowcraft_v1_actions_ai } from "../actions/ai_pb";
+import type { ChatActionParams } from "../actions/chat_pb";
+import { file_flowcraft_v1_actions_chat } from "../actions/chat_pb";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file flowcraft/v1/core/action.proto.
  */
 export const file_flowcraft_v1_core_action: GenFile = /*@__PURE__*/
-  fileDesc("Ch5mbG93Y3JhZnQvdjEvY29yZS9hY3Rpb24ucHJvdG8SEmZsb3djcmFmdF9wcm90by52MSKUAQoOQWN0aW9uVGVtcGxhdGUSCgoCaWQYASABKAkSDQoFbGFiZWwYAiABKAkSDAoEcGF0aBgDIAMoCRI9CghzdHJhdGVneRgEIAEoDjIrLmZsb3djcmFmdF9wcm90by52MS5BY3Rpb25FeGVjdXRpb25TdHJhdGVneRIaChJwYXJhbXNfc2NoZW1hX2pzb24YBSABKAkiRAoWQWN0aW9uRGlzY292ZXJ5UmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEhkKEXNlbGVjdGVkX25vZGVfaWRzGAIgAygJIk4KF0FjdGlvbkRpc2NvdmVyeVJlc3BvbnNlEjMKB2FjdGlvbnMYASADKAsyIi5mbG93Y3JhZnRfcHJvdG8udjEuQWN0aW9uVGVtcGxhdGUicgoWQWN0aW9uRXhlY3V0aW9uUmVxdWVzdBIRCglhY3Rpb25faWQYASABKAkSFgoOc291cmNlX25vZGVfaWQYAiABKAkSGAoQY29udGV4dF9ub2RlX2lkcxgDIAMoCRITCgtwYXJhbXNfanNvbhgEIAEoCSplChdBY3Rpb25FeGVjdXRpb25TdHJhdGVneRIXChNFWEVDVVRJT05fSU1NRURJQVRFEAASGAoURVhFQ1VUSU9OX0JBQ0tHUk9VTkQQARIXChNFWEVDVVRJT05fU1RSRUFNSU5HEAJiBnByb3RvMw");
+  fileDesc("Ch5mbG93Y3JhZnQvdjEvY29yZS9hY3Rpb24ucHJvdG8SEmZsb3djcmFmdF9wcm90by52MSKoAQoOQWN0aW9uVGVtcGxhdGUSCgoCaWQYASABKAkSDQoFbGFiZWwYAiABKAkSDAoEcGF0aBgDIAMoCRI9CghzdHJhdGVneRgEIAEoDjIrLmZsb3djcmFmdF9wcm90by52MS5BY3Rpb25FeGVjdXRpb25TdHJhdGVneRIuCg1wYXJhbXNfc2NoZW1hGAUgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCJEChZBY3Rpb25EaXNjb3ZlcnlSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSGQoRc2VsZWN0ZWRfbm9kZV9pZHMYAiADKAkiTgoXQWN0aW9uRGlzY292ZXJ5UmVzcG9uc2USMwoHYWN0aW9ucxgBIAMoCzIiLmZsb3djcmFmdF9wcm90by52MS5BY3Rpb25UZW1wbGF0ZSKMAwoWQWN0aW9uRXhlY3V0aW9uUmVxdWVzdBIRCglhY3Rpb25faWQYASABKAkSFgoOc291cmNlX25vZGVfaWQYAiABKAkSGAoQY29udGV4dF9ub2RlX2lkcxgDIAMoCRIwCg1wYXJhbXNfc3RydWN0GAogASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEgAEjkKCnByb21wdF9nZW4YFCABKAsyIy5mbG93Y3JhZnRfcHJvdG8udjEuUHJvbXB0R2VuUGFyYW1zSAASPAoJdHJhbnNmb3JtGBUgASgLMicuZmxvd2NyYWZ0X3Byb3RvLnYxLk5vZGVUcmFuc2Zvcm1QYXJhbXNIABI5CgdlbmhhbmNlGBYgASgLMiYuZmxvd2NyYWZ0X3Byb3RvLnYxLkltYWdlRW5oYW5jZVBhcmFtc0gAEj0KDWNoYXRfZ2VuZXJhdGUYFyABKAsyJC5mbG93Y3JhZnRfcHJvdG8udjEuQ2hhdEFjdGlvblBhcmFtc0gAQggKBnBhcmFtcyplChdBY3Rpb25FeGVjdXRpb25TdHJhdGVneRIXChNFWEVDVVRJT05fSU1NRURJQVRFEAASGAoURVhFQ1VUSU9OX0JBQ0tHUk9VTkQQARIXChNFWEVDVVRJT05fU1RSRUFNSU5HEAJiBnByb3RvMw", [file_google_protobuf_struct, file_flowcraft_v1_actions_ai, file_flowcraft_v1_actions_chat]);
 
 /**
  * @generated from message flowcraft_proto.v1.ActionTemplate
@@ -39,9 +44,9 @@ export type ActionTemplate = Message<"flowcraft_proto.v1.ActionTemplate"> & {
   /**
    * JSON Schema for required inputs
    *
-   * @generated from field: string params_schema_json = 5;
+   * @generated from field: google.protobuf.Struct params_schema = 5;
    */
-  paramsSchemaJson: string;
+  paramsSchema?: JsonObject;
 };
 
 /**
@@ -110,9 +115,45 @@ export type ActionExecutionRequest = Message<"flowcraft_proto.v1.ActionExecution
   contextNodeIds: string[];
 
   /**
-   * @generated from field: string params_json = 4;
+   * Strong-typed parameters
+   *
+   * @generated from oneof flowcraft_proto.v1.ActionExecutionRequest.params
    */
-  paramsJson: string;
+  params: {
+    /**
+     * Fallback for dynamic/unmapped actions
+     *
+     * @generated from field: google.protobuf.Struct params_struct = 10;
+     */
+    value: JsonObject;
+    case: "paramsStruct";
+  } | {
+    /**
+     * AI Related
+     *
+     * @generated from field: flowcraft_proto.v1.PromptGenParams prompt_gen = 20;
+     */
+    value: PromptGenParams;
+    case: "promptGen";
+  } | {
+    /**
+     * @generated from field: flowcraft_proto.v1.NodeTransformParams transform = 21;
+     */
+    value: NodeTransformParams;
+    case: "transform";
+  } | {
+    /**
+     * @generated from field: flowcraft_proto.v1.ImageEnhanceParams enhance = 22;
+     */
+    value: ImageEnhanceParams;
+    case: "enhance";
+  } | {
+    /**
+     * @generated from field: flowcraft_proto.v1.ChatActionParams chat_generate = 23;
+     */
+    value: ChatActionParams;
+    case: "chatGenerate";
+  } | { case: undefined; value?: undefined };
 };
 
 /**

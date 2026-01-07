@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react";
-import { type ChatMessage } from "./types";
+import { useEffect, useRef, useState } from "react";
+
 import { socketClient } from "../../../utils/SocketClient";
+import { type ChatMessage } from "./types";
 
 export function useChatHistory(conversationHeadId: string | undefined) {
   const [history, setHistory] = useState<ChatMessage[]>([]);
@@ -49,12 +50,27 @@ export function useChatHistory(conversationHeadId: string | undefined) {
       setIsLoading(true);
       try {
         const res = await socketClient.getChatHistory(conversationHeadId);
-        const mapped: ChatMessage[] = res.entries.map((m) => ({
-          id: m.id,
-          role: m.role as any,
-          content: m.content,
-          createdAt: Number(m.timestamp),
-        }));
+        const mapped: ChatMessage[] = res.entries.map((m) => {
+          let metadata: unknown = {};
+          if (m.metadata.case === "chatMetadata") {
+            metadata = {
+              attachments: m.metadata.value.attachmentUrls,
+              modelId: m.metadata.value.modelId,
+            };
+          } else if (m.metadata.case === "metadataStruct") {
+            metadata = m.metadata.value;
+          }
+
+          return {
+            content: m.content,
+            createdAt: Number(m.timestamp),
+            id: m.id,
+            metadata,
+            role: (["assistant", "system", "user"].includes(m.role)
+              ? m.role
+              : "user") as "assistant" | "system" | "user",
+          };
+        });
         setHistory(mapped);
       } catch (e) {
         console.error("[useChatHistory] Failed to fetch:", e);
@@ -66,5 +82,5 @@ export function useChatHistory(conversationHeadId: string | undefined) {
     void fetchHistory();
   }, [conversationHeadId]);
 
-  return { history, setHistory, isLoading };
+  return { history, isLoading, setHistory };
 }

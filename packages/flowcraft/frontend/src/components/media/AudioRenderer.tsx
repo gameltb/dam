@@ -1,59 +1,59 @@
 import React from "react";
 
 interface AudioRendererProps {
-  url: string;
   autoPlay?: boolean;
   controls?: boolean;
+  url: string;
 }
 
 export const AudioRenderer: React.FC<AudioRendererProps> = ({
-  url,
   autoPlay = false,
   controls = true,
+  url,
 }) => {
   return (
     <div
       style={{
-        width: "100%",
-        height: "100%",
+        alignItems: "center",
         backgroundColor: "#1a1a1a",
+        borderRadius: "inherit",
+        boxSizing: "border-box",
+        containerType: "size",
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "8px 12px",
-        boxSizing: "border-box",
-        borderRadius: "inherit",
         gap: "8px",
+        height: "100%",
+        justifyContent: "center",
         overflow: "hidden",
-        containerType: "size",
+        padding: "8px 12px",
+        width: "100%",
       }}
     >
       {/* Audio Icon / Visualizer Placeholder - Hide if too short */}
       <div
+        className="audio-icon"
         style={{
-          minHeight: "32px",
-          minWidth: "32px",
+          alignItems: "center",
+          backgroundColor: "rgba(255,255,255,0.1)",
+          borderRadius: "50%",
+          display: "flex",
+          flex: 1,
+          fontSize: "20px",
+          justifyContent: "center",
           maxHeight: "48px",
           maxWidth: "48px",
-          flex: 1,
-          borderRadius: "50%",
-          backgroundColor: "rgba(255,255,255,0.1)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "20px",
+          minHeight: "32px",
+          minWidth: "32px",
           overflow: "hidden",
         }}
-        className="audio-icon"
       >
         🎵
       </div>
       <audio
-        src={url}
         autoPlay={autoPlay}
         controls={controls}
-        style={{ width: "100%", height: "32px", minHeight: "32px" }}
+        src={url}
+        style={{ height: "32px", minHeight: "32px", width: "100%" }}
       />
       <style>{`
         /* Hide icon if node height is too small to fit both safely */

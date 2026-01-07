@@ -1,21 +1,21 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { v4 as uuidv4 } from "uuid";
 import { create } from "@bufbuild/protobuf";
-import {
-  WidgetType,
-  RenderMode,
-  MediaType,
-  PortStyle,
-  NodeTemplateSchema,
-} from "../generated/flowcraft/v1/core/node_pb";
+import { v4 as uuidv4 } from "uuid";
+
 import { PortMainType } from "../generated/flowcraft/v1/core/base_pb";
 import {
+  MediaType,
+  NodeTemplateSchema,
+  PortStyle,
+  RenderMode,
+  WidgetType,
+} from "../generated/flowcraft/v1/core/node_pb";
+import {
   type AppNode,
+  AppNodeType,
   type Edge,
   type NodeTemplate,
-  AppNodeType,
 } from "../types";
-import { toProtoNodeData, fromProtoNodeData } from "../utils/protoAdapter";
+import { fromProtoNodeData, toProtoNodeData } from "../utils/protoAdapter";
 
 export const createNode = (
   id: string,
@@ -28,39 +28,39 @@ export const createNode = (
 ): AppNode => {
   const data = fromProtoNodeData(
     toProtoNodeData({
-      typeId: typeId ?? "test-node",
+      activeMode: RenderMode.MODE_WIDGETS,
+      inputPorts: [],
       label,
       modes: [RenderMode.MODE_WIDGETS],
-      activeMode: RenderMode.MODE_WIDGETS,
-      widgets: [],
-      inputPorts: [],
       outputPorts: [],
+      typeId: typeId ?? "test-node",
+      widgets: [],
     }),
   );
 
   return {
-    id,
-    type: AppNodeType.DYNAMIC,
-    position: { x, y },
-    style: { width, height },
-    measured: { width, height },
     data,
+    id,
+    measured: { height, width },
+    position: { x, y },
+    style: { height, width },
+    type: AppNodeType.DYNAMIC,
   } as AppNode;
 };
 
 export const nodeTemplates: NodeTemplate[] = [
   create(NodeTemplateSchema, {
-    templateId: "widgets-all",
-    displayName: "Widget Showcase",
-    menuPath: ["Test"],
     defaultState: toProtoNodeData({
+      activeMode: RenderMode.MODE_WIDGETS,
       label: "Widget Showcase",
       modes: [RenderMode.MODE_WIDGETS],
-      activeMode: RenderMode.MODE_WIDGETS,
       widgets: [
-        { id: "w1", type: WidgetType.WIDGET_TEXT, label: "Text", value: "" },
+        { id: "w1", label: "Text", type: WidgetType.WIDGET_TEXT, value: "" },
       ],
     }),
+    displayName: "Widget Showcase",
+    menuPath: ["Test"],
+    templateId: "widgets-all",
   }),
 ];
 
@@ -76,24 +76,24 @@ export const generateGallery = () => {
   // --- COLUMN 1: ALL WIDGET TYPES ---
   let currY = startY;
   const widgetTypes = [
-    { type: WidgetType.WIDGET_TEXT, label: "Text Field", value: "Hello World" },
+    { label: "Text Field", type: WidgetType.WIDGET_TEXT, value: "Hello World" },
     {
-      type: WidgetType.WIDGET_SELECT,
       label: "Select",
-      value: "opt1",
       options: [
         { label: "Option 1", value: "opt1" },
         { label: "Option 2", value: "opt2" },
       ],
+      type: WidgetType.WIDGET_SELECT,
+      value: "opt1",
     },
-    { type: WidgetType.WIDGET_CHECKBOX, label: "Checkbox", value: true },
+    { label: "Checkbox", type: WidgetType.WIDGET_CHECKBOX, value: true },
     {
-      type: WidgetType.WIDGET_SLIDER,
+      config: { max: 100, min: 0 },
       label: "Slider",
+      type: WidgetType.WIDGET_SLIDER,
       value: 50,
-      config: { min: 0, max: 100 },
     },
-    { type: WidgetType.WIDGET_BUTTON, label: "Button Action", value: "click" },
+    { label: "Button Action", type: WidgetType.WIDGET_BUTTON, value: "click" },
   ];
 
   const widgetNode = createNode(
@@ -131,7 +131,7 @@ export const generateGallery = () => {
     { id: "in-2", label: "Square", style: PortStyle.SQUARE },
     { id: "in-3", label: "Diamond", style: PortStyle.DIAMOND },
     { id: "in-4", label: "Dashed", style: PortStyle.DASH },
-  ] as any;
+  ];
   nodes.push(portStyleNode);
 
   // --- COLUMN 3: PORT SEMANTICS (TYPES) ---
@@ -149,95 +149,105 @@ export const generateGallery = () => {
     {
       id: "it-1",
       label: "String Input",
-      type: { mainType: PortMainType.STRING },
+      style: PortStyle.CIRCLE,
+      type: { isGeneric: false, itemType: "", mainType: PortMainType.STRING },
     },
     {
       id: "it-2",
       label: "Number Input",
-      type: { mainType: PortMainType.NUMBER },
+      style: PortStyle.CIRCLE,
+      type: { isGeneric: false, itemType: "", mainType: PortMainType.NUMBER },
     },
     {
       id: "it-3",
       label: "Image List",
-      type: { mainType: PortMainType.LIST, itemType: "image" },
+      style: PortStyle.CIRCLE,
+      type: {
+        isGeneric: false,
+        itemType: "image",
+        mainType: PortMainType.LIST,
+      },
     },
     {
       id: "it-4",
       label: "Any Type",
-      type: { mainType: PortMainType.ANY },
+      style: PortStyle.CIRCLE,
+      type: { isGeneric: false, itemType: "", mainType: PortMainType.ANY },
     },
     {
       id: "it-5",
       label: "Generic T",
-      type: { mainType: PortMainType.ANY, isGeneric: true },
+      style: PortStyle.CIRCLE,
+      type: { isGeneric: true, itemType: "", mainType: PortMainType.ANY },
     },
-  ] as any;
+  ];
   portTypeNode.data.outputPorts = [
     {
       id: "ot-1",
       label: "",
-      type: { mainType: PortMainType.ANY },
+      style: PortStyle.CIRCLE,
+      type: { isGeneric: false, itemType: "", mainType: PortMainType.ANY },
     },
     {
       id: "ot-2",
       label: "Signal Out",
-      type: { mainType: PortMainType.SYSTEM },
       style: PortStyle.DASH,
+      type: { isGeneric: false, itemType: "", mainType: PortMainType.SYSTEM },
     },
-  ] as any;
+  ];
   nodes.push(portTypeNode);
 
   // --- ROW 2: MEDIA MODES ---
   currY = startY + rowGap;
   const mediaTypes = [
     {
-      id: uuidv4(),
-      templateId: "media-img",
-      label: "Image Renderer",
-      width: 300,
       height: 200,
+      id: uuidv4(),
+      label: "Image Renderer",
       media: {
-        type: MediaType.MEDIA_IMAGE,
-        url: "https://picsum.photos/id/237/400/300",
         galleryUrls: [
           "https://picsum.photos/id/238/400/300",
           "https://picsum.photos/id/239/400/300",
         ],
+        type: MediaType.MEDIA_IMAGE,
+        url: "https://picsum.photos/id/237/400/300",
       },
+      templateId: "media-img",
+      width: 300,
     },
     {
-      id: uuidv4(),
-      templateId: "media-video",
-      label: "Video Renderer",
-      width: 300,
       height: 200,
+      id: uuidv4(),
+      label: "Video Renderer",
       media: {
         type: MediaType.MEDIA_VIDEO,
         url: "https://www.w3schools.com/html/mov_bbb.mp4",
       },
+      templateId: "media-video",
+      width: 300,
     },
     {
-      id: uuidv4(),
-      templateId: "media-audio",
-      label: "Audio Renderer",
-      width: 240,
       height: 110,
+      id: uuidv4(),
+      label: "Audio Renderer",
       media: {
         type: MediaType.MEDIA_AUDIO,
         url: "https://www.w3schools.com/html/horse.mp3",
       },
+      templateId: "media-audio",
+      width: 240,
     },
     {
-      id: uuidv4(),
-      templateId: "media-md",
-      label: "Markdown Renderer",
-      width: 300,
       height: 200,
+      id: uuidv4(),
+      label: "Markdown Renderer",
       media: {
-        type: MediaType.MEDIA_MARKDOWN,
         content:
           "# Markdown Title\n\n- List Item 1\n- List Item 2\n\n**Bold Text** and `code`.",
+        type: MediaType.MEDIA_MARKDOWN,
       },
+      templateId: "media-md",
+      width: 300,
     },
   ];
 
@@ -260,39 +270,40 @@ export const generateGallery = () => {
     let portColor = "#a0aec0";
 
     switch (m.media.type) {
-      case MediaType.MEDIA_IMAGE:
-        portMainType = PortMainType.IMAGE;
-        portColor = "#48bb78";
-        break;
-      case MediaType.MEDIA_VIDEO:
-        portMainType = PortMainType.VIDEO;
-        portColor = "#ed64a6";
-        break;
       case MediaType.MEDIA_AUDIO:
         portMainType = PortMainType.AUDIO;
         portColor = "#4299e1";
+        break;
+      case MediaType.MEDIA_IMAGE:
+        portMainType = PortMainType.IMAGE;
+        portColor = "#48bb78";
         break;
       case MediaType.MEDIA_MARKDOWN:
         portMainType = PortMainType.STRING;
         portColor = "#646cff";
         break;
+      case MediaType.MEDIA_VIDEO:
+        portMainType = PortMainType.VIDEO;
+        portColor = "#ed64a6";
+        break;
     }
 
     node.data.outputPorts = [
       {
+        color: portColor,
         id: "out-1",
         label: "", // Empty label to hide text
-        type: { mainType: portMainType },
-        color: portColor,
+        style: PortStyle.CIRCLE,
+        type: { isGeneric: false, itemType: "", mainType: portMainType },
       },
-    ] as any;
+    ];
 
     // Add some widgets too so we can test switching
     node.data.widgets = [
       {
         id: "sw-1",
-        type: WidgetType.WIDGET_TEXT,
         label: "Description",
+        type: WidgetType.WIDGET_TEXT,
         value: `Setting for ${m.label}`,
       },
     ];
@@ -315,40 +326,40 @@ export const generateGallery = () => {
   implicitNode.data.widgets = [
     {
       id: "linked-widget",
-      type: WidgetType.WIDGET_TEXT,
-      label: "Manual / Remote",
-      value: "Override me via port",
       inputPortId: "widget-port-1",
+      label: "Manual / Remote",
+      type: WidgetType.WIDGET_TEXT,
+      value: "Override me via port",
     },
   ];
-  implicitNode.data.inputPorts = [] as any;
+  implicitNode.data.inputPorts = [];
   nodes.push(implicitNode);
 
   // Large Processing Node (Custom Type)
   const procNode: AppNode = {
-    id: uuidv4(),
-    type: AppNodeType.PROCESSING,
-    position: { x: startX + colGap, y: currY },
-    style: { width: 300, height: 120 },
-    measured: { width: 300, height: 120 },
     data: {
-      taskId: "task-123",
       label: "AI Image Generation",
       progress: 45,
       status: 1, // PROCESSING
+      taskId: "task-123",
     },
+    id: uuidv4(),
+    measured: { height: 120, width: 300 },
+    position: { x: startX + colGap, y: currY },
+    style: { height: 120, width: 300 },
+    type: AppNodeType.PROCESSING,
   } as AppNode;
   nodes.push(procNode);
 
   // Group Node
   const groupId = uuidv4();
   const groupNode: AppNode = {
-    id: groupId,
-    type: AppNodeType.GROUP,
-    position: { x: startX + colGap * 2, y: currY },
-    style: { width: 400, height: 300 },
-    measured: { width: 400, height: 300 },
     data: { label: "Logical Group" },
+    id: groupId,
+    measured: { height: 300, width: 400 },
+    position: { x: startX + colGap * 2, y: currY },
+    style: { height: 300, width: 400 },
+    type: AppNodeType.GROUP,
   } as AppNode;
   nodes.push(groupNode);
 
@@ -373,18 +384,18 @@ export const generateGallery = () => {
   const batcherNode = createNode("batcher-1", "Image Batcher", startX, currY);
   batcherNode.data.inputPorts = [
     {
+      color: "#48bb78",
       id: "in",
       label: "Img",
       type: { mainType: PortMainType.IMAGE },
-      color: "#48bb78",
     },
   ];
   batcherNode.data.outputPorts = [
     {
+      color: "#48bb78",
       id: "out",
       label: "List",
-      type: { mainType: PortMainType.LIST, itemType: "image" },
-      color: "#48bb78",
+      type: { itemType: "image", mainType: PortMainType.LIST },
     },
   ];
   nodes.push(batcherNode);
@@ -398,18 +409,18 @@ export const generateGallery = () => {
   );
   joinerNode.data.inputPorts = [
     {
+      color: "#ecc94b",
       id: "list",
       label: "List",
-      type: { mainType: PortMainType.LIST, isGeneric: true },
-      color: "#ecc94b",
+      type: { isGeneric: true, mainType: PortMainType.LIST },
     },
   ];
   joinerNode.data.outputPorts = [
     {
+      color: "#646cff",
       id: "out",
       label: "Str",
       type: { mainType: PortMainType.STRING },
-      color: "#646cff",
     },
   ];
   nodes.push(joinerNode);
@@ -423,21 +434,21 @@ export const generateGallery = () => {
   );
   passNode.data.inputPorts = [
     {
+      color: "#a0aec0",
       id: "in",
       label: "Any",
-      type: { mainType: PortMainType.ANY, isGeneric: true },
-      color: "#a0aec0",
+      type: { isGeneric: true, mainType: PortMainType.ANY },
     },
   ];
   passNode.data.outputPorts = [
     {
+      color: "#a0aec0",
       id: "out",
       label: "Result",
-      type: { mainType: PortMainType.ANY, isGeneric: true },
-      color: "#a0aec0",
+      type: { isGeneric: true, mainType: PortMainType.ANY },
     },
   ];
   nodes.push(passNode);
 
-  return { nodes, edges };
+  return { edges, nodes };
 };

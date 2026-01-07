@@ -1,38 +1,38 @@
-import { BaseEdge, getBezierPath, type EdgeProps } from "@xyflow/react";
+import { BaseEdge, type EdgeProps, getBezierPath } from "@xyflow/react";
 
 /**
  * Standard edge with support for custom styling and animations.
  */
 export const BaseFlowEdge = ({
+  data,
   id,
+  markerEnd,
+  sourcePosition,
   sourceX,
   sourceY,
+  style = {},
+  targetPosition,
   targetX,
   targetY,
-  sourcePosition,
-  targetPosition,
-  style = {},
-  markerEnd,
-  data,
 }: EdgeProps) => {
   const [edgePath] = getBezierPath({
+    sourcePosition,
     sourceX,
     sourceY,
-    sourcePosition,
+    targetPosition,
     targetX,
     targetY,
-    targetPosition,
   });
 
   return (
     <BaseEdge
       id={id}
-      path={edgePath}
       markerEnd={markerEnd}
+      path={edgePath}
       style={{
         ...style,
-        strokeWidth: 2,
         stroke: (data?.color as string) || "#646cff",
+        strokeWidth: 2,
         transition: "stroke 0.3s, stroke-width 0.3s",
       }}
     />

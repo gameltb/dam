@@ -1,22 +1,24 @@
 import React from "react";
 
 interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  active?: boolean;
   icon: React.ReactNode;
   label?: string;
-  active?: boolean;
 }
 
 export const IconButton: React.FC<IconButtonProps> = ({
+  active,
   icon,
   label,
-  active,
   style,
   ...props
 }) => {
   return (
     <button
       {...props}
+      className={`icon-button ${props.className ?? ""}`}
       style={{
+        alignItems: "center",
         background: active
           ? "rgba(100, 108, 255, 0.2)"
           : "rgba(255, 255, 255, 0.05)",
@@ -24,20 +26,18 @@ export const IconButton: React.FC<IconButtonProps> = ({
         borderColor: active
           ? "rgba(100, 108, 255, 0.4)"
           : "rgba(255, 255, 255, 0.1)",
-        color: active ? "#646cff" : "white",
-        width: "32px",
-        height: "32px",
         borderRadius: "6px",
+        color: active ? "#646cff" : "white",
         cursor: "pointer",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
         fontSize: "16px",
-        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+        height: "32px",
+        justifyContent: "center",
         outline: "none",
+        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+        width: "32px",
         ...style,
       }}
-      className={`icon-button ${props.className ?? ""}`}
       title={label}
     >
       {icon}

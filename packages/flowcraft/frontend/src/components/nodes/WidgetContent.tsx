@@ -1,31 +1,34 @@
+import { type JsonObject } from "@bufbuild/protobuf";
+import { Maximize2, MessageSquare, PanelRight } from "lucide-react";
 import React, { memo } from "react";
+
+import type { DynamicNodeData, WidgetDef } from "../../types";
+
 import { PortStyle } from "../../generated/flowcraft/v1/core/node_pb";
-import type { WidgetDef, DynamicNodeData } from "../../types";
-import { WidgetWrapper } from "../widgets/WidgetWrapper";
-import { PortHandle } from "../base/PortHandle";
 import { useFlowSocket } from "../../hooks/useFlowSocket";
-import { NodeLabel } from "./NodeLabel";
-import { PortLabelRow } from "./PortLabelRow";
 import { useNodeHandlers } from "../../hooks/useNodeHandlers";
-import { FlowcraftRJSF } from "../widgets/FlowcraftRJSF";
+import { cn } from "../../lib/utils";
+import { useUiStore } from "../../store/uiStore";
 import { getSchemaForTemplate } from "../../utils/schemaRegistry";
 import { getPortColor } from "../../utils/themeUtils";
-import { WIDGET_COMPONENTS } from "../widgets/widgetConfigs";
+import { PortHandle } from "../base/PortHandle";
 import { ChatBot } from "../media/ChatBot";
-import { useUiStore } from "../../store/uiStore";
-import { PanelRight, MessageSquare, Maximize2 } from "lucide-react";
 import { Button } from "../ui/button";
-import { cn } from "../../lib/utils";
+import { FlowcraftRJSF } from "../widgets/FlowcraftRJSF";
+import { WIDGET_COMPONENTS } from "../widgets/widgetConfigs";
+import { WidgetWrapper } from "../widgets/WidgetWrapper";
+import { NodeLabel } from "./NodeLabel";
+import { PortLabelRow } from "./PortLabelRow";
 
 interface WidgetRendererProps {
   nodeId: string;
-  widget: WidgetDef;
-  onValueChange: (val: unknown) => void;
   onClick: () => void;
+  onValueChange: (val: unknown) => void;
+  widget: WidgetDef;
 }
 
 const WidgetRenderer: React.FC<WidgetRendererProps> = memo(
-  ({ nodeId, widget, onValueChange, onClick }) => {
+  ({ nodeId, onClick, onValueChange, widget }) => {
     const { updateWidget } = useFlowSocket({ disablePolling: true });
 
     const handleValueChange = (val: unknown) => {
@@ -38,27 +41,27 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = memo(
 
     return (
       <Component
-        nodeId={nodeId}
-        value={widget.value}
-        label={widget.label}
-        options={widget.options}
         config={widget.config}
+        label={widget.label}
+        nodeId={nodeId}
         onChange={handleValueChange}
         onClick={onClick}
+        options={widget.options}
+        value={widget.value}
       />
     );
   },
 );
 
 interface WidgetContentProps {
-  id: string;
   data: DynamicNodeData;
-  selected?: boolean;
+  id: string;
   onToggleMode: () => void;
+  selected?: boolean;
 }
 
 export const WidgetContent: React.FC<WidgetContentProps> = memo(
-  ({ id, data, selected, onToggleMode }) => {
+  ({ data, id, onToggleMode, selected }) => {
     const { onChange, onWidgetClick } = useNodeHandlers(data, selected);
     const { activeChatNodeId, chatViewMode, setActiveChat } = useUiStore();
 
@@ -84,18 +87,18 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
         <NodeLabel
           id={id}
           label={data.label}
-          selected={selected}
           onChange={(nodeId, label) => {
             onChange(nodeId, { label });
           }}
+          selected={selected}
         />
 
         <div className="flex flex-col">
           {portRows.map((row, idx) => (
             <PortLabelRow
+              inputPort={row.input}
               key={idx}
               nodeId={id}
-              inputPort={row.input}
               outputPort={row.output}
             />
           ))}
@@ -105,20 +108,20 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
           {/* Schema-Driven Widgets (RJSF) */}
           {(() => {
             const schema = getSchemaForTemplate(
-              data.typeId || "",
-              data.widgetsSchemaJson,
+              data.typeId ?? "",
+              data.widgetsSchema as JsonObject,
             );
             if (!schema) return null;
 
             return (
               <div className="nodrag nopan">
                 <FlowcraftRJSF
+                  formData={data.widgetsValues ?? {}}
                   nodeId={id}
-                  schema={schema}
-                  formData={data.widgetsValues || {}}
                   onChange={(newValues) => {
                     onChange(id, { widgetsValues: newValues });
                   }}
+                  schema={schema}
                 />
               </div>
             );
@@ -133,19 +136,17 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
                 </span>
                 <div className="flex gap-1">
                   <Button
-                    variant="ghost"
-                    size="icon"
                     className="h-6 w-6"
                     onClick={() => {
                       setActiveChat(id, "fullscreen");
                     }}
+                    size="icon"
                     title="Open Fullscreen"
+                    variant="ghost"
                   >
                     <Maximize2 size={12} />
                   </Button>
                   <Button
-                    variant="ghost"
-                    size="icon"
                     className={cn(
                       "h-6 w-6",
                       isSidebarMode && "text-primary-color bg-primary-color/10",
@@ -153,9 +154,11 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
                     onClick={() => {
                       setActiveChat(isActiveExternally ? null : id, "sidebar");
                     }}
+                    size="icon"
                     title={
                       isSidebarMode ? "Dock back to node" : "Open in sidebar"
                     }
+                    variant="ghost"
                   >
                     <PanelRight size={14} />
                   </Button>
@@ -172,11 +175,11 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
                     Active in {chatViewMode} mode
                   </p>
                   <Button
-                    variant="link"
                     className="h-auto p-0 text-[10px]"
                     onClick={() => {
                       setActiveChat(id, "inline");
                     }}
+                    variant="link"
                   >
                     Restore to node
                   </Button>
@@ -187,32 +190,34 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
 
           {/* Traditional Hardcoded Widgets */}
           {data.widgets?.map((w) => (
-            <div key={w.id} className="relative w-full">
+            <div className="relative w-full" key={w.id}>
               <WidgetWrapper
-                isSwitchable={isSwitchable}
-                onToggleMode={onToggleMode}
                 inputPortId={w.inputPortId}
+                isSwitchable={isSwitchable}
                 nodeId={id}
+                onToggleMode={onToggleMode}
               >
                 <div className="relative w-full">
                   {w.inputPortId && (
                     <PortHandle
-                      nodeId={id}
-                      portId={w.inputPortId}
-                      type="target"
-                      sideOffset={17}
-                      style={PortStyle.CIRCLE}
                       color={getPortColor({
-                        mainType: "string",
-                        itemType: "",
                         isGeneric: false,
+                        itemType: "",
+                        mainType: "string",
                       })}
                       isImplicit={true}
+                      nodeId={id}
+                      portId={w.inputPortId}
+                      sideOffset={17}
+                      style={PortStyle.CIRCLE}
+                      type="target"
                     />
                   )}
                   <WidgetRenderer
                     nodeId={id}
-                    widget={w}
+                    onClick={() => {
+                      onWidgetClick(id, w.id);
+                    }}
                     onValueChange={(val) => {
                       const updatedWidgets = (data.widgets ?? []).map((item) =>
                         item.id === w.id ? { ...item, value: val } : item,
@@ -220,9 +225,7 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
 
                       onChange(id, { widgets: updatedWidgets });
                     }}
-                    onClick={() => {
-                      onWidgetClick(id, w.id);
-                    }}
+                    widget={w}
                   />
                 </div>
               </WidgetWrapper>

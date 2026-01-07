@@ -1,10 +1,11 @@
+import type { Edge } from "@xyflow/react";
+
+import { PortMainType } from "../generated/flowcraft/v1/core/base_pb";
 import {
   type Port,
   type PortType,
 } from "../generated/flowcraft/v1/core/node_pb";
-import { PortMainType } from "../generated/flowcraft/v1/core/base_pb";
 import { PORT_MAIN_TYPE_FROM_PROTO } from "./protoAdapter";
-import type { Edge } from "@xyflow/react";
 
 export interface ConnectionResult {
   canConnect: boolean;
@@ -55,7 +56,7 @@ export const AnyValidator: PortValidator = {
  * Validator Registry / Factory
  */
 export const getValidator = (
-  portType: PortType | undefined | null,
+  portType: null | PortType | undefined,
 ): PortValidator => {
   const mainType = portType?.mainType ?? PortMainType.ANY;
 

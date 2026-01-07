@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 export interface SliderFieldProps {
-  value: number;
-  onChange: (value: number) => void;
   label: string;
-  min?: number;
   max?: number;
+  min?: number;
+  onChange: (value: number) => void;
+  value: number;
 }
 
 export const SliderField: React.FC<SliderFieldProps> = ({
-  value,
-  onChange,
   label,
-  min = 0,
   max = 100,
+  min = 0,
+  onChange,
+  value,
 }) => {
   const [localValue, setLocalValue] = useState(value);
 
@@ -26,20 +26,18 @@ export const SliderField: React.FC<SliderFieldProps> = ({
     <div className="widget slider-field">
       <div
         style={{
+          alignItems: "center",
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
         }}
       >
         <label style={{ fontSize: "11px" }}>{label}</label>
         <span style={{ fontSize: "11px" }}>{localValue}</span>
       </div>
       <input
-        type="range"
         className="nodrag"
-        min={min}
         max={max}
-        value={localValue}
+        min={min}
         onChange={(e) => {
           const val = Number(e.target.value);
           setLocalValue(val);
@@ -52,6 +50,8 @@ export const SliderField: React.FC<SliderFieldProps> = ({
           onChange(localValue);
         }}
         style={{ width: "100%" }}
+        type="range"
+        value={localValue}
       />
     </div>
   );

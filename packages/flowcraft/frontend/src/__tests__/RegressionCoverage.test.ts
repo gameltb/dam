@@ -1,15 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, beforeEach } from "vitest";
+import { create } from "@bufbuild/protobuf";
+import { beforeEach, describe, expect, it } from "vitest";
+
+import {
+  NodeKind,
+  PresentationSchema,
+} from "../generated/flowcraft/v1/core/base_pb";
+import { NodeSchema } from "../generated/flowcraft/v1/core/node_pb";
 import { useFlowStore } from "../store/flowStore";
-import { fromProtoNode } from "../utils/protoAdapter";
 import { type AppNode, AppNodeType } from "../types";
 import { dehydrateNode } from "../utils/nodeUtils";
-import { create } from "@bufbuild/protobuf";
-import { NodeSchema } from "../generated/flowcraft/v1/core/node_pb";
-import {
-  PresentationSchema,
-  NodeKind,
-} from "../generated/flowcraft/v1/core/base_pb";
+import { fromProtoNode } from "../utils/protoAdapter";
 
 /**
  * ARCHITECTURAL REGRESSION TESTS
@@ -34,17 +34,17 @@ describe("Architectural Regressions", () => {
 
     // Manually push nodes in "wrong" order (child first)
     const child: AppNode = {
+      data: { label: "C", modes: [] },
       id: "child-1",
       parentId: "parent-1",
       position: { x: 10, y: 10 },
       type: AppNodeType.DYNAMIC,
-      data: { label: "C", modes: [] },
     };
     const parent: AppNode = {
+      data: { label: "P", modes: [] },
       id: "parent-1",
       position: { x: 100, y: 100 },
       type: AppNodeType.GROUP,
-      data: { label: "P", modes: [] } as any,
     };
 
     yNodes.set(child.id, child);
@@ -91,10 +91,12 @@ describe("Architectural Regressions", () => {
     // We verify dehydrateNode keeps the dragging flag for the middleware to see.
     // The middleware itself is tested by checking if it filters nodes based on this flag.
     const node: AppNode = {
-      id: "1",
+      data: { label: "dragging", modes: [] },
       dragging: true,
+      id: "1",
       position: { x: 0, y: 0 },
-    } as any;
+      type: AppNodeType.DYNAMIC,
+    };
     const dehydrated = dehydrateNode(node);
     expect(dehydrated.dragging).toBe(true);
   });

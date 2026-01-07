@@ -1,26 +1,27 @@
+import { renderHook } from "@testing-library/react";
 /**
  * @file useNodeHandlers.test.ts
  * @problem Node logic (style, mode, handles) was tightly coupled, making it hard to test selection and media-specific behaviors.
  * @requirement Ensure that node handlers correctly calculate selection styles, mode-specific min-heights, and aspect ratio locking for media nodes.
  */
-import { describe, it, expect } from "vitest";
-import { renderHook } from "@testing-library/react";
-import { useNodeHandlers } from "../useNodeHandlers";
+import { describe, expect, it } from "vitest";
+
 import {
   MediaType,
   RenderMode,
 } from "../../generated/flowcraft/v1/core/node_pb";
 import { type DynamicNodeData } from "../../types";
+import { useNodeHandlers } from "../useNodeHandlers";
 
 describe("useNodeHandlers", () => {
   it("should calculate correct styles and minHeight for widget mode", () => {
     const data: DynamicNodeData = {
+      activeMode: RenderMode.MODE_WIDGETS,
+      inputPorts: [],
       label: "Test Node",
       modes: [RenderMode.MODE_WIDGETS],
-      activeMode: RenderMode.MODE_WIDGETS,
-      widgets: [{ id: "w1", type: 1, label: "W1", value: 0 }],
-      inputPorts: [],
       outputPorts: [],
+      widgets: [{ id: "w1", label: "W1", type: 1, value: 0 }],
     };
 
     const { result } = renderHook(() => useNodeHandlers(data, false));
@@ -50,13 +51,13 @@ describe("useNodeHandlers", () => {
 
   it("should lock aspect ratio for image media", () => {
     const data: DynamicNodeData = {
-      label: "Image",
-      modes: [RenderMode.MODE_MEDIA],
       activeMode: RenderMode.MODE_MEDIA,
+      label: "Image",
       media: {
         type: MediaType.MEDIA_IMAGE,
         url: "test.png",
       },
+      modes: [RenderMode.MODE_MEDIA],
     };
 
     const { result } = renderHook(() => useNodeHandlers(data, false));

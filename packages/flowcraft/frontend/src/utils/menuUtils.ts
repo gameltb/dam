@@ -1,5 +1,5 @@
-import { type NodeTemplate } from "../types";
 import { type MenuNode } from "../components/base/SubMenu";
+import { type NodeTemplate } from "../types";
 
 export const buildNodeTree = (templates: NodeTemplate[]): MenuNode[] => {
   const menuTree: MenuNode[] = [];
@@ -8,7 +8,7 @@ export const buildNodeTree = (templates: NodeTemplate[]): MenuNode[] => {
     tpl.menuPath.forEach((part) => {
       let node = currentLevel.find((n) => n.label === part);
       if (!node) {
-        node = { label: part, children: [] };
+        node = { children: [], label: part };
         currentLevel.push(node);
       }
       currentLevel = node.children ?? [];
@@ -36,14 +36,14 @@ export const buildActionTree = (
     parts.forEach((part) => {
       let node = currentLevel.find((n) => n.label === part);
       if (!node) {
-        node = { label: part, children: [] };
+        node = { children: [], label: part };
         currentLevel.push(node);
       }
       currentLevel = node.children ?? [];
     });
     currentLevel.push({
-      label: leafName,
       action: { ...action, name: leafName },
+      label: leafName,
     });
   });
   return actionTree;

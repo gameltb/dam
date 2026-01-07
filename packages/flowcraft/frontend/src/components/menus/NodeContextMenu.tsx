@@ -1,40 +1,41 @@
 import React, { useMemo } from "react";
+
 import { buildActionTree } from "../../utils/menuUtils";
 import { GenericSubMenu } from "../base/SubMenu";
 import { MenuContainer } from "./MenuContainer";
 
 interface NodeContextMenuProps {
-  x: number;
-  y: number;
-  nodeId: string;
-  onDelete: () => void;
-  onFocus?: () => void;
-  onOpenEditor?: () => void;
-  onCopy?: () => void;
-  onDuplicate?: () => void;
-  onClose: () => void;
   dynamicActions?: {
     id: string;
     name: string;
     onClick: () => void;
     path?: string[];
   }[];
-  onLayoutGroup?: () => void;
+  nodeId: string;
+  onClose: () => void;
+  onCopy?: () => void;
+  onDelete: () => void;
+  onDuplicate?: () => void;
+  onFocus?: () => void;
   onGroupSelected?: () => void;
+  onLayoutGroup?: () => void;
+  onOpenEditor?: () => void;
+  x: number;
+  y: number;
 }
 
 export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
+  dynamicActions = [],
+  onClose,
+  onCopy,
+  onDelete,
+  onDuplicate,
+  onFocus,
+  onGroupSelected,
+  onLayoutGroup,
+  onOpenEditor,
   x,
   y,
-  onDelete,
-  onFocus,
-  onOpenEditor,
-  onCopy,
-  onDuplicate,
-  onClose,
-  dynamicActions = [],
-  onLayoutGroup,
-  onGroupSelected,
 }) => {
   const actionTree = useMemo(
     () => buildActionTree(dynamicActions),
@@ -138,8 +139,8 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
               const action = node.action;
               return (
                 <div
-                  key={action.id}
                   className="fc-menu-item"
+                  key={action.id}
                   onClick={() => {
                     action.onClick();
                     onClose();

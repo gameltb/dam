@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from "react";
-import { useUiStore, type ShortcutConfig } from "../store/uiStore";
-import { X, Settings, Keyboard, MousePointer2, Moon, Sun } from "lucide-react";
+import { Keyboard, Moon, MousePointer2, Settings, Sun, X } from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
+
+import { type ShortcutConfig, useUiStore } from "../store/uiStore";
 
 const ShortcutRecordButton: React.FC<{
   label: string;
-  value: string;
   onSave: (val: string) => void;
-}> = ({ value, onSave }) => {
+  value: string;
+}> = ({ onSave, value }) => {
   const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
@@ -50,14 +51,14 @@ const ShortcutRecordButton: React.FC<{
         backgroundColor: isRecording
           ? "rgba(100, 108, 255, 0.2)"
           : "rgba(255,255,255,0.08)",
-        padding: "4px 10px",
-        borderRadius: "6px",
-        fontSize: "11px",
-        color: isRecording ? "var(--primary-color)" : "#fff",
-        fontFamily: "monospace",
         border: `1px solid ${isRecording ? "var(--primary-color)" : "rgba(255,255,255,0.1)"}`,
+        borderRadius: "6px",
+        color: isRecording ? "var(--primary-color)" : "#fff",
         cursor: "pointer",
+        fontFamily: "monospace",
+        fontSize: "11px",
         minWidth: "80px",
+        padding: "4px 10px",
         textAlign: "center",
       }}
     >
@@ -68,24 +69,24 @@ const ShortcutRecordButton: React.FC<{
 
 export const SettingsModal: React.FC = () => {
   const {
-    isOpen,
-    setOpen,
     dragMode,
+    isOpen,
     setDragMode,
-    shortcuts,
+    setOpen,
+    setSettings,
     setShortcut,
     settings,
-    setSettings,
+    shortcuts,
   } = useUiStore(
     useShallow((s) => ({
-      isOpen: s.isSettingsOpen,
-      setOpen: s.setSettingsOpen,
       dragMode: s.dragMode,
+      isOpen: s.isSettingsOpen,
       setDragMode: s.setDragMode,
-      shortcuts: s.shortcuts,
+      setOpen: s.setSettingsOpen,
+      setSettings: s.setSettings,
       setShortcut: s.setShortcut,
       settings: s.settings,
-      setSettings: s.setSettings,
+      shortcuts: s.shortcuts,
     })),
   );
 
@@ -95,64 +96,64 @@ export const SettingsModal: React.FC = () => {
 
   if (!isOpen) return null;
 
-  const shortcutList: { label: string; key: keyof ShortcutConfig }[] = [
-    { label: "Undo", key: "undo" },
-    { label: "Redo", key: "redo" },
-    { label: "Copy", key: "copy" },
-    { label: "Paste", key: "paste" },
-    { label: "Duplicate", key: "duplicate" },
-    { label: "Delete", key: "delete" },
-    { label: "Auto Layout", key: "autoLayout" },
+  const shortcutList: { key: keyof ShortcutConfig; label: string }[] = [
+    { key: "undo", label: "Undo" },
+    { key: "redo", label: "Redo" },
+    { key: "copy", label: "Copy" },
+    { key: "paste", label: "Paste" },
+    { key: "duplicate", label: "Duplicate" },
+    { key: "delete", label: "Delete" },
+    { key: "autoLayout", label: "Auto Layout" },
   ];
 
   return (
     <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.6)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 10000,
-        backdropFilter: "blur(4px)",
-      }}
       onClick={() => {
         setOpen(false);
       }}
+      style={{
+        alignItems: "center",
+        backdropFilter: "blur(4px)",
+        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        bottom: 0,
+        display: "flex",
+        justifyContent: "center",
+        left: 0,
+        position: "fixed",
+        right: 0,
+        top: 0,
+        zIndex: 10000,
+      }}
     >
       <div
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
         style={{
-          width: "500px",
           backgroundColor: "var(--panel-bg)",
-          borderRadius: "12px",
           border: "1px solid var(--node-border)",
+          borderRadius: "12px",
           boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
           display: "flex",
           flexDirection: "column",
           maxHeight: "80vh",
           overflow: "hidden",
-        }}
-        onClick={(e) => {
-          e.stopPropagation();
+          width: "500px",
         }}
       >
         {/* Header */}
         <div
           style={{
-            padding: "16px 20px",
+            alignItems: "center",
             borderBottom: "1px solid var(--node-border)",
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
+            padding: "16px 20px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <Settings size={18} color="var(--primary-color)" />
-            <span style={{ fontWeight: 600, fontSize: "16px" }}>Settings</span>
+          <div style={{ alignItems: "center", display: "flex", gap: "10px" }}>
+            <Settings color="var(--primary-color)" size={18} />
+            <span style={{ fontSize: "16px", fontWeight: 600 }}>Settings</span>
           </div>
           <button
             onClick={() => {
@@ -161,8 +162,8 @@ export const SettingsModal: React.FC = () => {
             style={{
               background: "none",
               border: "none",
-              cursor: "pointer",
               color: "var(--sub-text)",
+              cursor: "pointer",
               padding: "4px",
             }}
           >
@@ -177,7 +178,6 @@ export const SettingsModal: React.FC = () => {
               setActiveTab("general");
             }}
             style={{
-              padding: "12px 15px",
               background: "none",
               border: "none",
               borderBottom: `2px solid ${activeTab === "general" ? "var(--primary-color)" : "transparent"}`,
@@ -188,6 +188,7 @@ export const SettingsModal: React.FC = () => {
               cursor: "pointer",
               fontSize: "13px",
               fontWeight: 500,
+              padding: "12px 15px",
             }}
           >
             General
@@ -197,7 +198,6 @@ export const SettingsModal: React.FC = () => {
               setActiveTab("shortcuts");
             }}
             style={{
-              padding: "12px 15px",
               background: "none",
               border: "none",
               borderBottom: `2px solid ${activeTab === "shortcuts" ? "var(--primary-color)" : "transparent"}`,
@@ -208,6 +208,7 @@ export const SettingsModal: React.FC = () => {
               cursor: "pointer",
               fontSize: "13px",
               fontWeight: 500,
+              padding: "12px 15px",
             }}
           >
             Shortcuts
@@ -215,7 +216,7 @@ export const SettingsModal: React.FC = () => {
         </div>
 
         {/* Content */}
-        <div style={{ padding: "20px", overflowY: "auto", flex: 1 }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
           {activeTab === "general" && (
             <div
               style={{ display: "flex", flexDirection: "column", gap: "24px" }}
@@ -224,37 +225,37 @@ export const SettingsModal: React.FC = () => {
               <div>
                 <label
                   style={{
-                    display: "block",
-                    marginBottom: "8px",
-                    fontSize: "13px",
                     color: "var(--sub-text)",
+                    display: "block",
+                    fontSize: "13px",
                     fontWeight: 500,
+                    marginBottom: "8px",
                   }}
                 >
                   Server Address
                 </label>
                 <input
-                  type="text"
-                  value={settings.serverAddress}
                   onChange={(e) => {
                     setSettings({ serverAddress: e.target.value });
                   }}
                   placeholder="http://localhost:3000"
                   style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--node-border)",
                     backgroundColor: "rgba(255,255,255,0.03)",
+                    border: "1px solid var(--node-border)",
+                    borderRadius: "8px",
                     color: "var(--text-color)",
                     fontSize: "13px",
                     outline: "none",
+                    padding: "10px 12px",
+                    width: "100%",
                   }}
+                  type="text"
+                  value={settings.serverAddress}
                 />
                 <p
                   style={{
-                    fontSize: "11px",
                     color: "var(--sub-text)",
+                    fontSize: "11px",
                     marginTop: "6px",
                   }}
                 >
@@ -266,11 +267,11 @@ export const SettingsModal: React.FC = () => {
               <div>
                 <label
                   style={{
-                    display: "block",
-                    marginBottom: "12px",
-                    fontSize: "13px",
                     color: "var(--sub-text)",
+                    display: "block",
+                    fontSize: "13px",
                     fontWeight: 500,
+                    marginBottom: "12px",
                   }}
                 >
                   Canvas Interaction
@@ -281,23 +282,23 @@ export const SettingsModal: React.FC = () => {
                       setDragMode("pan");
                     }}
                     style={{
-                      flex: 1,
-                      padding: "12px",
-                      borderRadius: "8px",
-                      border: `1px solid ${dragMode === "pan" ? "var(--primary-color)" : "var(--node-border)"}`,
+                      alignItems: "center",
                       backgroundColor:
                         dragMode === "pan"
                           ? "rgba(100, 108, 255, 0.1)"
                           : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${dragMode === "pan" ? "var(--primary-color)" : "var(--node-border)"}`,
+                      borderRadius: "8px",
                       color:
                         dragMode === "pan"
                           ? "var(--primary-color)"
                           : "var(--text-color)",
                       cursor: "pointer",
                       display: "flex",
+                      flex: 1,
                       flexDirection: "column",
-                      alignItems: "center",
                       gap: "8px",
+                      padding: "12px",
                       transition: "all 0.2s",
                     }}
                   >
@@ -311,23 +312,23 @@ export const SettingsModal: React.FC = () => {
                       setDragMode("select");
                     }}
                     style={{
-                      flex: 1,
-                      padding: "12px",
-                      borderRadius: "8px",
-                      border: `1px solid ${dragMode === "select" ? "var(--primary-color)" : "var(--node-border)"}`,
+                      alignItems: "center",
                       backgroundColor:
                         dragMode === "select"
                           ? "rgba(100, 108, 255, 0.1)"
                           : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${dragMode === "select" ? "var(--primary-color)" : "var(--node-border)"}`,
+                      borderRadius: "8px",
                       color:
                         dragMode === "select"
                           ? "var(--primary-color)"
                           : "var(--text-color)",
                       cursor: "pointer",
                       display: "flex",
+                      flex: 1,
                       flexDirection: "column",
-                      alignItems: "center",
                       gap: "8px",
+                      padding: "12px",
                       transition: "all 0.2s",
                     }}
                   >
@@ -343,11 +344,11 @@ export const SettingsModal: React.FC = () => {
               <div>
                 <label
                   style={{
-                    display: "block",
-                    marginBottom: "12px",
-                    fontSize: "13px",
                     color: "var(--sub-text)",
+                    display: "block",
+                    fontSize: "13px",
                     fontWeight: 500,
+                    marginBottom: "12px",
                   }}
                 >
                   Appearance
@@ -358,23 +359,23 @@ export const SettingsModal: React.FC = () => {
                       setSettings({ theme: "dark" });
                     }}
                     style={{
-                      flex: 1,
-                      padding: "12px",
-                      borderRadius: "8px",
-                      border: `1px solid ${settings.theme === "dark" ? "var(--primary-color)" : "var(--node-border)"}`,
+                      alignItems: "center",
                       backgroundColor:
                         settings.theme === "dark"
                           ? "rgba(100, 108, 255, 0.1)"
                           : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${settings.theme === "dark" ? "var(--primary-color)" : "var(--node-border)"}`,
+                      borderRadius: "8px",
                       color:
                         settings.theme === "dark"
                           ? "var(--primary-color)"
                           : "var(--text-color)",
                       cursor: "pointer",
                       display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      flex: 1,
                       gap: "8px",
+                      justifyContent: "center",
+                      padding: "12px",
                       transition: "all 0.2s",
                     }}
                   >
@@ -388,23 +389,23 @@ export const SettingsModal: React.FC = () => {
                       setSettings({ theme: "light" });
                     }}
                     style={{
-                      flex: 1,
-                      padding: "12px",
-                      borderRadius: "8px",
-                      border: `1px solid ${settings.theme === "light" ? "var(--primary-color)" : "var(--node-border)"}`,
+                      alignItems: "center",
                       backgroundColor:
                         settings.theme === "light"
                           ? "rgba(100, 108, 255, 0.1)"
                           : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${settings.theme === "light" ? "var(--primary-color)" : "var(--node-border)"}`,
+                      borderRadius: "8px",
                       color:
                         settings.theme === "light"
                           ? "var(--primary-color)"
                           : "var(--text-color)",
                       cursor: "pointer",
                       display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      flex: 1,
                       gap: "8px",
+                      justifyContent: "center",
+                      padding: "12px",
                       transition: "all 0.2s",
                     }}
                   >
@@ -426,33 +427,33 @@ export const SettingsModal: React.FC = () => {
                 <div
                   key={i}
                   style={{
+                    alignItems: "center",
+                    borderBottom: "1px solid rgba(255,255,255,0.05)",
                     display: "flex",
                     justifyContent: "space-between",
-                    alignItems: "center",
                     padding: "8px 0",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
                   }}
                 >
                   <span style={{ fontSize: "13px" }}>{s.label}</span>
                   <ShortcutRecordButton
                     label={s.label}
-                    value={shortcuts[s.key]}
                     onSave={(val) => {
                       setShortcut(s.key, val);
                     }}
+                    value={shortcuts[s.key]}
                   />
                 </div>
               ))}
 
               <div
                 style={{
+                  backgroundColor: "rgba(100, 108, 255, 0.05)",
+                  borderRadius: "6px",
+                  color: "var(--sub-text)",
+                  fontSize: "11px",
+                  fontStyle: "italic",
                   marginTop: "10px",
                   padding: "10px",
-                  borderRadius: "6px",
-                  backgroundColor: "rgba(100, 108, 255, 0.05)",
-                  fontSize: "11px",
-                  color: "var(--sub-text)",
-                  fontStyle: "italic",
                 }}
               >
                 Click on a shortcut to re-bind it.

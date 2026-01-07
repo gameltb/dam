@@ -1,37 +1,38 @@
-import React, { memo, useCallback } from "react";
+import { create as createProto } from "@bufbuild/protobuf";
 import {
   type NodeProps,
   NodeResizer,
   type ResizeDragEvent,
 } from "@xyflow/react";
-import { type DynamicNodeType, type DynamicNodeData } from "../types";
-import { WidgetContent } from "./nodes/WidgetContent";
-import { MediaContent } from "./nodes/MediaContent";
-import { ChatRenderer } from "./media/ChatRenderer";
-import { BaseNode } from "./base/BaseNode";
+import React, { memo, useCallback } from "react";
+
+import { PresentationSchema } from "../generated/flowcraft/v1/core/base_pb";
+import { GraphMutationSchema } from "../generated/flowcraft/v1/core/service_pb";
 import { useNodeHandlers } from "../hooks/useNodeHandlers";
 import { useFlowStore } from "../store/flowStore";
-import { create as createProto } from "@bufbuild/protobuf";
-import { GraphMutationSchema } from "../generated/flowcraft/v1/core/service_pb";
-import { PresentationSchema } from "../generated/flowcraft/v1/core/base_pb";
+import { type DynamicNodeData, type DynamicNodeType } from "../types";
 import { toProtoNodeData } from "../utils/protoAdapter";
+import { BaseNode } from "./base/BaseNode";
 import { NodeErrorBoundary } from "./base/NodeErrorBoundary";
+import { ChatRenderer } from "./media/ChatRenderer";
+import { MediaContent } from "./nodes/MediaContent";
+import { WidgetContent } from "./nodes/WidgetContent";
 
 interface LayoutProps {
-  width?: number;
   height?: number;
-  measured?: { width: number; height: number };
+  measured?: { height: number; width: number };
+  width?: number;
 }
 
 const RenderMedia: React.FC<{
-  id: string;
   data: DynamicNodeData;
-  onOverflowChange?: (o: "visible" | "hidden") => void;
-  width?: number;
   height?: number;
-  measured?: { width: number; height: number };
+  id: string;
+  measured?: { height: number; width: number };
+  onOverflowChange?: (o: "hidden" | "visible") => void;
+  width?: number;
 }> = (props) => {
-  const { id, data, onOverflowChange } = props;
+  const { data, id, onOverflowChange } = props;
   const layoutProps = props as LayoutProps;
 
   const nodeWidth = layoutProps.width ?? layoutProps.measured?.width ?? 240;
@@ -39,59 +40,59 @@ const RenderMedia: React.FC<{
 
   return (
     <MediaContent
-      id={id}
       data={data}
+      height={nodeHeight}
+      id={id}
       onOverflowChange={onOverflowChange}
       width={nodeWidth}
-      height={nodeHeight}
     />
   );
 };
 
 const RenderWidgets: React.FC<{
-  id: string;
   data: DynamicNodeData;
-  selected?: boolean;
+  id: string;
   onToggleMode: () => void;
+  selected?: boolean;
 }> = (props) => {
-  const { id, data, onToggleMode, selected } = props;
+  const { data, id, onToggleMode, selected } = props;
 
   return (
     <WidgetContent
-      id={id}
       data={data}
-      selected={selected}
+      id={id}
       onToggleMode={onToggleMode}
+      selected={selected}
     />
   );
 };
 
 export const DynamicNode = memo(
   ({
-    id,
     data,
-    selected,
-    type,
+    id,
     positionAbsoluteX,
     positionAbsoluteY,
+    selected,
+    type,
     ...rest
   }: NodeProps<DynamicNodeType>) => {
     const {
+      containerStyle,
       minHeight,
       minWidth,
-      shouldLockAspectRatio,
-      containerStyle,
       onChange: updateNodeData,
+      shouldLockAspectRatio,
     } = useNodeHandlers(data, selected, positionAbsoluteX, positionAbsoluteY);
 
     const handleResizeEnd = useCallback(
-      (_event: ResizeDragEvent, params: { width: number; height: number }) => {
+      (_event: ResizeDragEvent, params: { height: number; width: number }) => {
         const { applyMutations } = useFlowStore.getState();
         const presentation = createProto(PresentationSchema, {
-          width: params.width,
           height: params.height,
-          position: { x: positionAbsoluteX, y: positionAbsoluteY },
           isInitialized: true,
+          position: { x: positionAbsoluteX, y: positionAbsoluteY },
+          width: params.width,
         });
 
         applyMutations([
@@ -99,9 +100,9 @@ export const DynamicNode = memo(
             operation: {
               case: "updateNode",
               value: {
+                data: toProtoNodeData(data),
                 id: id,
                 presentation,
-                data: toProtoNodeData(data),
               },
             },
           }),
@@ -123,33 +124,33 @@ export const DynamicNode = memo(
       `}</style>
 
         <NodeResizer
-          isVisible={selected}
-          minWidth={minWidth}
-          minHeight={minHeight}
-          keepAspectRatio={shouldLockAspectRatio}
-          onResizeEnd={handleResizeEnd}
           handleStyle={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
             background: "var(--primary-color)",
             border: "2px solid white",
+            borderRadius: "50%",
+            height: 8,
+            width: 8,
           }}
+          isVisible={selected}
+          keepAspectRatio={shouldLockAspectRatio}
+          minHeight={minHeight}
+          minWidth={minWidth}
+          onResizeEnd={handleResizeEnd}
         />
 
         <NodeErrorBoundary nodeId={id}>
           <BaseNode<DynamicNodeType>
-            id={id}
             data={data}
-            selected={selected}
-            type={data.typeId ?? type}
-            x={positionAbsoluteX}
-            y={positionAbsoluteY}
+            handles={null}
+            id={id}
+            renderChat={ChatRenderer}
             renderMedia={RenderMedia}
             renderWidgets={RenderWidgets}
-            renderChat={ChatRenderer}
+            selected={selected}
+            type={data.typeId ?? type}
             updateNodeData={updateNodeData}
-            handles={null}
+            x={positionAbsoluteX}
+            y={positionAbsoluteY}
             {...rest}
           />
         </NodeErrorBoundary>

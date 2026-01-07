@@ -1,10 +1,11 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useGraphOperations } from "../useGraphOperations";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+
+import { NodeKind } from "../../generated/flowcraft/v1/core/base_pb";
+import { type GraphMutation } from "../../generated/flowcraft/v1/core/service_pb";
 import { useFlowStore } from "../../store/flowStore";
 import { useUiStore } from "../../store/uiStore";
-import { type GraphMutation } from "../../generated/flowcraft/v1/core/service_pb";
-import { NodeKind } from "../../generated/flowcraft/v1/core/base_pb";
+import { useGraphOperations } from "../useGraphOperations";
 
 vi.mock("../../store/flowStore", () => ({
   useFlowStore: vi.fn(),
@@ -20,22 +21,22 @@ describe("useGraphOperations - Grouping", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (useFlowStore as unknown as Mock).mockReturnValue({
+      applyMutations: mockApplyMutations,
+      edges: [],
       nodes: [
         {
           id: "1",
+          measured: { height: 50, width: 100 },
           position: { x: 100, y: 100 },
           selected: true,
-          measured: { width: 100, height: 50 },
         },
         {
           id: "2",
+          measured: { height: 50, width: 100 },
           position: { x: 200, y: 200 },
           selected: true,
-          measured: { width: 100, height: 50 },
         },
       ],
-      edges: [],
-      applyMutations: mockApplyMutations,
     });
 
     (useUiStore as unknown as Mock).mockReturnValue({

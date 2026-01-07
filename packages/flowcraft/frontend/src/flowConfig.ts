@@ -1,25 +1,26 @@
-import { type NodeTypes, type EdgeTypes } from "@xyflow/react";
-import GroupNode from "./components/GroupNode";
+import { type EdgeTypes, type NodeTypes } from "@xyflow/react";
+
 import { DynamicNode } from "./components/DynamicNode";
-import ProcessingNode from "./components/ProcessingNode";
-import SystemEdge from "./components/edges/SystemEdge";
 import { BaseFlowEdge } from "./components/edges/BaseFlowEdge";
+import SystemEdge from "./components/edges/SystemEdge";
+import GroupNode from "./components/GroupNode";
+import ProcessingNode from "./components/ProcessingNode";
 
 export const nodeTypes: NodeTypes = {
-  groupNode: GroupNode,
   dynamic: DynamicNode,
+  groupNode: GroupNode,
   processing: ProcessingNode,
 };
 
 export const edgeTypes: EdgeTypes = {
-  system: SystemEdge,
   default: BaseFlowEdge,
+  system: SystemEdge,
 };
 
 export const defaultEdgeOptions = {
-  type: "default",
   animated: true,
   style: { strokeWidth: 2 },
+  type: "default",
 };
 
 export const snapGrid: [number, number] = [15, 15];

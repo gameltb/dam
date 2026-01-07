@@ -1,15 +1,18 @@
+import type { Edge as RFEdge } from "@xyflow/react";
+
+import { create } from "@bufbuild/protobuf";
 import { useCallback } from "react";
+import { v4 as uuidv4 } from "uuid";
+
+import type { AppNode } from "../types";
+
+import { EdgeSchema } from "../generated/flowcraft/v1/core/node_pb";
+import {
+  type GraphMutation,
+  GraphMutationSchema,
+} from "../generated/flowcraft/v1/core/service_pb";
 import { useFlowStore } from "../store/flowStore";
 import { useUiStore } from "../store/uiStore";
-import { v4 as uuidv4 } from "uuid";
-import type { AppNode } from "../types";
-import type { Edge as RFEdge } from "@xyflow/react";
-import {
-  GraphMutationSchema,
-  type GraphMutation,
-} from "../generated/flowcraft/v1/core/service_pb";
-import { EdgeSchema } from "../generated/flowcraft/v1/core/node_pb";
-import { create } from "@bufbuild/protobuf";
 import { toProtoNode } from "../utils/protoAdapter";
 
 /**
@@ -17,7 +20,7 @@ import { toProtoNode } from "../utils/protoAdapter";
  * Supports remapping IDs and maintaining relative positions.
  */
 export function useClipboard() {
-  const { nodes, edges, applyMutations } = useFlowStore();
+  const { applyMutations, edges, nodes } = useFlowStore();
   const { clipboard, setClipboard } = useUiStore();
 
   const copy = useCallback(() => {
@@ -30,8 +33,8 @@ export function useClipboard() {
     );
 
     setClipboard({
-      nodes: selectedNodes,
       edges: selectedEdges,
+      nodes: selectedNodes,
     });
   }, [nodes, edges, setClipboard]);
 
@@ -57,9 +60,9 @@ export function useClipboard() {
       const newEdges: RFEdge[] = clipboard.edges.map((edge) => ({
         ...edge,
         id: uuidv4(),
+        selected: true,
         source: idMap[edge.source] ?? edge.source,
         target: idMap[edge.target] ?? edge.target,
-        selected: true,
       }));
 
       // Deselect all existing nodes
@@ -93,11 +96,11 @@ export function useClipboard() {
               value: {
                 edge: create(EdgeSchema, {
                   edgeId: e.id,
-                  sourceNodeId: e.source,
-                  targetNodeId: e.target,
-                  sourceHandle: e.sourceHandle ?? "",
-                  targetHandle: e.targetHandle ?? "",
                   metadata: {},
+                  sourceHandle: e.sourceHandle ?? "",
+                  sourceNodeId: e.source,
+                  targetHandle: e.targetHandle ?? "",
+                  targetNodeId: e.target,
                 }),
               },
             },
@@ -117,5 +120,5 @@ export function useClipboard() {
     paste({ x: 50, y: 50 });
   }, [copy, paste]);
 
-  return { copy, paste, duplicate, canPaste: !!clipboard };
+  return { canPaste: !!clipboard, copy, duplicate, paste };
 }

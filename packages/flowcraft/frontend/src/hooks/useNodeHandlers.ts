@@ -1,18 +1,17 @@
-import { useMemo, useCallback } from "react";
+import { useCallback, useMemo } from "react";
+
 import { MediaType } from "../generated/flowcraft/v1/core/node_pb";
+import { useFlowStore } from "../store/flowStore";
 import { type DynamicNodeData, FlowEvent } from "../types";
 import { useNodeLayout } from "./useNodeLayout";
-import { useFlowStore } from "../store/flowStore";
 
 export interface NodeHandlersResult {
+  containerStyle: React.CSSProperties;
+  isAudio: boolean;
+  isMedia: boolean;
   minHeight: number;
   minWidth: number;
-  isMedia: boolean;
-  isAudio: boolean;
-  shouldLockAspectRatio: boolean;
-  containerStyle: React.CSSProperties;
   onChange: (id: string, data: Partial<DynamicNodeData>) => void;
-  onWidgetClick: (nodeId: string, widgetId: string) => void;
   onGalleryItemContext: (
     nodeId: string,
     url: string,
@@ -20,6 +19,8 @@ export interface NodeHandlersResult {
     x: number,
     y: number,
   ) => void;
+  onWidgetClick: (nodeId: string, widgetId: string) => void;
+  shouldLockAspectRatio: boolean;
 }
 
 /**
@@ -36,7 +37,7 @@ export function useNodeHandlers(
   const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
 
   const layout = useNodeLayout(data ?? ({} as DynamicNodeData));
-  const { minHeight, minWidth, isMedia, isAudio } = layout;
+  const { isAudio, isMedia, minHeight, minWidth } = layout;
 
   const shouldLockAspectRatio = useMemo(() => {
     return (
@@ -48,21 +49,21 @@ export function useNodeHandlers(
 
   const containerStyle = useMemo((): React.CSSProperties => {
     return {
-      position: "relative",
-      width: "100%",
-      height: "100%",
-      display: "flex",
-      flexDirection: "column",
-      borderRadius: "var(--radius-lg)",
       backgroundColor: "var(--node-bg)",
-      color: "var(--text-color)",
       border: "1px solid",
       borderColor: selected ? "var(--primary-color)" : "var(--node-border)",
+      borderRadius: "var(--radius-lg)",
       boxShadow: selected
         ? "0 0 0 1px var(--primary-color), 0 0 15px rgba(100, 108, 255, 0.4), 0 10px 25px rgba(0,0,0,0.4)"
         : "0 4px 12px rgba(0,0,0,0.2)",
       boxSizing: "border-box",
+      color: "var(--text-color)",
+      display: "flex",
+      flexDirection: "column",
+      height: "100%",
+      position: "relative",
       transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+      width: "100%",
     };
   }, [selected]);
 
@@ -89,9 +90,9 @@ export function useNodeHandlers(
       y: number,
     ) => {
       dispatchNodeEvent(FlowEvent.GALLERY_ITEM_CONTEXT, {
+        mediaType,
         nodeId,
         url,
-        mediaType,
         x,
         y,
       });
@@ -100,14 +101,14 @@ export function useNodeHandlers(
   );
 
   return {
+    containerStyle,
+    isAudio,
+    isMedia,
     minHeight,
     minWidth,
-    isMedia,
-    isAudio,
-    shouldLockAspectRatio,
-    containerStyle,
     onChange,
-    onWidgetClick,
     onGalleryItemContext,
+    onWidgetClick,
+    shouldLockAspectRatio,
   };
 }

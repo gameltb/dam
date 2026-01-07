@@ -1,12 +1,7 @@
-import { type GraphMutationEvent, type GraphMiddleware } from "./types";
+import { type GraphMiddleware, type GraphMutationEvent } from "./types";
 
 export class MutationPipeline {
   private middlewares: GraphMiddleware[] = [];
-
-  use(middleware: GraphMiddleware) {
-    this.middlewares.push(middleware);
-    return this;
-  }
 
   clear() {
     this.middlewares = [];
@@ -33,6 +28,11 @@ export class MutationPipeline {
     };
 
     next(0, event);
+  }
+
+  use(middleware: GraphMiddleware) {
+    this.middlewares.push(middleware);
+    return this;
   }
 }
 

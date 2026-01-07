@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export const useMediaTransform = (activeIndex: number) => {
   const [zoom, setZoom] = useState(1);
@@ -62,17 +62,17 @@ export const useMediaTransform = (activeIndex: number) => {
   };
 
   return {
-    zoom,
-    rotation,
-    offset,
-    isDragging,
-    resetTransform,
-    handleZoomIn,
-    handleZoomOut,
-    handleRotate,
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
+    handleRotate,
     handleWheel,
+    handleZoomIn,
+    handleZoomOut,
+    isDragging,
+    offset,
+    resetTransform,
+    rotation,
+    zoom,
   };
 };

@@ -1,24 +1,25 @@
-import { create } from "@bufbuild/protobuf";
+import { create, type JsonObject } from "@bufbuild/protobuf";
+
 import {
-  NodeTemplateSchema,
   NodeDataSchema,
+  NodeTemplateSchema,
   RenderMode,
 } from "../../generated/flowcraft/v1/core/node_pb";
 import { NodeRegistry } from "../registry";
 
 NodeRegistry.register({
   template: create(NodeTemplateSchema, {
-    templateId: "tpl-stream-node",
-    displayName: "AI Stream Result",
-    menuPath: ["AI"],
     defaultState: create(NodeDataSchema, {
-      displayName: "AI Result",
-      availableModes: [RenderMode.MODE_MEDIA, RenderMode.MODE_WIDGETS],
       activeMode: RenderMode.MODE_MEDIA,
-      widgetsValuesJson: JSON.stringify({
+      availableModes: [RenderMode.MODE_MEDIA, RenderMode.MODE_WIDGETS],
+      displayName: "AI Result",
+      widgetsValues: {
         agent_name: "Assistant",
         logs: "Waiting for content...",
-      }),
+      } as unknown as JsonObject,
     }),
+    displayName: "Real-time Stream Viewer",
+    menuPath: ["AI"],
+    templateId: "flowcraft.node.utility.stream_viewer",
   }),
 });

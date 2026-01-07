@@ -1,16 +1,16 @@
 import React from "react";
 
 export interface ImageRendererProps {
-  url: string;
   onDimensionsLoad?: (ratio: number) => void;
+  url: string;
 }
 
 export const ImageRenderer: React.FC<ImageRendererProps> = ({
-  url,
   onDimensionsLoad,
+  url,
 }) => {
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const { naturalWidth, naturalHeight } = e.currentTarget;
+    const { naturalHeight, naturalWidth } = e.currentTarget;
     if (naturalWidth && naturalHeight && onDimensionsLoad) {
       onDimensionsLoad(naturalWidth / naturalHeight);
     }
@@ -18,16 +18,16 @@ export const ImageRenderer: React.FC<ImageRendererProps> = ({
 
   return (
     <img
-      src={url}
       alt="media content"
-      onLoad={handleLoad}
       draggable={false}
+      onLoad={handleLoad}
+      src={url}
       style={{
-        width: "100%",
+        borderRadius: "inherit",
+        display: "block",
         height: "100%",
         objectFit: "contain",
-        display: "block",
-        borderRadius: "inherit",
+        width: "100%",
       }}
     />
   );

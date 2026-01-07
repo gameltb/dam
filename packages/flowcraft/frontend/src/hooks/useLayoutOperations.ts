@@ -1,20 +1,22 @@
+import type { Edge as RFEdge } from "@xyflow/react";
+
+import { create } from "@bufbuild/protobuf";
+import dagre from "dagre";
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { type AppNode, type DynamicNodeData, AppNodeType } from "../types";
-import type { Edge as RFEdge } from "@xyflow/react";
-import dagre from "dagre";
+
 import {
-  GraphMutationSchema,
-  type GraphMutation,
-} from "../generated/flowcraft/v1/core/service_pb";
+  NodeKind,
+  PresentationSchema,
+} from "../generated/flowcraft/v1/core/base_pb";
 import { NodeSchema } from "../generated/flowcraft/v1/core/node_pb";
 import {
-  PresentationSchema,
-  NodeKind,
-} from "../generated/flowcraft/v1/core/base_pb";
-import { create } from "@bufbuild/protobuf";
-import { toProtoNodeData } from "../utils/protoAdapter";
+  type GraphMutation,
+  GraphMutationSchema,
+} from "../generated/flowcraft/v1/core/service_pb";
 import { type MutationContext } from "../store/flowStore";
+import { type AppNode, AppNodeType, type DynamicNodeData } from "../types";
+import { toProtoNodeData } from "../utils/protoAdapter";
 
 export const useLayoutOperations = (
   nodes: AppNode[],
@@ -27,13 +29,13 @@ export const useLayoutOperations = (
   const autoLayout = useCallback(() => {
     const layoutSubgraph = (parentNodes: AppNode[], parentEdges: RFEdge[]) => {
       const g = new dagre.graphlib.Graph();
-      g.setGraph({ rankdir: "LR", nodesep: 50, ranksep: 100 });
+      g.setGraph({ nodesep: 50, rankdir: "LR", ranksep: 100 });
       g.setDefaultEdgeLabel(() => ({}));
 
       parentNodes.forEach((node) => {
         g.setNode(node.id, {
-          width: node.measured?.width ?? 300,
           height: node.measured?.height ?? 200,
+          width: node.measured?.width ?? 300,
         });
       });
 
@@ -55,11 +57,11 @@ export const useLayoutOperations = (
         const y = nodeWithPos.y - height / 2;
 
         const presentation = create(PresentationSchema, {
-          position: { x, y },
-          width,
           height,
           isInitialized: true,
           parentId: node.parentId ?? "",
+          position: { x, y },
+          width,
         });
 
         mutations.push(
@@ -67,9 +69,9 @@ export const useLayoutOperations = (
             operation: {
               case: "updateNode",
               value: {
+                data: toProtoNodeData(node.data as DynamicNodeData),
                 id: node.id,
                 presentation,
-                data: toProtoNodeData(node.data as DynamicNodeData),
               },
             },
           }),
@@ -85,7 +87,7 @@ export const useLayoutOperations = (
           );
 
           if (children.length > 0) {
-            const { mutations: childMutations, boundingBox } = layoutSubgraph(
+            const { boundingBox, mutations: childMutations } = layoutSubgraph(
               children,
               childEdges,
             );
@@ -130,10 +132,10 @@ export const useLayoutOperations = (
       });
 
       // Calculate bounding box of this subgraph
-      let minX = Infinity,
-        minY = Infinity,
-        maxX = -Infinity,
-        maxY = -Infinity;
+      let maxX = -Infinity,
+        maxY = -Infinity,
+        minX = Infinity,
+        minY = Infinity;
       parentNodes.forEach((n) => {
         const nodePos = g.node(n.id);
         const w = n.measured?.width ?? 300;
@@ -145,13 +147,13 @@ export const useLayoutOperations = (
       });
 
       return {
-        mutations,
         boundingBox: {
+          height: maxY - minY,
+          width: maxX - minX,
           x: minX,
           y: minY,
-          width: maxX - minX,
-          height: maxY - minY,
         },
+        mutations,
       };
     };
 
@@ -171,10 +173,10 @@ export const useLayoutOperations = (
     if (selectedNodes.length < 1) return;
 
     // 1. Calculate bounding box
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
+    let maxX = -Infinity,
+      maxY = -Infinity,
+      minX = Infinity,
+      minY = Infinity;
 
     selectedNodes.forEach((node) => {
       const { x, y } = node.position;
@@ -196,14 +198,14 @@ export const useLayoutOperations = (
     const groupNode = create(NodeSchema, {
       nodeId: groupId,
       nodeKind: NodeKind.GROUP,
-      templateId: "group",
       presentation: create(PresentationSchema, {
-        position: { x: groupX, y: groupY },
-        width: groupW,
         height: groupH,
         isInitialized: true,
+        position: { x: groupX, y: groupY },
+        width: groupW,
       }),
       state: toProtoNodeData({ label: "New Group", modes: [] }),
+      templateId: "group",
     });
 
     // 2. Prepare mutations for grouping
@@ -224,12 +226,12 @@ export const useLayoutOperations = (
             value: {
               id: node.id,
               presentation: create(PresentationSchema, {
+                isInitialized: true,
                 parentId: groupId,
                 position: {
                   x: node.position.x - groupX,
                   y: node.position.y - groupY,
                 },
-                isInitialized: true,
               }),
             },
           },
@@ -238,8 +240,8 @@ export const useLayoutOperations = (
     });
 
     applyMutations(mutations, {
-      taskId: uuidv4(),
       description: `Group ${String(selectedNodes.length)} nodes`,
+      taskId: uuidv4(),
     });
   }, [nodes, applyMutations]);
 

@@ -1,18 +1,14 @@
 syntax = "proto3";
 
-package flowcraft.v1.params;
+package flowcraft_proto.v1;
 
 /**
  * AI 提示词生成动作的参数
  */
 message PromptGenParams {
-  // 正向提示词
   string prompt = 1;
-  // 负向提示词
   string negative_prompt = 2;
-  // 生成步数
   int32 steps = 3;
-  // 引导系数
   float cfg_scale = 4;
 }
 
@@ -20,9 +16,7 @@ message PromptGenParams {
  * 基于选中节点上下文生成内容的参数
  */
 message NodeTransformParams {
-  // 用户输入的指令或提示词
   string instruction = 1;
-  // 生成风格
   string style = 2;
 }
 
@@ -30,8 +24,6 @@ message NodeTransformParams {
  * 图片增强参数
  */
 message ImageEnhanceParams {
-  // 增强强度 (0.0 - 1.0)
   float strength = 1;
-  // 选用的模型
   string model_name = 2;
 }

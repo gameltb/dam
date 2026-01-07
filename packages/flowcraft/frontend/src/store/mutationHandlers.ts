@@ -1,33 +1,51 @@
+import { create as createProto, toJson } from "@bufbuild/protobuf";
+import { ValueSchema } from "@bufbuild/protobuf/wkt";
 import { type Edge } from "@xyflow/react";
-import { type AppNode } from "../types";
+import * as Y from "yjs";
+
 import {
   type GraphMutation,
   GraphMutationSchema,
   PathUpdate_UpdateType,
 } from "../generated/flowcraft/v1/core/service_pb";
-import { create as createProto } from "@bufbuild/protobuf";
-import * as Y from "yjs";
+import { type AppNode } from "../types";
 import { dehydrateNode } from "../utils/nodeUtils";
 import { fromProtoNode, fromProtoNodeData } from "../utils/protoAdapter";
 
 /**
  * 极简的路径设置工具，支持 a.b.c 格式
  */
-function setByPath(obj: any, path: string, value: any, merge = false) {
+function setByPath(
+  obj: Record<string, unknown>,
+  path: string,
+  value: unknown,
+  merge = false,
+) {
   const parts = path.split(".");
   let current = obj;
+
   for (let i = 0; i < parts.length - 1; i++) {
-    const part = parts[i]!;
-    if (!(part in current)) {
+    const part = parts[i];
+    if (part === undefined) break;
+    if (
+      !(part in current) ||
+      typeof current[part] !== "object" ||
+      current[part] === null
+    ) {
       current[part] = {};
     }
-    current = current[part];
+    current = current[part] as Record<string, unknown>;
   }
-  const lastPart = parts[parts.length - 1]!;
+
+  const lastPart = parts[parts.length - 1];
+  if (lastPart === undefined) return;
   if (merge && typeof value === "object" && value !== null) {
+    const existingValue = current[lastPart];
     current[lastPart] = {
-      ...(current[lastPart] as object),
-      ...(value as object),
+      ...(typeof existingValue === "object" && existingValue !== null
+        ? existingValue
+        : {}),
+      ...value,
     };
   } else {
     current[lastPart] = value;
@@ -45,21 +63,20 @@ export const handleGraphMutation = (
   if (!op.case) return;
 
   switch (op.case) {
-    case "pathUpdate": {
-      const { targetId, path, valueJson, type } = op.value;
-      const existing = yNodes.get(targetId) as any;
-      if (existing) {
-        try {
-          const val = JSON.parse(valueJson);
-          const updated = JSON.parse(JSON.stringify(existing)); // 深拷贝以确保纯净
-          setByPath(updated, path, val, type === PathUpdate_UpdateType.MERGE);
-          yNodes.set(targetId, updated);
-        } catch (e) {
-          console.error("[Mutation] Failed to apply path update:", e);
-        }
+    case "addEdge":
+      if (op.value.edge) {
+        const edge = op.value.edge;
+        const rfEdge: Edge = {
+          data: edge.metadata,
+          id: edge.edgeId,
+          source: edge.sourceNodeId,
+          sourceHandle: edge.sourceHandle || undefined,
+          target: edge.targetNodeId,
+          targetHandle: edge.targetHandle || undefined,
+        };
+        yEdges.set(rfEdge.id, rfEdge);
       }
       break;
-    }
     case "addNode":
       if (op.value.node) {
         const node = fromProtoNode(op.value.node);
@@ -80,6 +97,61 @@ export const handleGraphMutation = (
             yNodes.set(node.id, dehydrateNode(node));
           }
         }
+      }
+      break;
+
+    case "addSubgraph":
+      op.value.nodes.forEach((n) => {
+        const node = fromProtoNode(n);
+        if (node.id) yNodes.set(node.id, dehydrateNode(node));
+      });
+
+      op.value.edges.forEach((e) => {
+        const rfEdge: Edge = {
+          data: e.metadata,
+          id: e.edgeId,
+          source: e.sourceNodeId,
+          sourceHandle: e.sourceHandle || undefined,
+          target: e.targetNodeId,
+          targetHandle: e.targetHandle || undefined,
+        };
+        if (rfEdge.id) yEdges.set(rfEdge.id, rfEdge);
+      });
+      break;
+
+    case "clearGraph":
+      yNodes.clear();
+      yEdges.clear();
+      break;
+
+    case "pathUpdate": {
+      const { path, targetId, type, value } = op.value;
+      const existing = yNodes.get(targetId);
+      if (existing && value) {
+        try {
+          const val = toJson(ValueSchema, value);
+          const updated = JSON.parse(JSON.stringify(existing)) as Record<
+            string,
+            unknown
+          >;
+          setByPath(updated, path, val, type === PathUpdate_UpdateType.MERGE);
+          yNodes.set(targetId, updated);
+        } catch (e) {
+          console.error("[Mutation] Failed to apply path update:", e);
+        }
+      }
+      break;
+    }
+
+    case "removeEdge":
+      if (op.value.id) {
+        yEdges.delete(op.value.id);
+      }
+      break;
+
+    case "removeNode":
+      if (op.value.id) {
+        yNodes.delete(op.value.id);
       }
       break;
 
@@ -106,13 +178,13 @@ export const handleGraphMutation = (
             const newHeight = pres.height || (updated.measured?.height ?? 0);
 
             updated.measured = {
-              width: newWidth,
               height: newHeight,
+              width: newWidth,
             };
             updated.style = {
               ...updated.style,
-              width: newWidth,
               height: newHeight,
+              width: newWidth,
             };
           }
 
@@ -133,56 +205,5 @@ export const handleGraphMutation = (
       }
       break;
     }
-
-    case "removeNode":
-      if (op.value.id) {
-        yNodes.delete(op.value.id);
-      }
-      break;
-
-    case "addEdge":
-      if (op.value.edge) {
-        const edge = op.value.edge;
-        const rfEdge: Edge = {
-          id: edge.edgeId,
-          source: edge.sourceNodeId,
-          target: edge.targetNodeId,
-          sourceHandle: edge.sourceHandle || undefined,
-          targetHandle: edge.targetHandle || undefined,
-          data: edge.metadata,
-        };
-        yEdges.set(rfEdge.id, rfEdge);
-      }
-      break;
-
-    case "removeEdge":
-      if (op.value.id) {
-        yEdges.delete(op.value.id);
-      }
-      break;
-
-    case "addSubgraph":
-      op.value.nodes.forEach((n) => {
-        const node = fromProtoNode(n);
-        if (node.id) yNodes.set(node.id, dehydrateNode(node));
-      });
-
-      op.value.edges.forEach((e) => {
-        const rfEdge: Edge = {
-          id: e.edgeId,
-          source: e.sourceNodeId,
-          target: e.targetNodeId,
-          sourceHandle: e.sourceHandle || undefined,
-          targetHandle: e.targetHandle || undefined,
-          data: e.metadata,
-        };
-        if (rfEdge.id) yEdges.set(rfEdge.id, rfEdge);
-      });
-      break;
-
-    case "clearGraph":
-      yNodes.clear();
-      yEdges.clear();
-      break;
   }
 };

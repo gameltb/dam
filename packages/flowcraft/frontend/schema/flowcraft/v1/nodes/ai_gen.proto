@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package flowcraft_proto.v1;
+
+message AiGenNodeState {
+  string model_id = 1;
+  float progress = 2;
+  string current_status = 3;
+}

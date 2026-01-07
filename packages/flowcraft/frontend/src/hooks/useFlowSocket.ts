@@ -1,41 +1,48 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { type NodeData } from "../generated/flowcraft/v1/core/node_pb";
 import {
-  type GraphSnapshot,
-  type GraphMutation,
-} from "../generated/flowcraft/v1/core/service_pb";
-import {
-  type ActionTemplate,
-  ActionExecutionRequestSchema,
-} from "../generated/flowcraft/v1/core/action_pb";
-import {
-  SyncRequestSchema,
-  UpdateNodeRequestSchema,
-  UpdateWidgetRequestSchema,
-  TaskCancelRequestSchema,
-  ViewportUpdateSchema,
-  TemplateDiscoveryRequestSchema,
-  type TemplateDiscoveryResponse,
-} from "../generated/flowcraft/v1/core/service_pb";
-import { PresentationSchema } from "../generated/flowcraft/v1/core/base_pb";
-import { create } from "@bufbuild/protobuf";
-import type { NodeTemplate, TaskDefinition } from "../types";
-import { MutationSource, TaskStatus } from "../types";
-import { useFlowStore } from "../store/flowStore";
-import { useUiStore } from "../store/uiStore";
-import { useTaskStore } from "../store/taskStore";
-import { socketClient } from "../utils/SocketClient";
-import { fromProtoGraph } from "../utils/protoAdapter";
-import { ConnectError, Code } from "@connectrpc/connect";
-
+  create,
+  fromJson,
+  type JsonObject,
+  type JsonValue,
+} from "@bufbuild/protobuf";
+import { ValueSchema } from "@bufbuild/protobuf/wkt";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
+import type { NodeTemplate, TaskDefinition } from "../types";
+
+import {
+  ActionExecutionRequestSchema,
+  type ActionTemplate,
+} from "../generated/flowcraft/v1/core/action_pb";
+import { PresentationSchema } from "../generated/flowcraft/v1/core/base_pb";
+import { type NodeData } from "../generated/flowcraft/v1/core/node_pb";
+import {
+  type GraphMutation,
+  type GraphSnapshot,
+} from "../generated/flowcraft/v1/core/service_pb";
+import {
+  SyncRequestSchema,
+  TaskCancelRequestSchema,
+  TemplateDiscoveryRequestSchema,
+  type TemplateDiscoveryResponse,
+  UpdateNodeRequestSchema,
+  UpdateWidgetRequestSchema,
+  ViewportUpdateSchema,
+} from "../generated/flowcraft/v1/core/service_pb";
+import { useFlowStore } from "../store/flowStore";
+import { useTaskStore } from "../store/taskStore";
+import { useUiStore } from "../store/uiStore";
+import { MutationSource, TaskStatus } from "../types";
+import { fromProtoGraph } from "../utils/protoAdapter";
+import { socketClient } from "../utils/SocketClient";
+
 export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
-  const { applyMutations, setGraph, applyYjsUpdate } = useFlowStore(
+  const { applyMutations, applyYjsUpdate, setGraph } = useFlowStore(
     useShallow((state) => ({
       applyMutations: state.applyMutations,
-      setGraph: state.setGraph,
       applyYjsUpdate: state.applyYjsUpdate,
+      setGraph: state.setGraph,
     })),
   );
 
@@ -53,18 +60,18 @@ export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
   useEffect(() => {
     const onSnapshot = (snapshot: GraphSnapshot) => {
       // Convert Proto -> AppNode (plain objects)
-      const { nodes, edges } = fromProtoGraph(snapshot);
+      const { edges, nodes } = fromProtoGraph(snapshot);
 
       const taskId = "initial-sync";
       useTaskStore.getState().registerTask({
-        taskId,
         label: "Initial Graph Sync",
         source: MutationSource.SOURCE_SYNC,
         status: TaskStatus.TASK_COMPLETED,
+        taskId,
       });
 
       // Pass plain nodes to store. Store will dehydrate them into Yjs.
-      setGraph({ nodes, edges }, 0);
+      setGraph({ edges, nodes }, 0);
     };
 
     const onYjsUpdate = (update: Uint8Array) => {
@@ -142,9 +149,12 @@ export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
         case: "actionExecute",
         value: create(ActionExecutionRequestSchema, {
           actionId: action.id,
-          sourceNodeId: nodeId ?? "",
           contextNodeIds: [],
-          paramsJson: "{}",
+          params: {
+            case: "paramsStruct",
+            value: {} as JsonObject,
+          },
+          sourceNodeId: nodeId ?? "",
         }),
       },
     });
@@ -165,15 +175,15 @@ export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
     (nodeId: string, data: NodeData, width?: number, height?: number) => {
       const presentation =
         width || height
-          ? create(PresentationSchema, { width, height })
+          ? create(PresentationSchema, { height, width })
           : undefined;
 
       void socketClient.send({
         payload: {
           case: "nodeUpdate",
           value: create(UpdateNodeRequestSchema, {
-            nodeId,
             data,
+            nodeId,
             presentation,
           }),
         },
@@ -189,8 +199,8 @@ export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
           case: "widgetUpdate",
           value: create(UpdateWidgetRequestSchema, {
             nodeId,
+            value: fromJson(ValueSchema, value as JsonValue),
             widgetId,
-            valueJson: JSON.stringify(value),
           }),
         },
       });
@@ -204,9 +214,12 @@ export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
         case: "actionExecute",
         value: create(ActionExecutionRequestSchema, {
           actionId,
-          sourceNodeId: nodeId,
           contextNodeIds: [],
-          paramsJson: JSON.stringify({ stream: true }),
+          params: {
+            case: "paramsStruct",
+            value: { stream: true } as unknown as JsonObject,
+          },
+          sourceNodeId: nodeId,
         }),
       },
     });
@@ -219,7 +232,7 @@ export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
           case: "viewportUpdate",
           value: create(ViewportUpdateSchema, {
             viewport: { x, y, zoom },
-            visibleBounds: { x, y, width, height },
+            visibleBounds: { height, width, x, y },
           }),
         },
       });
@@ -229,13 +242,13 @@ export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
 
   return useMemo(
     () => ({
-      templates,
-      executeTask,
       cancelTask,
-      updateNodeData,
-      updateWidget,
+      executeTask,
       streamAction,
+      templates,
+      updateNodeData,
       updateViewport,
+      updateWidget,
     }),
     [
       templates,

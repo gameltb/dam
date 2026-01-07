@@ -1,11 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { fromProtoNode } from "../protoAdapter";
-import { NodeSchema } from "../../generated/flowcraft/v1/core/node_pb";
-import {
-  PresentationSchema,
-  NodeKind,
-} from "../../generated/flowcraft/v1/core/base_pb";
 import { create } from "@bufbuild/protobuf";
+import { describe, expect, it } from "vitest";
+
+import {
+  NodeKind,
+  PresentationSchema,
+} from "../../generated/flowcraft/v1/core/base_pb";
+import { NodeSchema } from "../../generated/flowcraft/v1/core/node_pb";
+import { fromProtoNode } from "../protoAdapter";
 
 /**
  * @file ProtoAdapter.test.ts
@@ -16,15 +17,15 @@ import { create } from "@bufbuild/protobuf";
 describe("ProtoAdapter", () => {
   it("should NOT set measured dimensions when proto width/height are 0", () => {
     const protoNode = create(NodeSchema, {
+      isSelected: false,
       nodeId: "node-1",
+      nodeKind: NodeKind.DYNAMIC,
       presentation: create(PresentationSchema, {
-        position: { x: 10, y: 10 },
-        width: 0,
         height: 0,
         parentId: "",
+        position: { x: 10, y: 10 },
+        width: 0,
       }),
-      nodeKind: NodeKind.DYNAMIC,
-      isSelected: false,
     });
 
     const appNode = fromProtoNode(protoNode);
@@ -35,19 +36,19 @@ describe("ProtoAdapter", () => {
 
   it("should set measured dimensions when proto width/height are positive", () => {
     const protoNode = create(NodeSchema, {
+      isSelected: false,
       nodeId: "node-1",
+      nodeKind: NodeKind.DYNAMIC,
       presentation: create(PresentationSchema, {
-        position: { x: 10, y: 10 },
-        width: 150,
         height: 100,
         parentId: "",
+        position: { x: 10, y: 10 },
+        width: 150,
       }),
-      nodeKind: NodeKind.DYNAMIC,
-      isSelected: false,
     });
 
     const appNode = fromProtoNode(protoNode);
 
-    expect(appNode.measured).toEqual({ width: 150, height: 100 });
+    expect(appNode.measured).toEqual({ height: 100, width: 150 });
   });
 });

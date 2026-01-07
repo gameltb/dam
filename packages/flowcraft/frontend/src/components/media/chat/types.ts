@@ -1,18 +1,18 @@
 import type { FileUIPart } from "ai";
 
+export interface ChatMessage {
+  attachments?: FileUIPart[];
+  content: string;
+  contextNodes?: ContextNode[];
+  createdAt?: number;
+  id: string;
+  role: "assistant" | "system" | "user";
+}
+
+export type ChatStatus = "error" | "ready" | "streaming" | "submitted";
+
 export interface ContextNode {
   id: string;
   label: string;
   typeId?: string;
 }
-
-export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
-  createdAt?: number;
-  attachments?: FileUIPart[];
-  contextNodes?: ContextNode[];
-}
-
-export type ChatStatus = "ready" | "streaming" | "submitted" | "error";

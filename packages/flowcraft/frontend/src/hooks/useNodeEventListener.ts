@@ -1,51 +1,51 @@
 import { useEffect, useRef } from "react";
+import { v4 as uuidv4 } from "uuid";
+
+import { type ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
 import { useFlowStore } from "../store/flowStore";
 import { useTaskStore } from "../store/taskStore";
-import { socketClient } from "../utils/SocketClient";
-import { v4 as uuidv4 } from "uuid";
 import {
   type AppNode,
+  AppNodeType,
+  FlowEvent,
+  isDynamicNode,
   MediaType,
   MutationSource,
-  isDynamicNode,
-  FlowEvent,
-  AppNodeType,
 } from "../types";
-import { type ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
 
 export interface ContextMenuData {
+  galleryItemType?: MediaType;
+  galleryItemUrl?: string;
+  nodeId: string;
   x: number;
   y: number;
-  nodeId: string;
-  galleryItemUrl?: string;
-  galleryItemType?: MediaType;
 }
 
 export interface PreviewData {
-  nodeId: string;
   index: number;
+  nodeId: string;
 }
 
 interface NodeEventListenerProps {
-  nodes: AppNode[];
-  setContextMenu: (menu: ContextMenuData | null) => void;
-  setPreviewData: (data: PreviewData | null) => void;
-  setActiveEditorId: (id: string | null) => void;
-  streamAction: (nodeId: string, widgetId: string) => void;
   addNodeToStore: (node: AppNode) => void;
   cancelTask: (taskId: string) => void;
   executeTask: (action: ActionTemplate, nodeId: string) => void;
+  nodes: AppNode[];
+  setActiveEditorId: (id: null | string) => void;
+  setContextMenu: (menu: ContextMenuData | null) => void;
+  setPreviewData: (data: null | PreviewData) => void;
+  streamAction: (nodeId: string, widgetId: string) => void;
 }
 
 export function useNodeEventListener({
-  nodes,
-  setContextMenu,
-  setPreviewData,
-  setActiveEditorId,
-  streamAction,
   addNodeToStore,
   cancelTask,
   executeTask,
+  nodes,
+  setActiveEditorId,
+  setContextMenu,
+  setPreviewData,
+  streamAction,
 }: NodeEventListenerProps) {
   const lastNodeEvent = useFlowStore((state) => state.lastNodeEvent);
   const lastProcessedEventTimestamp = useRef<number>(0);
@@ -61,23 +61,23 @@ export function useNodeEventListener({
 
     if (lastNodeEvent.type === FlowEvent.GALLERY_ITEM_CONTEXT) {
       const payload = lastNodeEvent.payload as {
-        x: number;
-        y: number;
+        mediaType: MediaType;
         nodeId: string;
         url: string;
-        mediaType: MediaType;
+        x: number;
+        y: number;
       };
       setContextMenu({
+        galleryItemType: payload.mediaType,
+        galleryItemUrl: payload.url,
+        nodeId: payload.nodeId,
         x: payload.x,
         y: payload.y,
-        nodeId: payload.nodeId,
-        galleryItemUrl: payload.url,
-        galleryItemType: payload.mediaType,
       });
     } else if (lastNodeEvent.type === FlowEvent.OPEN_PREVIEW) {
       const payload = lastNodeEvent.payload as {
-        nodeId: string;
         index: number;
+        nodeId: string;
       };
       setTimeout(() => {
         setPreviewData(payload);
@@ -97,33 +97,7 @@ export function useNodeEventListener({
         const widget = node.data.widgets.find((w) => w.id === widgetId);
         if (widget && typeof widget.value === "string") {
           const val = widget.value;
-          if (val.startsWith("stream-to:")) {
-            const targetWidgetId = val.split(":")[1];
-            if (!targetWidgetId) return;
-            let currentBuffer = "";
-            socketClient.registerStreamHandler(
-              nodeId,
-              widgetId,
-              (chunk: string) => {
-                currentBuffer += chunk;
-                const store = useFlowStore.getState();
-                const currentNode = store.nodes.find((n) => n.id === nodeId);
-                if (
-                  currentNode &&
-                  isDynamicNode(currentNode) &&
-                  currentNode.data.widgets
-                ) {
-                  const updatedWidgets = currentNode.data.widgets.map((w) =>
-                    w.id === targetWidgetId
-                      ? { ...w, value: currentBuffer }
-                      : w,
-                  );
-                  store.updateNodeData(nodeId, { widgets: updatedWidgets });
-                }
-              },
-            );
-            streamAction(nodeId, widgetId);
-          } else if (val.startsWith("task:")) {
+          if (val.startsWith("task:")) {
             const taskType = val.split(":")[1];
             if (!taskType) return;
             const taskId = uuidv4();
@@ -132,29 +106,29 @@ export function useNodeEventListener({
               y: node.position.y,
             };
             const placeholderNode: AppNode = {
-              id: `task-${taskId}`,
-              type: AppNodeType.PROCESSING,
-              position,
               data: {
                 label: `Running ${taskType}...`,
-                taskId,
                 onCancel: (tid: string) => {
                   cancelTask(tid);
                 },
+                taskId,
               },
+              id: `task-${taskId}`,
+              position,
+              type: AppNodeType.PROCESSING,
             } as AppNode;
             addNodeToStore(placeholderNode);
             useTaskStore.getState().registerTask({
-              taskId,
               label: `Running ${taskType}...`,
               source: MutationSource.SOURCE_REMOTE_TASK,
+              taskId,
             });
             executeTask(
               {
                 id: taskType,
                 label: taskType,
-                strategy: 0,
                 path: [],
+                strategy: 0,
               } as unknown as ActionTemplate,
               nodeId,
             );

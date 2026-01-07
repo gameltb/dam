@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { useTaskStore } from "../taskStore";
-import { useFlowStore } from "../flowStore";
-import { MutationSource, TaskStatus } from "../../types";
-import { GraphMutationSchema } from "../../generated/flowcraft/v1/core/service_pb";
 import { create } from "@bufbuild/protobuf";
-
-import { initStoreOrchestrator } from "../orchestrator";
+import { beforeEach, describe, expect, it } from "vitest";
 import { beforeAll } from "vitest";
+
+import { GraphMutationSchema } from "../../generated/flowcraft/v1/core/service_pb";
+import { MutationSource, TaskStatus } from "../../types";
+import { useFlowStore } from "../flowStore";
+import { initStoreOrchestrator } from "../orchestrator";
+import { useTaskStore } from "../taskStore";
 
 describe("Task Traceability", () => {
   beforeAll(() => {
@@ -25,9 +25,9 @@ describe("Task Traceability", () => {
 
     // 1. Register a task
     taskStore.registerTask({
-      taskId,
       label: "Background Generation",
       source: MutationSource.SOURCE_REMOTE_TASK,
+      taskId,
     });
 
     // 2. Apply mutations with task context
@@ -41,9 +41,9 @@ describe("Task Traceability", () => {
     ];
 
     flowStore.applyMutations(mutations, {
-      taskId,
-      source: MutationSource.SOURCE_REMOTE_TASK,
       description: "AI result applied",
+      source: MutationSource.SOURCE_REMOTE_TASK,
+      taskId,
     });
 
     // 3. Verify correlation
@@ -82,10 +82,10 @@ describe("Task Traceability", () => {
     const taskId = "task-status-1";
     const store = useTaskStore.getState();
 
-    store.registerTask({ taskId, label: "Test" });
+    store.registerTask({ label: "Test", taskId });
     store.updateTask(taskId, {
-      status: TaskStatus.TASK_COMPLETED,
       progress: 100,
+      status: TaskStatus.TASK_COMPLETED,
     });
 
     expect(useTaskStore.getState().tasks[taskId]?.status).toBe(

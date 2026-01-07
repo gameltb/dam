@@ -1,5 +1,6 @@
-import React from "react";
 import { useStore } from "@xyflow/react";
+import React from "react";
+
 import { type HelperLines } from "../hooks/useHelperLines";
 
 interface HelperLinesRendererProps {
@@ -21,14 +22,14 @@ export const HelperLinesRenderer: React.FC<HelperLinesRendererProps> = ({
   return (
     <svg
       style={{
-        position: "absolute",
-        width: "100%",
         height: "100%",
-        pointerEvents: "none",
-        zIndex: 10,
-        overflow: "visible",
         left: 0,
+        overflow: "visible",
+        pointerEvents: "none",
+        position: "absolute",
         top: 0,
+        width: "100%",
+        zIndex: 10,
       }}
     >
       <g
@@ -36,26 +37,26 @@ export const HelperLinesRenderer: React.FC<HelperLinesRendererProps> = ({
       >
         {lines.vertical !== undefined && (
           <line
-            x1={lines.vertical}
-            y1="-1000000"
-            x2={lines.vertical}
-            y2="1000000"
             stroke="var(--primary-color)"
-            strokeWidth={(1 / zoom).toString()} // Maintain constant line thickness
             strokeDasharray={`${(4 / zoom).toString()} ${(4 / zoom).toString()}`}
+            strokeWidth={(1 / zoom).toString()} // Maintain constant line thickness
             style={{ opacity: 0.8 }}
+            x1={lines.vertical}
+            x2={lines.vertical}
+            y1="-1000000"
+            y2="1000000"
           />
         )}
         {lines.horizontal !== undefined && (
           <line
-            x1="-1000000"
-            y1={lines.horizontal}
-            x2="1000000"
-            y2={lines.horizontal}
             stroke="var(--primary-color)"
-            strokeWidth={(1 / zoom).toString()} // Maintain constant line thickness
             strokeDasharray={`${(4 / zoom).toString()} ${(4 / zoom).toString()}`}
+            strokeWidth={(1 / zoom).toString()} // Maintain constant line thickness
             style={{ opacity: 0.8 }}
+            x1="-1000000"
+            x2="1000000"
+            y1={lines.horizontal}
+            y2={lines.horizontal}
           />
         )}
       </g>

@@ -1,17 +1,18 @@
-import React, { useRef, useCallback } from "react";
-import { useUiStore } from "../store/uiStore";
+import { PanelLeftClose, X } from "lucide-react";
+import React, { useCallback, useRef } from "react";
+
 import { useFlowStore } from "../store/flowStore";
+import { useUiStore } from "../store/uiStore";
 import { ChatBot } from "./media/ChatBot";
-import { X, PanelLeftClose } from "lucide-react";
 import { Button } from "./ui/button";
 
 export const Sidebar: React.FC = () => {
   const {
-    isSidebarOpen,
-    sidebarWidth,
     activeChatNodeId,
-    setSidebarWidth,
+    isSidebarOpen,
     setActiveChat,
+    setSidebarWidth,
+    sidebarWidth,
   } = useUiStore();
 
   const node = useFlowStore((s) =>
@@ -65,18 +66,18 @@ export const Sidebar: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-node-border bg-muted/30">
           <div className="flex items-center gap-2">
-            <PanelLeftClose size={18} className="text-primary-color" />
+            <PanelLeftClose className="text-primary-color" size={18} />
             <h2 className="text-sm font-semibold truncate">
-              {node ? `Chat: ${node.data.label || node.id}` : "AI Assistant"}
+              {node ? `Chat: ${node.data.label ?? node.id}` : "AI Assistant"}
             </h2>
           </div>
           <Button
-            variant="ghost"
-            size="icon"
             className="h-8 w-8"
             onClick={() => {
               setActiveChat(null);
             }}
+            size="icon"
+            variant="ghost"
           >
             <X size={16} />
           </Button>

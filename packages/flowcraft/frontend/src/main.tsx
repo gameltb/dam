@@ -1,16 +1,24 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import "./index.css";
-import App from "./App.tsx";
-import ThemeProvider from "./ThemeProvider.tsx";
 import { ReactFlowProvider } from "@xyflow/react";
-import { initStoreOrchestrator } from "./store/orchestrator";
+import { StrictMode } from "react";
+
+import "./index.css";
+import { createRoot } from "react-dom/client";
+
+import App from "./App.tsx";
 import { useFlowStore } from "./store/flowStore";
+import { initStoreOrchestrator } from "./store/orchestrator";
+import ThemeProvider from "./ThemeProvider.tsx";
 
 initStoreOrchestrator();
 
-if (typeof window !== "undefined") {
-  (window as any).useFlowStore = useFlowStore;
+declare global {
+  interface Window {
+    useFlowStore: typeof useFlowStore;
+  }
+}
+
+if (process.env.NODE_ENV === "development") {
+  window.useFlowStore = useFlowStore;
 }
 
 // Disabled MSW mocking in favor of real Node.js backend

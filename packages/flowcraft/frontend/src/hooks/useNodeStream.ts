@@ -1,21 +1,24 @@
 import { useEffect } from "react";
+
+import { type NodeEvent } from "../generated/flowcraft/v1/core/service_pb";
 import { socketClient } from "../utils/SocketClient";
-import { type StreamChunk } from "../generated/flowcraft/v1/core/service_pb";
 
 export function useNodeStream(
   nodeId: string,
   onChunk: (chunk: string, isDone: boolean) => void,
 ) {
   useEffect(() => {
-    const handler = (data: StreamChunk) => {
+    const handler = (data: NodeEvent) => {
       if (data.nodeId === nodeId) {
-        onChunk(data.chunkData, data.isDone);
+        if (data.payload.case === "chatStream") {
+          onChunk(data.payload.value.chunkData, data.payload.value.isDone);
+        }
       }
     };
 
-    socketClient.on("streamChunk", handler);
+    socketClient.on("nodeEvent", handler);
     return () => {
-      socketClient.off("streamChunk", handler);
+      socketClient.off("nodeEvent", handler);
     };
   }, [nodeId, onChunk]);
 }

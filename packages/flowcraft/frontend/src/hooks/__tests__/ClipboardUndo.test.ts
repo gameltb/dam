@@ -1,17 +1,18 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { useFlowStore } from "../../store/flowStore";
-import { useUiStore } from "../../store/uiStore";
 import { create } from "@bufbuild/protobuf";
+import { beforeEach, describe, expect, it } from "vitest";
+
 import {
-  GraphMutationSchema,
-  AddSubGraphSchema,
-  AddNodeSchema,
-} from "../../generated/flowcraft/v1/core/service_pb";
+  NodeKind,
+  PresentationSchema,
+} from "../../generated/flowcraft/v1/core/base_pb";
 import { NodeSchema } from "../../generated/flowcraft/v1/core/node_pb";
 import {
-  PresentationSchema,
-  NodeKind,
-} from "../../generated/flowcraft/v1/core/base_pb";
+  AddNodeSchema,
+  AddSubGraphSchema,
+  GraphMutationSchema,
+} from "../../generated/flowcraft/v1/core/service_pb";
+import { useFlowStore } from "../../store/flowStore";
+import { useUiStore } from "../../store/uiStore";
 
 describe("Direct Store Clipboard Logic", () => {
   beforeEach(() => {
@@ -28,20 +29,20 @@ describe("Direct Store Clipboard Logic", () => {
         operation: {
           case: "addSubgraph",
           value: create(AddSubGraphSchema, {
+            edges: [],
             nodes: [
               create(NodeSchema, {
+                isSelected: false,
                 nodeId: "test-node",
                 nodeKind: NodeKind.DYNAMIC,
                 presentation: create(PresentationSchema, {
-                  position: { x: 0, y: 0 },
-                  width: 0,
                   height: 0,
                   parentId: "",
+                  position: { x: 0, y: 0 },
+                  width: 0,
                 }),
-                isSelected: false,
               }),
             ],
-            edges: [],
           }),
         },
       }),
@@ -65,20 +66,20 @@ describe("Direct Store Clipboard Logic", () => {
         operation: {
           case: "addSubgraph",
           value: create(AddSubGraphSchema, {
+            edges: [],
             nodes: [
               create(NodeSchema, {
+                isSelected: false,
                 nodeId: "undo-node",
                 nodeKind: NodeKind.DYNAMIC,
                 presentation: create(PresentationSchema, {
-                  position: { x: 0, y: 0 },
-                  width: 0,
                   height: 0,
                   parentId: "",
+                  position: { x: 0, y: 0 },
+                  width: 0,
                 }),
-                isSelected: false,
               }),
             ],
-            edges: [],
           }),
         },
       }),
@@ -105,15 +106,15 @@ describe("Direct Store Clipboard Logic", () => {
           case: "addNode",
           value: create(AddNodeSchema, {
             node: create(NodeSchema, {
+              isSelected: false,
               nodeId: "node-1",
               nodeKind: NodeKind.DYNAMIC,
               presentation: create(PresentationSchema, {
-                position: { x: 100, y: 100 },
-                width: 0,
                 height: 0,
                 parentId: "",
+                position: { x: 100, y: 100 },
+                width: 0,
               }),
-              isSelected: false,
             }),
           }),
         },
@@ -121,7 +122,7 @@ describe("Direct Store Clipboard Logic", () => {
     ]);
 
     // Manually trigger selection change to sync it
-    store.onNodesChange([{ id: "node-1", type: "select", selected: true }]);
+    store.onNodesChange([{ id: "node-1", selected: true, type: "select" }]);
 
     expect(useFlowStore.getState().nodes[0]?.selected).toBe(true);
 
@@ -130,7 +131,7 @@ describe("Direct Store Clipboard Logic", () => {
       .getState()
       .nodes.filter((n) => n.selected);
     expect(selectedNodes.length).toBe(1);
-    useUiStore.getState().setClipboard({ nodes: selectedNodes, edges: [] });
+    useUiStore.getState().setClipboard({ edges: [], nodes: selectedNodes });
 
     // 3. Perform Paste
     const clipboard = useUiStore.getState().clipboard;
@@ -142,20 +143,20 @@ describe("Direct Store Clipboard Logic", () => {
         operation: {
           case: "addSubgraph",
           value: create(AddSubGraphSchema, {
+            edges: [],
             nodes: [
               create(NodeSchema, {
+                isSelected: false,
                 nodeId: newNodeId,
                 nodeKind: NodeKind.DYNAMIC,
                 presentation: create(PresentationSchema, {
-                  position: { x: 140, y: 140 },
-                  width: 0,
                   height: 0,
                   parentId: "",
+                  position: { x: 140, y: 140 },
+                  width: 0,
                 }),
-                isSelected: false,
               }),
             ],
-            edges: [],
           }),
         },
       }),

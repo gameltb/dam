@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package flowcraft_proto.v1;
 
+import "google/protobuf/struct.proto";
 import "flowcraft/v1/core/base.proto";
 import "flowcraft/v1/core/node.proto";
 import "flowcraft/v1/core/signals.proto";
@@ -28,9 +29,57 @@ message FlowMessage {
     ActionDiscoveryResponse actions = 25;
     TemplateDiscoveryResponse templates = 26;
     TaskUpdate task_update = 22;
-    StreamChunk stream_chunk = 23;
+    NodeEvent node_event = 23; // REPLACES StreamChunk
     ErrorResponse error = 24;
   }
+}
+
+/**
+ * NodeEvent - A logical channel event for a specific node.
+ */
+message NodeEvent {
+  string node_id = 1;
+  oneof payload {
+    // Chat Stream
+    ChatStreamEvent chat_stream = 10;
+    // Generic Log/Console
+    LogEvent log = 11;
+    // Task Progress
+    NodeProgress progress = 12;
+    // Widget Data Stream (REPLACES StreamChunk)
+    WidgetStreamEvent widget_stream = 13;
+    // Generic Data for custom extensions
+    bytes data = 14;
+  }
+}
+
+message WidgetStreamEvent {
+  string widget_id = 1;
+  string chunk_data = 2;
+  bool is_done = 3;
+}
+
+message ChatStreamEvent {
+  string chunk_data = 1;
+  bool is_done = 2;
+  string message_id = 3; // Link to specific message instance
+}
+
+message LogEvent {
+  string message = 1;
+  LogLevel level = 2;
+}
+
+enum LogLevel {
+  INFO = 0;
+  WARN = 1;
+  ERROR = 2;
+  DEBUG = 3;
+}
+
+message NodeProgress {
+  float percentage = 1;
+  string status_text = 2;
 }
 
 message SyncRequest { 
@@ -66,7 +115,7 @@ message UpdateNodeRequest {
 message UpdateWidgetRequest {
   string node_id = 1;
   string widget_id = 2;
-  string value_json = 3;
+  google.protobuf.Value value = 3;
 }
 
 message ViewportUpdate {
@@ -116,15 +165,16 @@ message ChatMessage {
   string id = 1;
   string role = 2;
   string content = 3;
-  string metadata_json = 4;
-  int64 timestamp = 5;
+  oneof metadata {
+    google.protobuf.Struct metadata_struct = 4;
+    ChatMsgMetadata chat_metadata = 5;
+  }
+  int64 timestamp = 6;
 }
 
-message StreamChunk {
-  string node_id = 1;
-  string widget_id = 2;
-  string chunk_data = 3;
-  bool is_done = 4;
+message ChatMsgMetadata {
+  string model_id = 1;
+  repeated string attachment_urls = 2;
 }
 
 message ErrorResponse {
@@ -166,7 +216,7 @@ message ClearGraph {}
 message PathUpdate {
   string target_id = 1; // Node ID or Edge ID
   string path = 2;      // e.g., "data.widgets.my_slider.value"
-  string value_json = 3; // The new value serialized as JSON
+  google.protobuf.Value value = 3; // The new value
   enum UpdateType {
     REPLACE = 0;
     MERGE = 1;

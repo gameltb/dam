@@ -1,5 +1,6 @@
-import { useFlowStore } from "../store/flowStore";
 import { useShallow } from "zustand/react/shallow";
+
+import { useFlowStore } from "../store/flowStore";
 import { useClipboard } from "./useClipboard";
 import { useLayoutOperations } from "./useLayoutOperations";
 import { useNodeOperations } from "./useNodeOperations";
@@ -9,16 +10,16 @@ interface GraphOpsProps {
 }
 
 export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
-  const { nodes, edges, applyMutations } = useFlowStore(
+  const { applyMutations, edges, nodes } = useFlowStore(
     useShallow((state) => ({
-      nodes: state.nodes,
-      edges: state.edges,
       applyMutations: state.applyMutations,
+      edges: state.edges,
+      nodes: state.nodes,
     })),
   );
 
-  const { addNode, deleteNode, deleteEdge } = useNodeOperations(applyMutations);
-  const { copy, paste, duplicate } = useClipboard();
+  const { addNode, deleteEdge, deleteNode } = useNodeOperations(applyMutations);
+  const { copy, duplicate, paste } = useClipboard();
   const { autoLayout, groupSelected } = useLayoutOperations(
     nodes,
     edges,
@@ -27,13 +28,13 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
 
   return {
     addNode,
-    deleteNode,
-    deleteEdge,
-    copySelected: copy,
-    paste,
-    duplicateSelected: duplicate,
     autoLayout,
-    groupSelected,
     clientVersion,
+    copySelected: copy,
+    deleteEdge,
+    deleteNode,
+    duplicateSelected: duplicate,
+    groupSelected,
+    paste,
   };
 };

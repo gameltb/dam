@@ -1,17 +1,18 @@
-import { type NodeProps, NodeResizer, type Node } from "@xyflow/react";
+import { type Node, type NodeProps, NodeResizer } from "@xyflow/react";
 import { memo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
+
 import { useTheme } from "../hooks/useTheme";
 import { useFlowStore } from "../store/flowStore";
-import { useShallow } from "zustand/react/shallow";
 import { AppNodeType } from "../types";
 
-export type GroupNodeData = {
+export type GroupNodeData = Record<string, unknown> & {
   label?: string;
-} & Record<string, unknown>;
+};
 
 export type GroupNodeType = Node<GroupNodeData, AppNodeType.GROUP>;
 
-const GroupNode = ({ selected, data, id }: NodeProps<GroupNodeType>) => {
+const GroupNode = ({ data, id, selected }: NodeProps<GroupNodeType>) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const updateNodeData = useFlowStore(useShallow((s) => s.updateNodeData));
@@ -44,67 +45,67 @@ const GroupNode = ({ selected, data, id }: NodeProps<GroupNodeType>) => {
   return (
     <div
       style={{
-        width: "100%",
-        height: "100%",
         backgroundColor: isDark
           ? "rgba(100, 108, 255, 0.08)"
           : "rgba(100, 108, 255, 0.05)",
         border: `2px ${selected ? "solid" : "dashed"} ${selected ? "var(--primary-color)" : isDark ? "rgba(100, 108, 255, 0.3)" : "rgba(100, 108, 255, 0.4)"}`,
         borderRadius: "12px",
-        padding: "10px",
         boxSizing: "border-box",
+        height: "100%",
+        padding: "10px",
         position: "relative",
         transition: "all 0.2s ease",
+        width: "100%",
       }}
     >
       <NodeResizer
         color="var(--primary-color)"
         isVisible={selected}
-        minWidth={150}
         minHeight={100}
+        minWidth={150}
       />
       <div
         className="nodrag nopan"
         style={{
+          display: "flex",
+          left: "0",
           position: "absolute",
           top: "-32px",
-          left: "0",
           width: "100%",
-          display: "flex",
           zIndex: 10,
         }}
       >
         <input
           className="nodrag nopan"
-          value={label}
-          placeholder="Unnamed Group"
-          onFocus={() => {
-            setIsFocused(true);
-          }}
+          onBlur={handleBlur}
           onChange={(e) => {
             setLabel(e.target.value);
           }}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
           onClick={(e) => {
             e.stopPropagation();
           }}
+          onFocus={() => {
+            setIsFocused(true);
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder="Unnamed Group"
           style={{
+            backdropFilter: "blur(8px)",
             background: isFocused ? "var(--panel-bg)" : "rgba(20, 20, 20, 0.4)",
             border: `1px solid ${isFocused ? "var(--primary-color)" : "transparent"}`,
             borderRadius: "6px",
+            boxShadow: isFocused ? "0 4px 12px rgba(0,0,0,0.4)" : "none",
+            color: isDark ? "#fff" : "#000",
+            cursor: "text",
             fontSize: "12px",
             fontWeight: 600,
-            color: isDark ? "#fff" : "#000",
-            outline: "none",
-            width: "fit-content",
             minWidth: "100px",
+            outline: "none",
             padding: "4px 10px",
-            backdropFilter: "blur(8px)",
-            boxShadow: isFocused ? "0 4px 12px rgba(0,0,0,0.4)" : "none",
             transition: "all 0.2s ease",
-            cursor: "text",
+            width: "fit-content",
           }}
+          value={label}
         />
       </div>
     </div>

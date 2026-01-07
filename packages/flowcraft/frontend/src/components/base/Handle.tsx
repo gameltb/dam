@@ -1,7 +1,7 @@
 // src/components/base/Handle.tsx
 
+import { type HandleProps, Handle as ReactFlowHandle } from "@xyflow/react";
 import React from "react";
-import { Handle as ReactFlowHandle, type HandleProps } from "@xyflow/react";
 
 export const Handle: React.FC<HandleProps> = (props) => {
   return (

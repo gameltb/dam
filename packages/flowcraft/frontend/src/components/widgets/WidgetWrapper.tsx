@@ -1,28 +1,28 @@
-import React, { useState } from "react";
 import { useStore } from "@xyflow/react";
+import React, { useState } from "react";
 
 export interface WidgetWrapperProps {
   children: React.ReactNode;
-  isSwitchable: boolean;
-  onToggleMode: () => void;
-  onClick?: () => void;
   inputPortId?: string; // 如果设置了，将监听连线状态
+  isSwitchable: boolean;
   nodeId?: string;
+  onClick?: () => void;
+  onToggleMode: () => void;
 }
 
 export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
   children,
-  isSwitchable,
-  onToggleMode,
-  onClick,
   inputPortId,
+  isSwitchable,
   nodeId,
+  onClick,
+  onToggleMode,
 }) => {
   const [isSelected, setIsSelected] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{
+  const [contextMenu, setContextMenu] = useState<null | {
     x: number;
     y: number;
-  } | null>(null);
+  }>(null);
 
   // 监听是否有连线连接到该隐式端口
   const isConnected = useStore((s) => {
@@ -55,50 +55,50 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
   };
 
   const wrapperStyle: React.CSSProperties = {
-    position: "relative",
-    padding: "5px",
     border: isSelected ? "1px solid #777" : "1px solid transparent",
     borderRadius: "4px",
+    padding: "5px",
+    position: "relative",
     // Remove global opacity when connected to keep port clear
     transition: "background 0.2s",
   };
 
   const buttonStyle: React.CSSProperties = {
-    position: "absolute",
-    top: "-10px",
-    right: "-10px",
-    cursor: "pointer",
+    alignItems: "center",
     background: "#eee",
     border: "1px solid #ccc",
     borderRadius: "50%",
-    width: "20px",
-    height: "20px",
+    cursor: "pointer",
     display: "flex",
-    alignItems: "center",
+    height: "20px",
     justifyContent: "center",
+    position: "absolute",
+    right: "-10px",
+    top: "-10px",
+    width: "20px",
     zIndex: 10,
   };
 
   return (
     <div
-      style={wrapperStyle}
+      onBlur={handleDeselect}
       onClick={() => {
         handleSelect();
         onClick?.();
       }}
-      onBlur={handleDeselect}
       onContextMenu={handleContextMenu}
+      style={wrapperStyle}
       tabIndex={0}
     >
       {isConnected && (
         <div
           style={{
-            position: "absolute",
+            color: "#646cff",
+            fontSize: "10px",
             left: -15,
+            position: "absolute",
             top: "50%",
             transform: "translateY(-50%)",
-            fontSize: "10px",
-            color: "#646cff",
           }}
         >
           ➔
@@ -106,22 +106,22 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
       )}
       {children}
       {isSelected && isSwitchable && (
-        <button style={buttonStyle} onClick={onToggleMode} title="Switch mode">
+        <button onClick={onToggleMode} style={buttonStyle} title="Switch mode">
           ⇆
         </button>
       )}
       {contextMenu && (
         <div
+          onMouseLeave={closeContextMenu}
           style={{
-            position: "fixed",
-            top: contextMenu.y,
-            left: contextMenu.x,
             background: "white",
             border: "1px solid #ccc",
-            zIndex: 1000,
+            left: contextMenu.x,
             padding: "5px",
+            position: "fixed",
+            top: contextMenu.y,
+            zIndex: 1000,
           }}
-          onMouseLeave={closeContextMenu}
         >
           <div
             onClick={() => {

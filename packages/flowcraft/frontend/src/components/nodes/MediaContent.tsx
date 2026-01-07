@@ -1,29 +1,28 @@
+import { create as createProto } from "@bufbuild/protobuf";
 import React, { memo } from "react";
+
+import { PresentationSchema } from "../../generated/flowcraft/v1/core/base_pb";
 import { MediaType } from "../../generated/flowcraft/v1/core/node_pb";
 import { GraphMutationSchema } from "../../generated/flowcraft/v1/core/service_pb";
-import { PresentationSchema } from "../../generated/flowcraft/v1/core/base_pb";
-import { create as createProto } from "@bufbuild/protobuf";
-import { type DynamicNodeData, FlowEvent } from "../../types";
-import { GalleryWrapper } from "../media/GalleryWrapper";
-import { PortHandle } from "../base/PortHandle";
 import { useNodeHandlers } from "../../hooks/useNodeHandlers";
 import { useFlowStore } from "../../store/flowStore";
+import { type DynamicNodeData, FlowEvent } from "../../types";
 import { getMediaTypeFromMime } from "../../utils/nodeUtils";
-
 import { getPortColor, getPortShape } from "../../utils/themeUtils";
-
+import { PortHandle } from "../base/PortHandle";
+import { GalleryWrapper } from "../media/GalleryWrapper";
 import { MEDIA_RENDERERS } from "../media/mediaRenderRegistry";
 
 interface MediaContentProps {
-  id: string;
   data: DynamicNodeData;
-  onOverflowChange?: (o: "visible" | "hidden") => void;
-  width?: number;
   height?: number;
+  id: string;
+  onOverflowChange?: (o: "hidden" | "visible") => void;
+  width?: number;
 }
 
 export const MediaContent: React.FC<MediaContentProps> = memo(
-  ({ id, data, onOverflowChange, width, height }) => {
+  ({ data, height, id, onOverflowChange, width }) => {
     const { onChange, onGalleryItemContext } = useNodeHandlers(data);
     const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
 
@@ -38,11 +37,11 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
       if (!url && !content) return null;
 
       return {
-        url: url || "",
-        type: getMediaTypeFromMime(mimeType),
-        content: content || "",
         aspectRatio: data.media?.aspectRatio ?? 0,
+        content: content ?? "",
         galleryUrls: [],
+        type: getMediaTypeFromMime(mimeType),
+        url: url ?? "",
       };
     };
 
@@ -53,7 +52,7 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
     const nodeHeight = height ?? 180;
 
     const handleOpenPreview = (index = 0) => {
-      dispatchNodeEvent(FlowEvent.OPEN_PREVIEW, { nodeId: id, index });
+      dispatchNodeEvent(FlowEvent.OPEN_PREVIEW, { index, nodeId: id });
     };
 
     const handleDimensionsLoad = (ratio: number) => {
@@ -78,9 +77,9 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
                 value: {
                   id: id,
                   presentation: createProto(PresentationSchema, {
-                    width: currentWidth,
                     height: targetHeight,
                     isInitialized: true,
+                    width: currentWidth,
                   }),
                 },
               },
@@ -107,17 +106,17 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
 
       return (
         <Renderer
-          url={url}
           content={content}
-          onEdit={(newContent) => {
-            onChange(id, {
-              widgetsValues: { ...data.widgetsValues, content: newContent },
-              media: { ...media, content: newContent },
-            });
-          }}
           index={index}
           onDimensionsLoad={handleDimensionsLoad}
+          onEdit={(newContent) => {
+            onChange(id, {
+              media: { ...media, content: newContent },
+              widgetsValues: { ...data.widgetsValues, content: newContent },
+            });
+          }}
           onOpenPreview={handleOpenPreview}
+          url={url}
         />
       );
     };
@@ -131,15 +130,15 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
       <div
         className="nopan"
         style={{
-          width: "100%",
-          height: "100%",
           borderRadius: "inherit",
+          height: "100%",
           overflow: "hidden",
-          position: "relative",
           pointerEvents: "auto",
+          position: "relative",
+          width: "100%",
         }}
       >
-        {renderContent(media.url || "", media.type, 0, media.content)}
+        {renderContent(media.url ?? "", media.type, 0, media.content)}
       </div>
     );
 
@@ -148,52 +147,52 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
     const overlayLayer = (
       <div
         style={{
-          position: "absolute",
           inset: 0,
-          pointerEvents: "none", // Click-through by default
           overflow: "visible",
+          pointerEvents: "none", // Click-through by default
+          position: "absolute",
           zIndex: 100,
         }}
       >
         {/* Gallery Logic (Floating over content) */}
         {gallery.length > 0 && (
-          <div style={{ pointerEvents: "none", width: "100%", height: "100%" }}>
+          <div style={{ height: "100%", pointerEvents: "none", width: "100%" }}>
             <GalleryWrapper
+              gallery={gallery}
               id={id}
-              nodeWidth={nodeWidth}
-              nodeHeight={nodeHeight}
               mainContent={
                 <div
                   style={{
-                    width: "100%",
                     height: "100%",
                     pointerEvents: "none",
+                    width: "100%",
                   }}
                 />
               } // Invisible ghost to drive layout
-              gallery={gallery}
               mediaType={media.type}
+              nodeHeight={nodeHeight}
+              nodeWidth={nodeWidth}
+              onExpand={
+                (expanded) =>
+                  onOverflowChange?.(expanded ? "visible" : "visible") // Force parent to stay visible
+              }
+              onGalleryItemContext={(nodeId, url, mType, x, y) => {
+                onGalleryItemContext(nodeId, url, mType, x, y);
+              }}
               renderItem={(url) => {
                 return (
                   <div
                     style={{
-                      width: "100%",
-                      height: "100%",
                       borderRadius: "4px",
+                      height: "100%",
                       overflow: "hidden",
+                      width: "100%",
                     }}
                   >
                     {renderContent(url, media.type, gallery.indexOf(url) + 1)}
                   </div>
                 );
               }}
-              onGalleryItemContext={(nodeId, url, mType, x, y) => {
-                onGalleryItemContext(nodeId, url, mType, x, y);
-              }}
-              onExpand={
-                (expanded) =>
-                  onOverflowChange?.(expanded ? "visible" : "visible") // Force parent to stay visible
-              }
             />
           </div>
         )}
@@ -204,20 +203,20 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
             <div
               key={port.id || idx}
               style={{
+                pointerEvents: "auto",
                 position: "absolute",
                 right: 0,
                 top: "50%",
                 transform: "translateY(-50%)",
-                pointerEvents: "auto",
               }}
             >
               <PortHandle
-                nodeId={id}
-                portId={port.id}
-                type="source"
-                style={getPortShape(port.type)}
                 color={getPortColor(port.type)}
                 isPresentation={true}
+                nodeId={id}
+                portId={port.id}
+                style={getPortShape(port.type)}
+                type="source"
               />
             </div>
           ))}
@@ -225,20 +224,20 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
             <div
               key={port.id || idx}
               style={{
-                position: "absolute",
                 left: 0,
+                pointerEvents: "auto",
+                position: "absolute",
                 top: "50%",
                 transform: "translateY(-50%)",
-                pointerEvents: "auto",
               }}
             >
               <PortHandle
-                nodeId={id}
-                portId={port.id}
-                type="target"
-                style={getPortShape(port.type)}
                 color={getPortColor(port.type)}
                 isPresentation={true}
+                nodeId={id}
+                portId={port.id}
+                style={getPortShape(port.type)}
+                type="target"
               />
             </div>
           ))}
@@ -253,27 +252,27 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
           handleOpenPreview(0);
         }}
         style={{
-          position: "relative",
-          width: "100%",
-          height: "100%",
           borderRadius: "inherit",
+          height: "100%",
           // The base container must remain visible to show the overlay
           overflow: "visible",
           pointerEvents: "auto",
+          position: "relative",
+          width: "100%",
         }}
       >
         {/* Top Drag Handle (Invisible Overlay) */}
         <div
           style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: "30px", // Slightly larger hit area
-            zIndex: 50,
-            pointerEvents: "auto",
-            cursor: "grab",
             borderRadius: "8px 8px 0 0",
+            cursor: "grab",
+            height: "30px", // Slightly larger hit area
+            left: 0,
+            pointerEvents: "auto",
+            position: "absolute",
+            right: 0,
+            top: 0,
+            zIndex: 50,
           }}
         />
         {mediaLayer}

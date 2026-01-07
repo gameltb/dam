@@ -1,67 +1,71 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useCallback, useEffect } from "react";
-import { useTheme } from "./hooks/useTheme";
-import { useReactFlow } from "@xyflow/react";
-import { useFlowStore } from "./store/flowStore";
-import { useUiStore } from "./store/uiStore";
-import { useTaskStore } from "./store/taskStore";
-import "@xyflow/react/dist/style.css";
-import { useFlowSocket } from "./hooks/useFlowSocket";
-import { MutationSource, type AppNode } from "./types";
-import { type ActionTemplate } from "./generated/flowcraft/v1/core/action_pb";
+import { create, type JsonObject } from "@bufbuild/protobuf";
+import { type Node as RFNode, useReactFlow } from "@xyflow/react";
+import { Bot, Minimize2, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
+import { useShallow } from "zustand/react/shallow";
+
+import { FlowCanvas } from "./components/canvas/FlowCanvas";
+import "@xyflow/react/dist/style.css";
+
+import { ChatBot } from "./components/media/ChatBot";
+import { ContextMenuOverlay } from "./components/menus/ContextMenuOverlay";
+import { Sidebar } from "./components/Sidebar";
+import { AppOverlays } from "./components/ui/AppOverlays";
+import { Button } from "./components/ui/button";
+import {
+  ActionExecutionRequestSchema,
+  type ActionTemplate,
+} from "./generated/flowcraft/v1/core/action_pb";
+import { useAppHotkeys } from "./hooks/useAppHotkeys";
 import { useContextMenu } from "./hooks/useContextMenu";
+import { useFlowHandlers } from "./hooks/useFlowHandlers";
+import { useFlowSocket } from "./hooks/useFlowSocket";
 import { useGraphOperations } from "./hooks/useGraphOperations";
 import { useHelperLines } from "./hooks/useHelperLines";
-import { socketClient, SocketStatus } from "./utils/SocketClient";
-import { Sidebar } from "./components/Sidebar";
-import { ChatBot } from "./components/media/ChatBot";
-import { X, Minimize2, Bot } from "lucide-react";
-import { Button } from "./components/ui/button";
-import { useShallow } from "zustand/react/shallow";
-import { useAppHotkeys } from "./hooks/useAppHotkeys";
 import {
-  useNodeEventListener,
   type PreviewData,
+  useNodeEventListener,
 } from "./hooks/useNodeEventListener";
-import { useFlowHandlers } from "./hooks/useFlowHandlers";
-import { fromProtoNodeData } from "./utils/protoAdapter";
+import { useTheme } from "./hooks/useTheme";
 import { cn } from "./lib/utils";
-import { FlowCanvas } from "./components/canvas/FlowCanvas";
-import { AppOverlays } from "./components/ui/AppOverlays";
-import { ContextMenuOverlay } from "./components/menus/ContextMenuOverlay";
+import { type RFState, useFlowStore } from "./store/flowStore";
+import { useTaskStore } from "./store/taskStore";
+import { useUiStore } from "./store/uiStore";
+import { type AppNode, MutationSource, type NodeTemplate } from "./types";
+import { fromProtoNodeData } from "./utils/protoAdapter";
+import { socketClient, SocketStatus } from "./utils/SocketClient";
 
 function App() {
   const {
-    nodes,
-    edges,
-    onNodesChange,
-    onEdgesChange,
-    onConnect,
-    version: clientVersion,
     addNode: addNodeToStore,
+    edges,
+    nodes,
+    onConnect,
+    onEdgesChange,
+    onNodesChange,
+    version: clientVersion,
   } = useFlowStore(
-    useShallow((s) => ({
-      nodes: s.nodes,
-      edges: s.edges,
-      onNodesChange: s.onNodesChange,
-      onEdgesChange: s.onEdgesChange,
-      onConnect: s.onConnect,
-      version: s.version,
+    useShallow((s: RFState) => ({
       addNode: s.addNode,
+      edges: s.edges,
+      nodes: s.nodes,
+      onConnect: s.onConnect,
+      onEdgesChange: s.onEdgesChange,
+      onNodesChange: s.onNodesChange,
+      version: s.version,
     })),
   );
   const {
-    dragMode,
-    settings,
-    isChatFullscreen,
     activeChatNodeId,
+    dragMode,
+    isChatFullscreen,
     setActiveChat,
+    settings,
   } = useUiStore();
-  const { templates, updateViewport, streamAction, cancelTask, executeTask } =
+  const { cancelTask, executeTask, streamAction, templates, updateViewport } =
     useFlowSocket();
-  const { helperLines, setHelperLines, calculateLines } = useHelperLines();
+  const { calculateLines, helperLines, setHelperLines } = useHelperLines();
   const { screenToFlowPosition } = useReactFlow();
   useTheme();
 
@@ -74,59 +78,59 @@ function App() {
   const [pendingAction, setPendingAction] = useState<ActionTemplate | null>(
     null,
   );
-  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
-  const [activeEditorId, setActiveEditorId] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<null | PreviewData>(null);
+  const [activeEditorId, setActiveEditorId] = useState<null | string>(null);
 
   const {
-    contextMenu,
-    onNodeContextMenu,
-    onEdgeContextMenu,
-    onSelectionContextMenu,
-    onPaneContextMenu,
     closeContextMenuAndClear,
-    setContextMenu,
+    contextMenu,
+    onEdgeContextMenu,
+    onNodeContextMenu,
     onNodeDragStop: contextMenuDragStop,
+    onPaneContextMenu,
+    onSelectionContextMenu,
+    setContextMenu,
   } = useContextMenu();
 
   const {
     addNode,
     autoLayout,
-    groupSelected,
     copySelected,
-    duplicateSelected,
-    paste,
-    deleteNode,
     deleteEdge,
+    deleteNode,
+    duplicateSelected,
+    groupSelected,
+    paste,
   } = useGraphOperations({ clientVersion });
 
   const {
-    onInit,
-    handleNodeDragStop,
-    onConnectStart,
-    onConnectEnd,
-    onNodesChangeWithSnapping,
     handleMoveEnd,
     handleNodeContextMenu,
+    handleNodeDragStop,
+    onConnectEnd,
+    onConnectStart,
+    onInit,
+    onNodesChangeWithSnapping,
   } = useFlowHandlers({
-    nodes,
-    onNodesChange,
-    updateViewport,
     calculateLines,
-    setHelperLines,
-    onNodeContextMenuHook: onNodeContextMenu,
     contextMenuDragStop,
+    nodes,
+    onNodeContextMenuHook: onNodeContextMenu,
+    onNodesChange,
+    setHelperLines,
+    updateViewport,
   });
 
   useAppHotkeys();
   useNodeEventListener({
-    nodes,
-    setContextMenu,
-    setPreviewData,
-    setActiveEditorId,
-    streamAction,
     addNodeToStore,
     cancelTask,
     executeTask,
+    nodes,
+    setActiveEditorId,
+    setContextMenu,
+    setPreviewData,
+    streamAction,
   });
 
   useEffect(() => {
@@ -143,33 +147,41 @@ function App() {
   }, []);
 
   const handleExecuteAction = useCallback(
-    (action: ActionTemplate, params: Record<string, any> = {}) => {
-      if (action.paramsSchemaJson && Object.keys(params).length === 0) {
+    (action: ActionTemplate, params: Record<string, unknown> = {}) => {
+      if (action.paramsSchema && Object.keys(params).length === 0) {
         setPendingAction(action);
         closeContextMenuAndClear();
         return;
       }
       const effectiveNodeId =
-        contextMenu?.nodeId || nodes.find((n) => n.selected)?.id || "";
-      if (!effectiveNodeId && nodes.filter((n) => n.selected).length === 0)
+        contextMenu?.nodeId ?? nodes.find((n: AppNode) => n.selected)?.id ?? "";
+      if (
+        !effectiveNodeId &&
+        nodes.filter((n: AppNode) => n.selected).length === 0
+      )
         return;
 
       const taskId = crypto.randomUUID();
       useTaskStore.getState().registerTask({
-        taskId,
         label: action.label,
         source: MutationSource.SOURCE_REMOTE_TASK,
+        taskId,
       });
 
       void socketClient.send({
         payload: {
           case: "actionExecute",
-          value: {
+          value: create(ActionExecutionRequestSchema, {
             actionId: action.id,
+            contextNodeIds: nodes
+              .filter((n: AppNode) => n.selected)
+              .map((n: AppNode) => n.id),
+            params: {
+              case: "paramsStruct",
+              value: { ...params, taskId } as unknown as JsonObject,
+            },
             sourceNodeId: effectiveNodeId,
-            contextNodeIds: nodes.filter((n) => n.selected).map((n) => n.id),
-            paramsJson: JSON.stringify({ ...params, taskId }),
-          } as any,
+          }),
         },
       });
       setPendingAction(null);
@@ -179,7 +191,7 @@ function App() {
   );
 
   const handleAddNode = useCallback(
-    (template: any) => {
+    (template: NodeTemplate) => {
       if (!contextMenu) return;
       const pos = screenToFlowPosition({ x: contextMenu.x, y: contextMenu.y });
       addNode(
@@ -197,8 +209,8 @@ function App() {
     (event: React.DragEvent) => {
       event.preventDefault();
       const dropLogic = async () => {
-        const files = event.dataTransfer?.files;
-        if (!files || files.length === 0) return;
+        const files = event.dataTransfer.files;
+        if (files.length === 0) return;
         const position = screenToFlowPosition({
           x: event.clientX,
           y: event.clientY,
@@ -207,19 +219,24 @@ function App() {
           const formData = new FormData();
           formData.append("file", file);
           const res = await fetch("/api/upload", {
-            method: "POST",
             body: formData,
+            method: "POST",
           });
-          const asset = await res.json();
-          let tpl = "tpl-media-md";
-          if (asset.mimeType.startsWith("image/")) tpl = "tpl-media-image";
+          const asset = (await res.json()) as {
+            mimeType: string;
+            name: string;
+            url: string;
+          };
+          let tpl = "flowcraft.node.media.document";
+          if (asset.mimeType.startsWith("image/"))
+            tpl = "flowcraft.node.media.visual";
           const template = templates.find((t) => t.templateId === tpl);
           addNode(tpl, position, {
             ...(template?.defaultState
               ? fromProtoNodeData(template.defaultState)
               : {}),
             label: asset.name,
-            widgetsValues: { url: asset.url, mimeType: asset.mimeType },
+            widgetsValues: { mimeType: asset.mimeType, url: asset.url },
           });
         }
       };
@@ -230,12 +247,12 @@ function App() {
     [addNode, templates, screenToFlowPosition],
   );
 
-  const onNodeDragStart = useCallback((_e: any, node: AppNode) => {
-    const nativeEvent = _e?.nativeEvent as DragEvent | undefined;
+  const onNodeDragStart = useCallback((_e: React.MouseEvent, node: RFNode) => {
+    const nativeEvent = _e.nativeEvent as DragEvent | undefined;
     if (nativeEvent?.dataTransfer) {
       nativeEvent.dataTransfer.setData(
         "application/flowcraft-node",
-        JSON.stringify({ label: node.data.label, id: node.id }),
+        JSON.stringify({ id: node.id, label: node.data.label }),
       );
       nativeEvent.dataTransfer.effectAllowed = "move";
     }
@@ -244,11 +261,11 @@ function App() {
   return (
     <div
       className="flex w-screen h-screen overflow-hidden bg-background text-foreground"
-      onDrop={onDrop}
       onDragOver={(e) => {
         e.preventDefault();
-        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+        e.dataTransfer.dropEffect = "move";
       }}
+      onDrop={onDrop}
     >
       <div
         className={cn(
@@ -258,35 +275,35 @@ function App() {
         inert={isChatFullscreen || undefined}
       >
         <FlowCanvas
-          nodes={nodes}
+          dragMode={dragMode}
           edges={edges}
-          onNodesChange={onNodesChangeWithSnapping}
-          onEdgesChange={onEdgesChange}
+          helperLines={helperLines}
+          nodes={nodes}
           onConnect={onConnect}
+          onConnectEnd={onConnectEnd}
+          onConnectStart={onConnectStart}
+          onEdgeContextMenu={onEdgeContextMenu}
+          onEdgesChange={onEdgesChange}
           onInit={onInit}
+          onMoveEnd={handleMoveEnd}
+          onNodeContextMenu={handleNodeContextMenu}
           onNodeDragStart={onNodeDragStart}
           onNodeDragStop={handleNodeDragStop}
-          onConnectStart={onConnectStart}
-          onConnectEnd={onConnectEnd}
-          onNodeContextMenu={handleNodeContextMenu}
-          onEdgeContextMenu={onEdgeContextMenu}
-          onSelectionContextMenu={onSelectionContextMenu}
+          onNodesChange={onNodesChangeWithSnapping}
           onPaneContextMenu={onPaneContextMenu}
-          onMoveEnd={handleMoveEnd}
+          onSelectionContextMenu={onSelectionContextMenu}
           theme={settings.theme}
-          dragMode={dragMode}
-          helperLines={helperLines}
         />
         <AppOverlays
-          nodes={nodes}
-          previewData={previewData}
-          setPreviewData={setPreviewData}
           activeEditorId={activeEditorId}
-          setActiveEditorId={setActiveEditorId}
           connectionStatus={connectionStatus}
-          pendingAction={pendingAction}
-          setPendingAction={setPendingAction}
+          nodes={nodes}
           onExecuteAction={handleExecuteAction}
+          pendingAction={pendingAction}
+          previewData={previewData}
+          setActiveEditorId={setActiveEditorId}
+          setPendingAction={setPendingAction}
+          setPreviewData={setPreviewData}
         />
       </div>
       <div
@@ -299,25 +316,25 @@ function App() {
         <div className="fixed inset-0 z-[10000] bg-background flex flex-col animate-in fade-in zoom-in-95 duration-200">
           <div className="shrink-0 p-4 border-b border-node-border flex justify-between items-center bg-muted/20">
             <div className="flex items-center gap-2">
-              <Bot size={20} className="text-primary-color" />
+              <Bot className="text-primary-color" size={20} />
               <h2 className="font-bold">Full Conversation Mode</h2>
             </div>
             <div className="flex gap-2">
               <Button
-                variant="outline"
-                size="sm"
                 onClick={() => {
                   setActiveChat(activeChatNodeId, "inline");
                 }}
+                size="sm"
+                variant="outline"
               >
-                <Minimize2 size={16} className="mr-2" /> Dock to Node
+                <Minimize2 className="mr-2" size={16} /> Dock to Node
               </Button>
               <Button
-                variant="ghost"
-                size="icon"
                 onClick={() => {
                   setActiveChat(null);
                 }}
+                size="icon"
+                variant="ghost"
               >
                 <X size={20} />
               </Button>
@@ -329,22 +346,22 @@ function App() {
         </div>
       )}
       <ContextMenuOverlay
-        contextMenu={contextMenu}
-        nodes={nodes}
-        edges={edges}
-        templates={templates}
         availableActions={availableActions}
-        onClose={closeContextMenuAndClear}
-        onDeleteNode={deleteNode}
-        onDeleteEdge={deleteEdge}
-        onOpenEditor={setActiveEditorId}
-        onCopy={copySelected}
-        onDuplicate={duplicateSelected}
-        onGroup={groupSelected}
-        onAutoLayout={autoLayout}
-        onPaste={paste}
+        contextMenu={contextMenu}
+        edges={edges}
+        nodes={nodes}
         onAddNode={handleAddNode}
+        onAutoLayout={autoLayout}
+        onClose={closeContextMenuAndClear}
+        onCopy={copySelected}
+        onDeleteEdge={deleteEdge}
+        onDeleteNode={deleteNode}
+        onDuplicate={duplicateSelected}
         onExecuteAction={handleExecuteAction}
+        onGroup={groupSelected}
+        onOpenEditor={setActiveEditorId}
+        onPaste={paste}
+        templates={templates}
       />
       <Toaster position="bottom-right" />
     </div>

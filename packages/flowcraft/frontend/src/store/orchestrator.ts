@@ -1,6 +1,6 @@
 import { pipeline } from "./middleware/pipeline";
-import { taskMiddleware } from "./middleware/taskMiddleware";
 import { syncMiddleware } from "./middleware/syncMiddleware";
+import { taskMiddleware } from "./middleware/taskMiddleware";
 
 /**
  * Orchestrator

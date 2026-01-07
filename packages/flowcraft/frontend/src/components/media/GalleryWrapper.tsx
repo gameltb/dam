@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useFlowStore } from "../../store/flowStore";
-import { type MediaType, FlowEvent } from "../../types";
-import { IconButton } from "../base/IconButton";
 import { Layers, X } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+
+import { useFlowStore } from "../../store/flowStore";
+import { FlowEvent, type MediaType } from "../../types";
+import { IconButton } from "../base/IconButton";
 
 interface GalleryWrapperProps {
-  id: string;
-  nodeWidth: number;
-  nodeHeight: number;
-  mainContent: React.ReactNode;
   gallery: string[];
+  id: string;
+  mainContent: React.ReactNode;
   mediaType: MediaType;
-  renderItem: (url: string) => React.ReactNode;
+  nodeHeight: number;
+  nodeWidth: number;
+  onExpand?: (expanded: boolean) => void;
   onGalleryItemContext?: (
     nodeId: string,
     url: string,
@@ -19,19 +20,19 @@ interface GalleryWrapperProps {
     x: number,
     y: number,
   ) => void;
-  onExpand?: (expanded: boolean) => void;
+  renderItem: (url: string) => React.ReactNode;
 }
 
 export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
-  id,
-  nodeWidth,
-  nodeHeight,
-  mainContent,
   gallery,
+  id,
+  mainContent,
   mediaType,
-  renderItem,
-  onGalleryItemContext,
+  nodeHeight,
+  nodeWidth,
   onExpand,
+  onGalleryItemContext,
+  renderItem,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const lastNodeEvent = useFlowStore((state) => state.lastNodeEvent);
@@ -62,7 +63,7 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
     if (currentNode && !currentNode.selected) {
       useFlowStore
         .getState()
-        .onNodesChange([{ id, type: "select", selected: true }]);
+        .onNodesChange([{ id, selected: true, type: "select" }]);
     }
 
     const next = !isExpanded;
@@ -79,7 +80,7 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
   const handleOpenPreview = (index: number) => {
     useFlowStore
       .getState()
-      .dispatchNodeEvent(FlowEvent.OPEN_PREVIEW, { nodeId: id, index });
+      .dispatchNodeEvent(FlowEvent.OPEN_PREVIEW, { index, nodeId: id });
   };
 
   const getGalleryRows = () => {
@@ -114,25 +115,25 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
   return (
     <div
       style={{
-        width: "100%",
-        height: "100%",
-        position: "relative",
-        overflow: "visible", // Changed from dynamic to always visible
         borderRadius: "inherit", // Inherit from BaseNode
+        height: "100%",
+        overflow: "visible", // Changed from dynamic to always visible
         pointerEvents: "none",
+        position: "relative",
+        width: "100%",
       }}
     >
       {/* Wrapper for main content to enforce clipping even when gallery is expanded */}
       <div
         style={{
-          width: "100%",
-          height: "100%",
-          overflow: "hidden",
           borderRadius: "inherit",
+          height: "100%",
+          left: 0,
+          overflow: "hidden",
+          pointerEvents: "none",
           position: "absolute",
           top: 0,
-          left: 0,
-          pointerEvents: "none",
+          width: "100%",
         }}
       >
         {mainContent}
@@ -140,27 +141,27 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
 
       {hasGallery && (
         <IconButton
-          onClick={handleToggleExpand}
           icon={isExpanded ? <X size={14} /> : <Layers size={14} />}
           label={
             isExpanded
               ? "Collapse Gallery"
               : `Expand Gallery (${String(gallery.length)})`
           }
+          onClick={handleToggleExpand}
           style={{
-            position: "absolute",
-            top: "5px",
-            right: "5px",
-            zIndex: 110,
-            width: "auto",
-            height: "24px",
-            padding: "0 8px",
-            borderRadius: "12px",
-            fontSize: "10px",
             backgroundColor: isExpanded
               ? "rgba(255, 59, 48, 0.8)"
               : "rgba(0,0,0,0.6)",
+            borderRadius: "12px",
+            fontSize: "10px",
+            height: "24px",
+            padding: "0 8px",
             pointerEvents: "auto",
+            position: "absolute",
+            right: "5px",
+            top: "5px",
+            width: "auto",
+            zIndex: 110,
           }}
         />
       )}
@@ -168,15 +169,15 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
       {isExpanded && (
         <div
           style={{
-            position: "absolute",
-            left: 0,
             bottom: 0,
             display: "flex",
             flexDirection: "column-reverse",
             gap: "15px",
-            zIndex: 100,
-            width: "max-content",
+            left: 0,
             pointerEvents: "auto",
+            position: "absolute",
+            width: "max-content",
+            zIndex: 100,
           }}
         >
           {galleryRows.map((rowItems, rowIndex) => (
@@ -184,22 +185,18 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
               {rowIndex === 0 && (
                 <div
                   style={{
-                    width: nodeWidth,
                     height: nodeHeight,
                     visibility: "hidden",
+                    width: nodeWidth,
                   }}
                 />
               )}
               {rowItems.map((url, imgIndex) => (
                 <div
-                  key={imgIndex}
                   className="nodrag"
+                  key={imgIndex}
                   onClick={(e) => {
                     e.stopPropagation();
-                  }}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenPreview(gallery.indexOf(url) + 1);
                   }}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -212,18 +209,9 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
                       e.clientY,
                     );
                   }}
-                  style={{
-                    width: `${String(nodeWidth)}px`,
-                    height: `${String(nodeHeight)}px`,
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    borderRadius: "5px",
-                    overflow: "hidden",
-                    backgroundColor: "rgba(0,0,0,0.2)",
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
-                    cursor: "pointer",
-                    transition: "transform 0.2s",
-                    backdropFilter: "blur(10px)",
-                    boxSizing: "border-box",
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenPreview(gallery.indexOf(url) + 1);
                   }}
                   onMouseEnter={(e) =>
                     (e.currentTarget.style.transform = "scale(1.02)")
@@ -231,6 +219,19 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
                   onMouseLeave={(e) =>
                     (e.currentTarget.style.transform = "scale(1)")
                   }
+                  style={{
+                    backdropFilter: "blur(10px)",
+                    backgroundColor: "rgba(0,0,0,0.2)",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                    borderRadius: "5px",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+                    boxSizing: "border-box",
+                    cursor: "pointer",
+                    height: `${String(nodeHeight)}px`,
+                    overflow: "hidden",
+                    transition: "transform 0.2s",
+                    width: `${String(nodeWidth)}px`,
+                  }}
                 >
                   {renderItem(url)}
                 </div>

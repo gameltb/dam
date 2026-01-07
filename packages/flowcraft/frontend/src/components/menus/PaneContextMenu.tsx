@@ -1,35 +1,36 @@
 import React, { useMemo } from "react";
+
 import { type NodeTemplate } from "../../types";
 import { buildNodeTree } from "../../utils/menuUtils";
 import { NodeSubMenu } from "../base/SubMenu";
 import { MenuContainer } from "./MenuContainer";
 
 interface PaneContextMenuProps {
-  x: number;
-  y: number;
-  templates: NodeTemplate[];
   onAddNode: (template: NodeTemplate) => void;
   onAutoLayout: () => void;
-  onPaste?: () => void;
-  onCopy?: () => void;
-  onDuplicate?: () => void;
   onClose: () => void;
-  onGroupSelected?: () => void;
+  onCopy?: () => void;
   onDeleteSelected?: () => void;
+  onDuplicate?: () => void;
+  onGroupSelected?: () => void;
+  onPaste?: () => void;
+  templates: NodeTemplate[];
+  x: number;
+  y: number;
 }
 
 export const PaneContextMenu: React.FC<PaneContextMenuProps> = ({
-  x,
-  y,
-  templates,
   onAddNode,
   onAutoLayout,
-  onPaste,
-  onCopy,
-  onDuplicate,
   onClose,
-  onGroupSelected,
+  onCopy,
   onDeleteSelected,
+  onDuplicate,
+  onGroupSelected,
+  onPaste,
+  templates,
+  x,
+  y,
 }) => {
   const menuTree = useMemo(() => buildNodeTree(templates), [templates]);
 
@@ -122,8 +123,8 @@ export const PaneContextMenu: React.FC<PaneContextMenuProps> = ({
             const tpl = node.template;
             return (
               <div
-                key={tpl.templateId}
                 className="fc-menu-item"
+                key={tpl.templateId}
                 onClick={() => {
                   onAddNode(tpl);
                   onClose();

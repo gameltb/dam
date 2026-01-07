@@ -1,28 +1,28 @@
 import React from "react";
 
 export interface CheckboxFieldProps {
-  value: boolean;
-  onChange: (value: boolean) => void;
   label: string;
+  onChange: (value: boolean) => void;
+  value: boolean;
 }
 
 export const CheckboxField: React.FC<CheckboxFieldProps> = ({
-  value,
-  onChange,
   label,
+  onChange,
+  value,
 }) => {
   return (
     <div
       className="widget checkbox-field"
-      style={{ display: "flex", alignItems: "center", gap: "8px" }}
+      style={{ alignItems: "center", display: "flex", gap: "8px" }}
     >
       <input
-        type="checkbox"
-        className="nodrag"
         checked={value}
+        className="nodrag"
         onChange={(e) => {
           onChange(e.target.checked);
         }}
+        type="checkbox"
       />
       <label style={{ fontSize: "13px" }}>{label}</label>
     </div>

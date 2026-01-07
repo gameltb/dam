@@ -1,20 +1,29 @@
-import type { Edge, Viewport, Node } from "@xyflow/react";
+import type { Edge, Node, Viewport } from "@xyflow/react";
+
 import type { GroupNodeType } from "./components/GroupNode";
-import {
-  WidgetType,
-  RenderMode,
-  MediaType,
-  PortStyle,
-  TaskStatus,
-  type Port,
-  type NodeTemplate as ProtoNodeTemplate,
-} from "./generated/flowcraft/v1/core/node_pb";
+
+import { ActionExecutionStrategy } from "./generated/flowcraft/v1/core/action_pb";
 import {
   MutationSource,
   PortMainType,
 } from "./generated/flowcraft/v1/core/base_pb";
+import {
+  MediaType,
+  type Port,
+  PortStyle,
+  type NodeTemplate as ProtoNodeTemplate,
+  RenderMode,
+  TaskStatus,
+  WidgetType,
+} from "./generated/flowcraft/v1/core/node_pb";
 import { type GraphMutation } from "./generated/flowcraft/v1/core/service_pb";
-import { ActionExecutionStrategy } from "./generated/flowcraft/v1/core/action_pb";
+import { type AiGenNodeState } from "./generated/flowcraft/v1/nodes/ai_gen_pb";
+import { type ChatNodeState } from "./generated/flowcraft/v1/nodes/chat_pb";
+import {
+  type AcousticNodeState,
+  type DocumentNodeState,
+  type VisualNodeState,
+} from "./generated/flowcraft/v1/nodes/media_pb";
 
 /**
  * SECTION 1: PROTOCOL & CRDT
@@ -23,14 +32,14 @@ import { ActionExecutionStrategy } from "./generated/flowcraft/v1/core/action_pb
 
 // Re-export Enums
 export {
-  WidgetType,
-  RenderMode,
-  MediaType,
   ActionExecutionStrategy,
-  PortStyle,
-  TaskStatus,
+  MediaType,
   MutationSource,
   PortMainType,
+  PortStyle,
+  RenderMode,
+  TaskStatus,
+  WidgetType,
 };
 
 export type { Port };
@@ -42,16 +51,58 @@ export type { Port };
 
 export enum AppNodeType {
   DYNAMIC = "dynamic",
-  PROCESSING = "processing",
   GROUP = "groupNode",
+  PROCESSING = "processing",
 }
 
 export enum FlowEvent {
-  WIDGET_CLICK = "widget-click",
   GALLERY_ITEM_CONTEXT = "gallery-item-context",
-  PANE_CLICK = "pane-click",
-  OPEN_PREVIEW = "open-preview",
   OPEN_EDITOR = "open-editor",
+  OPEN_PREVIEW = "open-preview",
+  PANE_CLICK = "pane-click",
+  WIDGET_CLICK = "widget-click",
+}
+
+export interface AcousticNodeData extends BaseDynamicNodeData {
+  extension: {
+    case: "acoustic";
+    value: Omit<AcousticNodeState, "$typeName">;
+  };
+}
+
+export interface AiGenNodeData extends BaseDynamicNodeData {
+  extension: {
+    case: "aiGen";
+    value: Omit<AiGenNodeState, "$typeName">;
+  };
+}
+
+export type AppNode = DynamicNodeType | GroupNodeType | ProcessingNodeType;
+
+export interface BaseDynamicNodeData {
+  // Custom metadata or transient state
+  [key: string]: unknown;
+  activeMode?: RenderMode;
+  // Port definitions
+  inputPorts?: ClientPort[];
+  label: string;
+  media?: MediaDef & { aspectRatio?: number };
+  modes: RenderMode[];
+  outputPorts?: ClientPort[];
+
+  typeId?: string; // Original backend template ID
+
+  widgets?: WidgetDef[];
+  widgetsSchema?: Record<string, unknown>;
+
+  widgetsValues?: Record<string, unknown>;
+}
+
+export interface ChatNodeData extends BaseDynamicNodeData {
+  extension: {
+    case: "chat";
+    value: Omit<ChatNodeState, "$typeName">;
+  };
 }
 
 /**
@@ -59,37 +110,39 @@ export enum FlowEvent {
  * while keeping the structure similar to the Protobuf definition.
  */
 export interface ClientPort {
-  id: string;
-  label: string;
   description?: string;
-  type?: {
-    mainType: string;
-    itemType: string;
-    isGeneric: boolean;
-  };
-  style: PortStyle;
-}
-
-export interface MutationLogEntry {
   id: string;
-  taskId: string;
-  source: MutationSource;
-  timestamp: number;
-  description: string;
-  mutations: GraphMutation[];
+  label: string;
+  style: PortStyle;
+  type?: {
+    isGeneric: boolean;
+    itemType: string;
+    mainType: string;
+  };
 }
 
-export interface TaskDefinition {
-  taskId: string;
-  type: string;
-  label: string;
-  source: MutationSource;
-  status: TaskStatus;
-  progress: number;
-  message: string;
-  createdAt: number;
-  updatedAt: number;
-  mutationIds: string[]; // Reference to log entries
+export interface DocumentNodeData extends BaseDynamicNodeData {
+  extension: {
+    case: "document";
+    value: Omit<DocumentNodeState, "$typeName">;
+  };
+}
+
+export type DynamicNodeData =
+  | AcousticNodeData
+  | AiGenNodeData
+  | ChatNodeData
+  | DocumentNodeData
+  | GenericDynamicNodeData
+  | VisualNodeData;
+
+export type DynamicNodeType = Node<DynamicNodeData, AppNodeType.DYNAMIC>;
+
+export interface GenericDynamicNodeData extends BaseDynamicNodeData {
+  extension?: {
+    case: undefined;
+    value?: undefined;
+  };
 }
 
 /**
@@ -97,66 +150,85 @@ export interface TaskDefinition {
  * The main building blocks of the Flowcraft editor.
  */
 
-export type { Edge, Viewport, Node };
-
-export interface WidgetDef {
-  id: string;
-  type: WidgetType;
-  label: string;
-  value: unknown;
-  options?: { label: string; value: unknown }[];
-  config?: Record<string, unknown>;
-  inputPortId?: string;
-}
+export type { Edge, Node, Viewport };
 
 export interface MediaDef {
-  type: MediaType;
-  url?: string;
   content?: string;
   galleryUrls?: string[];
+  type: MediaType;
+  url?: string;
 }
 
-export interface DynamicNodeData {
-  typeId?: string; // Original backend template ID
-  label: string;
-  modes: RenderMode[];
-  activeMode?: RenderMode;
-  media?: MediaDef & { aspectRatio?: number };
-  widgets?: WidgetDef[];
-  widgetsSchemaJson?: string;
-  widgetsValues?: Record<string, unknown>;
-
-  // Port definitions
-  inputPorts?: ClientPort[];
-  outputPorts?: ClientPort[];
-
-  // Custom metadata or transient state
-  [key: string]: unknown;
+export interface MutationLogEntry {
+  description: string;
+  id: string;
+  mutations: GraphMutation[];
+  source: MutationSource;
+  taskId: string;
+  timestamp: number;
 }
+
+export type NodeTemplate = ProtoNodeTemplate;
 
 export interface ProcessingNodeData {
-  taskId: string;
+  [key: string]: unknown;
   label: string;
   onCancel?: (taskId: string) => void;
-  [key: string]: unknown;
+  taskId: string;
 }
 
-export type DynamicNodeType = Node<DynamicNodeData, AppNodeType.DYNAMIC>;
 export type ProcessingNodeType = Node<
   ProcessingNodeData,
   AppNodeType.PROCESSING
 >;
-export type AppNode = GroupNodeType | DynamicNodeType | ProcessingNodeType;
+export interface TaskDefinition {
+  createdAt: number;
+  label: string;
+  message: string;
+  mutationIds: string[]; // Reference to log entries
+  progress: number;
+  source: MutationSource;
+  status: TaskStatus;
+  taskId: string;
+  type: string;
+  updatedAt: number;
+}
+export interface VisualNodeData extends BaseDynamicNodeData {
+  extension: {
+    case: "visual";
+    value: Omit<VisualNodeState, "$typeName">;
+  };
+}
 
 /**
  * SECTION 4: TEMPLATES & PROTOCOL PAYLOADS
  */
 
-export type NodeTemplate = ProtoNodeTemplate;
+export interface WidgetDef {
+  config?: Record<string, unknown>;
+  id: string;
+  inputPortId?: string;
+  label: string;
+  options?: { label: string; value: unknown }[];
+  type: WidgetType;
+  value: unknown;
+}
 
 /**
  * SECTION 5: TYPE GUARDS & UTILITIES
  */
+
+export function isAiGenNode(
+  node: AppNode,
+): node is Node<AiGenNodeData, AppNodeType.DYNAMIC> {
+  return isDynamicNode(node) && node.data.extension?.case === "aiGen";
+}
+
+export function isChatNode(
+  node: AppNode,
+): node is Node<ChatNodeData, AppNodeType.DYNAMIC> {
+  return isDynamicNode(node) && node.data.extension?.case === "chat";
+}
 
 export function isDynamicNode(node: AppNode): node is DynamicNodeType {
   return node.type === AppNodeType.DYNAMIC;

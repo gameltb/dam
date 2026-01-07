@@ -1,78 +1,37 @@
 import { create } from "zustand";
+
 import {
-  type TaskDefinition,
   type MutationLogEntry,
   MutationSource,
+  type TaskDefinition,
   TaskStatus,
 } from "../types";
 
 interface TaskState {
-  tasks: Record<string, TaskDefinition>;
-  mutationLogs: MutationLogEntry[];
+  addMutationLog: (log: MutationLogEntry) => void;
   isDrawerOpen: boolean;
-  selectedTaskId: string | null;
+  linkMutationToTask: (taskId: string, logId: string) => void;
+  mutationLogs: MutationLogEntry[];
 
   // Actions
   registerTask: (
-    task: Partial<TaskDefinition> & { taskId: string; label: string },
+    task: Partial<TaskDefinition> & { label: string; taskId: string },
   ) => void;
-  updateTask: (taskId: string, update: Partial<TaskDefinition>) => void;
-  addMutationLog: (log: MutationLogEntry) => void;
-  linkMutationToTask: (taskId: string, logId: string) => void;
-  setDrawerOpen: (open: boolean) => void;
-  setSelectedTaskId: (taskId: string | null) => void;
   resetStore: () => void;
+  selectedTaskId: null | string;
+  setDrawerOpen: (open: boolean) => void;
+  setSelectedTaskId: (taskId: null | string) => void;
+  tasks: Record<string, TaskDefinition>;
+  updateTask: (taskId: string, update: Partial<TaskDefinition>) => void;
 }
 
 export const useTaskStore = create<TaskState>((set) => ({
-  tasks: {},
-  mutationLogs: [],
-  isDrawerOpen: false,
-  selectedTaskId: null,
-
-  registerTask: (task) => {
-    set((state) => ({
-      tasks: {
-        ...state.tasks,
-        [task.taskId]: {
-          taskId: task.taskId,
-          type: task.type ?? "unknown",
-          label: task.label,
-          status: task.status ?? TaskStatus.TASK_PENDING,
-          progress: task.progress ?? 0,
-          message: task.message ?? "Registered",
-          source: task.source ?? MutationSource.SOURCE_SYSTEM,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          mutationIds: [],
-        },
-      },
-    }));
-  },
-
-  updateTask: (taskId, update) => {
-    set((state) => {
-      const existing = state.tasks[taskId];
-      if (!existing) return state;
-      return {
-        tasks: {
-          ...state.tasks,
-          [taskId]: {
-            ...existing,
-            ...update,
-            updatedAt: Date.now(),
-          },
-        },
-      };
-    });
-  },
-
   addMutationLog: (log) => {
     set((state) => ({
       mutationLogs: [log, ...state.mutationLogs],
     }));
   },
-
+  isDrawerOpen: false,
   linkMutationToTask: (taskId, logId) => {
     set((state) => {
       const task = state.tasks[taskId];
@@ -88,14 +47,56 @@ export const useTaskStore = create<TaskState>((set) => ({
       };
     });
   },
+  mutationLogs: [],
+
+  registerTask: (task) => {
+    set((state) => ({
+      tasks: {
+        ...state.tasks,
+        [task.taskId]: {
+          createdAt: Date.now(),
+          label: task.label,
+          message: task.message ?? "Registered",
+          mutationIds: [],
+          progress: task.progress ?? 0,
+          source: task.source ?? MutationSource.SOURCE_SYSTEM,
+          status: task.status ?? TaskStatus.TASK_PENDING,
+          taskId: task.taskId,
+          type: task.type ?? "unknown",
+          updatedAt: Date.now(),
+        },
+      },
+    }));
+  },
+
+  resetStore: () => {
+    set({ mutationLogs: [], selectedTaskId: null, tasks: {} });
+  },
+
+  selectedTaskId: null,
 
   setDrawerOpen: (open) => {
     set({ isDrawerOpen: open });
   },
+
   setSelectedTaskId: (taskId) => {
     set({ selectedTaskId: taskId });
   },
-  resetStore: () => {
-    set({ tasks: {}, mutationLogs: [], selectedTaskId: null });
+  tasks: {},
+  updateTask: (taskId, update) => {
+    set((state) => {
+      const existing = state.tasks[taskId];
+      if (!existing) return state;
+      return {
+        tasks: {
+          ...state.tasks,
+          [taskId]: {
+            ...existing,
+            ...update,
+            updatedAt: Date.now(),
+          },
+        },
+      };
+    });
   },
 }));

@@ -3,9 +3,10 @@
  * @problem Maintaining a synchronized state between local Zustand store and shared Yjs document in a collaborative environment.
  * @requirement Verify that graph updates correctly propagate between the local store and Yjs, supporting both local mutations and remote updates.
  */
-import { describe, it, expect, beforeEach } from "vitest";
-import { useFlowStore } from "../flowStore";
+import { beforeEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
+
+import { useFlowStore } from "../flowStore";
 
 describe("Yjs Sync Logic", () => {
   beforeEach(async () => {
@@ -20,10 +21,10 @@ describe("Yjs Sync Logic", () => {
     const { yNodes } = store;
 
     const node1 = {
-      id: "1",
-      type: "dynamic",
-      position: { x: 0, y: 0 },
       data: { label: "Node 1", modes: [] },
+      id: "1",
+      position: { x: 0, y: 0 },
+      type: "dynamic",
     };
 
     yNodes.set("1", node1);
@@ -39,10 +40,10 @@ describe("Yjs Sync Logic", () => {
     const remoteNodes = remoteDoc.getMap("nodes");
 
     const node1 = {
-      id: "1",
-      type: "dynamic",
-      position: { x: 0, y: 0 },
       data: { label: "Node 1", modes: [] },
+      id: "1",
+      position: { x: 0, y: 0 },
+      type: "dynamic",
     };
 
     remoteNodes.set("1", node1);

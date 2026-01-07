@@ -1,46 +1,47 @@
+import { create } from "@bufbuild/protobuf";
+import { Position, Handle as ReactFlowHandle, useStore } from "@xyflow/react";
 import React, { useState } from "react";
-import { Handle as ReactFlowHandle, Position, useStore } from "@xyflow/react";
+
+import { PortMainType } from "../../generated/flowcraft/v1/core/base_pb";
 import {
-  PortStyle,
   PortSchema,
+  PortStyle,
   PortTypeSchema,
 } from "../../generated/flowcraft/v1/core/node_pb";
-import { PortMainType } from "../../generated/flowcraft/v1/core/base_pb";
-import { getValidator, validateConnection } from "../../utils/portValidators";
 import { useUiStore } from "../../store/uiStore";
-import { create } from "@bufbuild/protobuf";
-import { PortIcon } from "./PortIcon";
+import { getValidator, validateConnection } from "../../utils/portValidators";
 import { PORT_MAIN_TYPE_FROM_PROTO } from "../../utils/protoAdapter";
+import { PortIcon } from "./PortIcon";
 
 interface PortHandleProps {
-  nodeId: string;
-  portId: string;
-  type: "source" | "target";
-  style?: PortStyle;
-  mainType?: PortMainType;
-  itemType?: string;
-  isGeneric?: boolean;
   color?: string;
-  label?: string;
   description?: string;
-  sideOffset?: number;
+  isGeneric?: boolean;
   isImplicit?: boolean;
   isPresentation?: boolean;
+  itemType?: string;
+  label?: string;
+  mainType?: PortMainType;
+  nodeId: string;
+  portId: string;
+  sideOffset?: number;
+  style?: PortStyle;
+  type: "source" | "target";
 }
 
 export const PortHandle: React.FC<PortHandleProps> = ({
-  nodeId,
-  portId,
-  type,
-  style = PortStyle.CIRCLE,
-  mainType = PortMainType.ANY,
-  itemType = "",
-  isGeneric = false,
   color = "var(--primary-color)",
   description,
-  sideOffset = 0,
+  isGeneric = false,
   isImplicit = false,
   isPresentation = false,
+  itemType = "",
+  mainType = PortMainType.ANY,
+  nodeId,
+  portId,
+  sideOffset = 0,
+  style = PortStyle.CIRCLE,
+  type,
 }) => {
   const isLeft = type === "target";
   const edges = useStore((s) => s.edges);
@@ -55,7 +56,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
   );
 
   const validator = getValidator(
-    create(PortTypeSchema, { mainType, itemType, isGeneric }),
+    create(PortTypeSchema, { isGeneric, itemType, mainType }),
   );
   const inputCount = edges.filter(
     (e) => e.target === nodeId && e.targetHandle === portId,
@@ -63,7 +64,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
 
   // --- Dynamic Guarding & Tooltip Logic ---
   let isInvalidTarget = false;
-  let validationResult: { canConnect: boolean; reason?: string } | null = null;
+  let validationResult: null | { canConnect: boolean; reason?: string } = null;
 
   if (activeConnection) {
     if (activeConnection.type === type || activeConnection.nodeId === nodeId) {
@@ -71,28 +72,28 @@ export const PortHandle: React.FC<PortHandleProps> = ({
     } else {
       // Perform validation for tooltip feedback
       const sourcePort = create(PortSchema, {
-        id: activeConnection.handleId,
-        type: {
-          mainType: activeConnection.mainType,
-          itemType: activeConnection.itemType,
-          isGeneric: false,
-        },
-        label: "",
         color: "",
-        style: PortStyle.CIRCLE,
         description: "",
+        id: activeConnection.handleId,
+        label: "",
+        style: PortStyle.CIRCLE,
+        type: {
+          isGeneric: false,
+          itemType: activeConnection.itemType,
+          mainType: activeConnection.mainType,
+        },
       });
       const targetPort = create(PortSchema, {
-        id: portId,
-        type: {
-          mainType: mainType,
-          itemType: itemType,
-          isGeneric: isGeneric,
-        },
-        label: "",
         color: "",
-        style: style,
         description: "",
+        id: portId,
+        label: "",
+        style: style,
+        type: {
+          isGeneric: isGeneric,
+          itemType: itemType,
+          mainType: mainType,
+        },
       });
 
       const res = validateConnection(
@@ -118,104 +119,104 @@ export const PortHandle: React.FC<PortHandleProps> = ({
 
   const handleStyle: React.CSSProperties = isPresentation
     ? {
-        position: "absolute",
-        [isLeft ? "left" : "right"]: 0,
-        top: "50%",
-        width: "14px",
-        height: "14px",
+        alignItems: "center",
         background: "transparent",
         border: "none",
-        minWidth: "14px",
-        minHeight: "14px",
-        padding: 0,
         boxSizing: "border-box",
         display: "flex",
-        alignItems: "center",
+        height: "14px",
+        [isLeft ? "left" : "right"]: 0,
         justifyContent: "center",
-        zIndex: 10,
-        pointerEvents: activeConnection && isInvalidTarget ? "none" : "auto",
+        minHeight: "14px",
+        minWidth: "14px",
         opacity: activeConnection || isConnected || isHovered ? 1 : 0.6,
+        padding: 0,
+        pointerEvents: activeConnection && isInvalidTarget ? "none" : "auto",
+        position: "absolute",
+        top: "50%",
         transform: isLeft ? "translate(-50%, -50%)" : "translate(50%, -50%)",
         transition: "all 0.2s ease",
+        width: "14px",
+        zIndex: 10,
       }
     : {
-        position: "absolute",
-        [isLeft ? "left" : "right"]: -sideOffset,
-        top: "50%",
-        width: "10px",
-        height: "10px",
+        alignItems: "center",
         background: "transparent",
         border: "none",
-        minWidth: "10px",
-        minHeight: "10px",
-        padding: 0,
         boxSizing: "border-box",
         display: "flex",
-        alignItems: "center",
+        filter: activeConnection && isInvalidTarget ? "grayscale(1)" : "none",
+        height: "10px",
+        [isLeft ? "left" : "right"]: -sideOffset,
         justifyContent: "center",
-        zIndex: 10,
-        pointerEvents: activeConnection && isInvalidTarget ? "none" : "auto",
+        minHeight: "10px",
+        minWidth: "10px",
         opacity:
           isImplicit && !activeConnection && !isConnected
             ? 0.001
             : activeConnection && isInvalidTarget
               ? 0.15
               : 1,
+        padding: 0,
+        pointerEvents: activeConnection && isInvalidTarget ? "none" : "auto",
+        position: "absolute",
+        top: "50%",
         transform: isLeft ? "translate(-50%, -50%)" : "translate(50%, -50%)",
-        filter: activeConnection && isInvalidTarget ? "grayscale(1)" : "none",
         transition: "all 0.2s ease",
+        width: "10px",
+        zIndex: 10,
       };
 
   return (
     <ReactFlowHandle
-      type={type}
-      position={isLeft ? Position.Left : Position.Right}
       id={portId}
       isConnectable={isConnectable}
-      title={activeConnection ? undefined : tooltip}
       onMouseEnter={() => {
         setIsHovered(true);
       }}
       onMouseLeave={() => {
         setIsHovered(false);
       }}
+      position={isLeft ? Position.Left : Position.Right}
       style={handleStyle}
+      title={activeConnection ? undefined : tooltip}
+      type={type}
     >
       {isPresentation ? (
         <svg
-          width="14"
           height="14"
-          viewBox="0 0 14 14"
           style={{ overflow: "visible" }}
+          viewBox="0 0 14 14"
+          width="14"
         >
           <path
             d={trianglePath}
             fill={color}
             fillOpacity={isConnected ? 0.6 : 0.2}
             stroke={color}
-            strokeWidth="1.5"
-            strokeLinejoin="round"
             strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="1.5"
             style={{ transition: "all 0.2s ease" }}
           />
         </svg>
       ) : (
         <div
           style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
             alignItems: "center",
+            display: "flex",
+            height: "100%",
             justifyContent: "center",
             transform: `scale(${String(isImplicit && !activeConnection && !isConnected ? 0.5 : 1)})`,
             transition: "transform 0.1s ease",
+            width: "100%",
           }}
         >
           <PortIcon
-            style={style}
-            mainType={PORT_MAIN_TYPE_FROM_PROTO[mainType]}
             color={color}
             isConnected={isConnected}
+            mainType={PORT_MAIN_TYPE_FROM_PROTO[mainType]}
+            style={style}
           />
         </div>
       )}
@@ -223,22 +224,22 @@ export const PortHandle: React.FC<PortHandleProps> = ({
       {isHovered && activeConnection && (
         <div
           style={{
-            position: "absolute",
-            [isLeft ? "left" : "right"]: 20,
-            top: "50%",
-            transform: "translateY(-50%)",
             backgroundColor: "var(--panel-bg)",
             border: `1px solid ${validationResult?.canConnect ? "#4ade80" : "var(--node-border)"}`,
             borderRadius: "4px",
-            padding: "4px 8px",
-            whiteSpace: "nowrap",
-            fontSize: "10px",
             boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-            zIndex: 100,
-            pointerEvents: "none",
             display: "flex",
             flexDirection: "column",
+            fontSize: "10px",
             gap: "2px",
+            [isLeft ? "left" : "right"]: 20,
+            padding: "4px 8px",
+            pointerEvents: "none",
+            position: "absolute",
+            top: "50%",
+            transform: "translateY(-50%)",
+            whiteSpace: "nowrap",
+            zIndex: 100,
           }}
         >
           <div style={{ color: "var(--sub-text)" }}>

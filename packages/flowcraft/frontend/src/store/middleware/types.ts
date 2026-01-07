@@ -3,19 +3,19 @@ import { type MutationContext } from "../flowStore";
 
 export enum MutationDirection {
   INCOMING = "INCOMING", // From Server
-  OUTGOING = "OUTGOING", // From UI/Local Action
   INTERNAL = "INTERNAL", // From Undo/Redo/Internal Logic
+  OUTGOING = "OUTGOING", // From UI/Local Action
 }
-
-export interface GraphMutationEvent {
-  mutations: GraphMutation[];
-  context: MutationContext;
-  direction: MutationDirection;
-}
-
-export type MiddlewareNext = (event: GraphMutationEvent) => void;
 
 export type GraphMiddleware = (
   event: GraphMutationEvent,
   next: MiddlewareNext,
 ) => void;
+
+export interface GraphMutationEvent {
+  context: MutationContext;
+  direction: MutationDirection;
+  mutations: GraphMutation[];
+}
+
+export type MiddlewareNext = (event: GraphMutationEvent) => void;

@@ -1,17 +1,18 @@
-import React, { useState, memo } from "react";
-import { useFlowSocket } from "../../hooks/useFlowSocket";
 import { create } from "@bufbuild/protobuf";
+import React, { memo, useState } from "react";
+
 import { NodeDataSchema } from "../../generated/flowcraft/v1/core/node_pb";
+import { useFlowSocket } from "../../hooks/useFlowSocket";
 
 interface NodeLabelProps {
   id: string;
   label: string;
-  selected?: boolean;
   onChange: (id: string, label: string) => void;
+  selected?: boolean;
 }
 
 export const NodeLabel: React.FC<NodeLabelProps> = memo(
-  ({ id, label, selected, onChange: _onChange }) => {
+  ({ id, label, onChange: _onChange, selected }) => {
     const { updateNodeData } = useFlowSocket({ disablePolling: true });
 
     const [isEditing, setIsEditing] = useState(false);
@@ -65,41 +66,42 @@ export const NodeLabel: React.FC<NodeLabelProps> = memo(
 
     return (
       <div
+        onDoubleClick={() => {
+          setIsEditing(true);
+        }}
         style={{
-          padding: "8px 12px",
-
-          borderBottom: "1px solid var(--node-border)",
-
-          display: "flex",
-
           alignItems: "center",
 
-          justifyContent: "space-between",
-
           backgroundColor: "rgba(0,0,0,0.05)",
+
+          borderBottom: "1px solid var(--node-border)",
 
           borderRadius: "8px 8px 0 0",
 
           cursor: "text",
-        }}
-        onDoubleClick={() => {
-          setIsEditing(true);
+
+          display: "flex",
+
+          justifyContent: "space-between",
+
+          padding: "8px 12px",
         }}
       >
         {isEditing ? (
           <input
             autoFocus
-            value={localLabel}
+            className="nodrag"
+            onBlur={handleBlur}
             onChange={(e) => {
               setLocalLabel(e.target.value);
             }}
-            onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            className="nodrag"
             style={{
               background: "rgba(255,255,255,0.1)",
 
               border: "1px solid var(--primary-color)",
+
+              borderRadius: "4px",
 
               color: "white",
 
@@ -107,31 +109,30 @@ export const NodeLabel: React.FC<NodeLabelProps> = memo(
 
               fontWeight: "bold",
 
-              width: "100%",
+              outline: "none",
 
               padding: "2px 4px",
 
-              borderRadius: "4px",
-
-              outline: "none",
+              width: "100%",
             }}
+            value={localLabel}
           />
         ) : (
           <div
             style={{
+              color: selected ? "var(--primary-color)" : "white",
+
               fontSize: "12px",
 
               fontWeight: "bold",
 
-              color: selected ? "var(--primary-color)" : "white",
+              maxWidth: "100%",
 
               overflow: "hidden",
 
               textOverflow: "ellipsis",
 
               whiteSpace: "nowrap",
-
-              maxWidth: "100%",
             }}
           >
             {label}

@@ -3,19 +3,20 @@
  * @problem Complex node objects with circular references or functions cannot be safely serialized to Protobuf or Yjs.
  * @requirement Provide a robust dehydrateNode utility that recursively removes functions and undefined values, ensuring serializable node state.
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+
 import { dehydrateNode } from "../nodeUtils";
 
 describe("nodeUtils - dehydrateNode", () => {
   it("should remove functions from an object", () => {
     const input = {
-      id: "1",
       data: {
-        label: "Test",
         fn: () => {
           console.log("hello");
         },
+        label: "Test",
       },
+      id: "1",
       onDrag: () => {
         /* empty */
       },
@@ -24,10 +25,10 @@ describe("nodeUtils - dehydrateNode", () => {
     const result = dehydrateNode(input);
 
     expect(result).toEqual({
-      id: "1",
       data: {
         label: "Test",
       },
+      id: "1",
     });
     expect((result as Record<string, unknown>).onDrag).toBeUndefined();
     expect(
@@ -38,24 +39,24 @@ describe("nodeUtils - dehydrateNode", () => {
   it("should recursively clean arrays", () => {
     const input = [
       {
-        id: "1",
         fn: () => {
           /* empty */
         },
+        id: "1",
       },
       {
-        id: "2",
         data: {
           fn: () => {
             /* empty */
           },
         },
+        id: "2",
       },
     ];
 
     const result = dehydrateNode(input);
 
-    expect(result).toEqual([{ id: "1" }, { id: "2", data: {} }]);
+    expect(result).toEqual([{ id: "1" }, { data: {}, id: "2" }]);
   });
 
   it("should handle null and primitives", () => {

@@ -1,12 +1,13 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { PaneContextMenu } from "./PaneContextMenu";
 import { create } from "@bufbuild/protobuf";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
 import {
   NodeTemplateSchema,
   RenderMode,
 } from "../../generated/flowcraft/v1/core/node_pb";
 import { toProtoNodeData } from "../../utils/protoAdapter";
+import { PaneContextMenu } from "./PaneContextMenu";
 
 describe("PaneContextMenu", () => {
   it("renders basic menu items", () => {
@@ -16,26 +17,26 @@ describe("PaneContextMenu", () => {
 
     const templates = [
       create(NodeTemplateSchema, {
-        templateId: "test-node",
-        displayName: "Test Node",
-        menuPath: ["Basic"],
         defaultState: toProtoNodeData({
+          activeMode: RenderMode.MODE_WIDGETS,
           label: "Test",
           modes: [RenderMode.MODE_WIDGETS],
-          activeMode: RenderMode.MODE_WIDGETS,
           widgets: [],
         }),
+        displayName: "Test Node",
+        menuPath: ["Basic"],
+        templateId: "test-node",
       }),
     ];
 
     render(
       <PaneContextMenu
-        x={0}
-        y={0}
-        onClose={onClose}
-        templates={templates}
         onAddNode={onAddNode}
         onAutoLayout={onAutoLayout}
+        onClose={onClose}
+        templates={templates}
+        x={0}
+        y={0}
       />,
     );
 

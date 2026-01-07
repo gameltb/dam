@@ -1,8 +1,9 @@
+import Database from "better-sqlite3";
 import { EventEmitter } from "events";
-import { type AppNode, type Edge } from "../types";
 import fs from "fs";
 import path from "path";
-import Database from "better-sqlite3";
+
+import { type AppNode, type Edge } from "../types";
 import { generateGallery } from "./generators";
 
 const STORAGE_DIR =
@@ -71,14 +72,164 @@ export const incrementVersion = () => {
 };
 
 export const serverGraph: {
-  nodes: AppNode[];
   edges: Edge[];
+  nodes: AppNode[];
 } = {
-  nodes: [],
   edges: [],
+  nodes: [],
 };
 
 export const eventBus = new EventEmitter();
+
+interface ChatMessage {
+  content: string;
+  id: string;
+  metadata: Record<string, unknown>;
+  role: string;
+  timestamp: number;
+}
+
+interface ConversationRow {
+  content: string;
+  id: string;
+  metadata: string;
+  parent_id: null | string;
+  role: string;
+  timestamp: number;
+}
+
+interface EdgeRow {
+  data: string;
+  id: string;
+  source: string;
+  source_handle: null | string;
+  target: string;
+  target_handle: null | string;
+}
+
+interface NodeRow {
+  data: string;
+  height: null | number;
+  id: string;
+  parent_id: null | string;
+  position_x: number;
+  position_y: number;
+  type: string;
+  width: null | number;
+}
+
+export function addChatMessage(params: {
+  content: string;
+  id: string;
+  metadata?: unknown;
+  nodeId?: string;
+  parentId: null | string;
+  role: string;
+}) {
+  const stmt = db.prepare(`
+    INSERT INTO conversations (id, parent_id, role, content, metadata, timestamp, node_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  stmt.run(
+    params.id,
+    params.parentId,
+    params.role,
+    params.content,
+    JSON.stringify(params.metadata ?? {}),
+    Date.now(),
+    params.nodeId ?? null,
+  );
+}
+
+export function getChatHistory(headId: string): ChatMessage[] {
+  const history: ChatMessage[] = [];
+  let currentId: null | string = headId;
+
+  while (currentId) {
+    const row = db
+      .prepare("SELECT * FROM conversations WHERE id = ?")
+      .get(currentId) as ConversationRow | undefined;
+    if (!row) break;
+    history.unshift({
+      content: row.content,
+      id: row.id,
+      metadata: JSON.parse(row.metadata) as Record<string, unknown>,
+      role: row.role,
+      timestamp: row.timestamp,
+    });
+    currentId = row.parent_id;
+  }
+  return history;
+}
+
+export function getMutations(fromSeq: number, toSeq?: number) {
+  let query = "SELECT * FROM mutations WHERE seq >= ?";
+  const params: unknown[] = [fromSeq];
+  if (toSeq) {
+    query += " AND seq <= ?";
+    params.push(toSeq);
+  }
+  query += " ORDER BY seq ASC";
+  return db.prepare(query).all(...params) as {
+    description: null | string;
+    payload: Buffer;
+    seq: number;
+    source: number;
+    timestamp: number;
+    type: string;
+    user_id: null | string;
+  }[];
+}
+
+export function loadFromDisk() {
+  try {
+    // Load Version
+    const versionRow = db
+      .prepare("SELECT value FROM metadata WHERE key = ?")
+      .get("version") as undefined | { value: string };
+    serverVersion = versionRow ? parseInt(versionRow.value, 10) : 0;
+
+    // Load Nodes
+    const nodesRows = db.prepare("SELECT * FROM nodes").all() as NodeRow[];
+    serverGraph.nodes = nodesRows.map((row) => ({
+      data: JSON.parse(row.data) as AppNode["data"],
+      id: row.id,
+      measured:
+        row.width !== null || row.height !== null
+          ? { height: row.height ?? 0, width: row.width ?? 0 }
+          : undefined,
+      parentId: row.parent_id ?? undefined,
+      position: { x: row.position_x, y: row.position_y },
+      type: row.type,
+    })) as AppNode[];
+
+    // Load Edges
+    const edgesRows = db.prepare("SELECT * FROM edges").all() as EdgeRow[];
+    serverGraph.edges = edgesRows.map((row) => ({
+      data: JSON.parse(row.data) as Edge["data"],
+      id: row.id,
+      source: row.source,
+      sourceHandle: row.source_handle ?? undefined,
+      target: row.target,
+      targetHandle: row.target_handle ?? undefined,
+    })) as Edge[];
+
+    console.log(
+      `[DB] Loaded ${serverGraph.nodes.length.toString()} nodes from database.`,
+    );
+
+    if (serverGraph.nodes.length === 0) {
+      console.log("[DB] Initializing empty graph with gallery showcase.");
+      const gallery = generateGallery();
+      serverGraph.nodes = gallery.nodes;
+      serverGraph.edges = gallery.edges;
+      serverVersion = 1;
+      syncToDB();
+    }
+  } catch (err) {
+    console.error("Failed to load from database:", err);
+  }
+}
 
 export function logMutation(
   type: string,
@@ -100,69 +251,6 @@ export function logMutation(
   return result.lastInsertRowid;
 }
 
-export function getMutations(fromSeq: number, toSeq?: number) {
-  let query = "SELECT * FROM mutations WHERE seq >= ?";
-  const params: any[] = [fromSeq];
-  if (toSeq) {
-    query += " AND seq <= ?";
-    params.push(toSeq);
-  }
-  query += " ORDER BY seq ASC";
-  return db.prepare(query).all(...params) as {
-    seq: number;
-    type: string;
-    payload: Buffer;
-    timestamp: number;
-    source: number;
-    description: string | null;
-    user_id: string | null;
-  }[];
-}
-
-export function addChatMessage(params: {
-  id: string;
-  parentId: string | null;
-  role: string;
-  content: string;
-  metadata?: any;
-  nodeId?: string;
-}) {
-  const stmt = db.prepare(`
-    INSERT INTO conversations (id, parent_id, role, content, metadata, timestamp, node_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(
-    params.id,
-    params.parentId,
-    params.role,
-    params.content,
-    JSON.stringify(params.metadata || {}),
-    Date.now(),
-    params.nodeId ?? null,
-  );
-}
-
-export function getChatHistory(headId: string) {
-  const history: any[] = [];
-  let currentId: string | null = headId;
-
-  while (currentId) {
-    const row = db
-      .prepare("SELECT * FROM conversations WHERE id = ?")
-      .get(currentId) as any;
-    if (!row) break;
-    history.unshift({
-      id: row.id,
-      role: row.role,
-      content: row.content,
-      metadata: JSON.parse(row.metadata),
-      timestamp: row.timestamp,
-    });
-    currentId = row.parent_id;
-  }
-  return history;
-}
-
 function syncToDB() {
   const transaction = db.transaction(() => {
     // Sync Version
@@ -180,7 +268,7 @@ function syncToDB() {
     for (const node of serverGraph.nodes) {
       insertNode.run(
         node.id,
-        node.type ?? "dynamic",
+        node.type,
         JSON.stringify(node.data),
         node.position.x,
         node.position.y,
@@ -213,73 +301,5 @@ function syncToDB() {
     transaction();
   } catch (err) {
     console.error("Failed to sync to database:", err);
-  }
-}
-
-interface NodeRow {
-  id: string;
-  type: string;
-  data: string;
-  position_x: number;
-  position_y: number;
-  parent_id: string | null;
-  width: number | null;
-  height: number | null;
-}
-
-interface EdgeRow {
-  id: string;
-  source: string;
-  target: string;
-  source_handle: string | null;
-  target_handle: string | null;
-  data: string;
-}
-
-export function loadFromDisk() {
-  try {
-    // Load Version
-    const versionRow = db
-      .prepare("SELECT value FROM metadata WHERE key = ?")
-      .get("version") as { value: string } | undefined;
-    serverVersion = versionRow ? parseInt(versionRow.value, 10) : 0;
-
-    // Load Nodes
-    const nodesRows = db.prepare("SELECT * FROM nodes").all() as NodeRow[];
-    serverGraph.nodes = nodesRows.map((row) => ({
-      id: row.id,
-      type: row.type,
-      data: JSON.parse(row.data),
-      position: { x: row.position_x, y: row.position_y },
-      parentId: row.parent_id ?? undefined,
-      measured:
-        row.width !== null || row.height !== null
-          ? { width: row.width ?? 0, height: row.height ?? 0 }
-          : undefined,
-    })) as AppNode[];
-
-    // Load Edges
-    const edgesRows = db.prepare("SELECT * FROM edges").all() as EdgeRow[];
-    serverGraph.edges = edgesRows.map((row) => ({
-      id: row.id,
-      source: row.source,
-      target: row.target,
-      sourceHandle: row.source_handle ?? undefined,
-      targetHandle: row.target_handle ?? undefined,
-      data: JSON.parse(row.data),
-    })) as Edge[];
-
-    console.log(`[DB] Loaded ${serverGraph.nodes.length} nodes from database.`);
-
-    if (serverGraph.nodes.length === 0) {
-      console.log("[DB] Initializing empty graph with gallery showcase.");
-      const gallery = generateGallery();
-      serverGraph.nodes = gallery.nodes;
-      serverGraph.edges = gallery.edges;
-      serverVersion = 1;
-      syncToDB();
-    }
-  } catch (err) {
-    console.error("Failed to load from database:", err);
   }
 }

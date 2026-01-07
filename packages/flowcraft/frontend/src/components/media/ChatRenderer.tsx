@@ -1,7 +1,8 @@
+import { Bot, Maximize2, PanelRight, RotateCcw } from "lucide-react";
 import React from "react";
-import { Bot, Maximize2, RotateCcw, PanelRight } from "lucide-react";
-import { useUiStore } from "../../store/uiStore";
+
 import { useFlowStore } from "../../store/flowStore";
+import { useUiStore } from "../../store/uiStore";
 import { Button } from "../ui/button";
 import { ChatBot } from "./ChatBot";
 
@@ -14,7 +15,7 @@ interface ChatRendererProps {
  * It handles the frame, header, and switching between display modes.
  */
 export const ChatRenderer: React.FC<ChatRendererProps> = ({ id: nodeId }) => {
-  const { setActiveChat, chatViewMode } = useUiStore();
+  const { chatViewMode, setActiveChat } = useUiStore();
   const updateNodeData = useFlowStore((s) => s.updateNodeData);
   const node = useFlowStore((s) => s.nodes.find((n) => n.id === nodeId));
 
@@ -31,36 +32,36 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ id: nodeId }) => {
       {/* Header - Acts as drag handle except for buttons */}
       <div className="shrink-0 p-3 bg-muted/20 flex justify-between items-center border-b border-node-border cursor-grab active:cursor-grabbing">
         <div className="flex items-center gap-2 pointer-events-none">
-          <Bot size={16} className="text-primary-color" />
+          <Bot className="text-primary-color" size={16} />
           <h3 className="text-xs font-bold uppercase tracking-wider">
-            {node?.data.label || "Chat Assistant"}
+            {node?.data.label ?? "Chat Assistant"}
           </h3>
         </div>
         <div className="flex items-center gap-1 nodrag">
           <Button
-            variant="ghost"
-            size="icon-sm"
             onClick={resetHistory}
+            size="icon-sm"
             title="Reset History"
+            variant="ghost"
           >
             <RotateCcw size={14} />
           </Button>
           <Button
-            variant="ghost"
-            size="icon-sm"
             onClick={() => {
               setActiveChat(nodeId, "fullscreen");
             }}
+            size="icon-sm"
+            variant="ghost"
           >
             <Maximize2 size={14} />
           </Button>
           {!isSidebar && (
             <Button
-              variant="ghost"
-              size="icon-sm"
               onClick={() => {
                 setActiveChat(nodeId, "sidebar");
               }}
+              size="icon-sm"
+              variant="ghost"
             >
               <PanelRight size={14} />
             </Button>
@@ -72,17 +73,17 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ id: nodeId }) => {
       <div className="flex-1 overflow-hidden nodrag">
         {isSidebar ? (
           <div className="flex flex-col items-center justify-center h-full p-6 text-center text-muted-foreground bg-muted/5">
-            <Bot size={32} className="mb-4 opacity-20" />
+            <Bot className="mb-4 opacity-20" size={32} />
             <p className="text-sm">
               This conversation is currently active in the sidebar.
             </p>
             <Button
-              variant="outline"
-              size="sm"
               className="mt-4"
               onClick={() => {
                 setActiveChat(nodeId, "inline");
               }}
+              size="sm"
+              variant="outline"
             >
               Dock back to node
             </Button>

@@ -1,26 +1,27 @@
-import { useCallback } from "react";
-import { v4 as uuidv4 } from "uuid";
-import { toast } from "react-hot-toast";
 import { create } from "@bufbuild/protobuf";
 import { type FileUIPart } from "ai";
-import { type ChatMessage, type ContextNode, type ChatStatus } from "./types";
-import { socketClient } from "../../../utils/SocketClient";
+import { useCallback } from "react";
+import { toast } from "react-hot-toast";
+import { v4 as uuidv4 } from "uuid";
+
 import { ActionExecutionRequestSchema } from "../../../generated/flowcraft/v1/core/action_pb";
+import { socketClient } from "../../../utils/SocketClient";
+import { type ChatMessage, type ChatStatus, type ContextNode } from "./types";
 
 export function useChatActions(
   nodeId: string,
   setStatus: (s: ChatStatus) => void,
   setHistory: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
 ) {
-  const uploadFile = async (file: File): Promise<string | null> => {
+  const uploadFile = async (file: File): Promise<null | string> => {
     const formData = new FormData();
     formData.append("file", file);
     try {
       const response = await fetch("/api/upload", {
-        method: "POST",
         body: formData,
+        method: "POST",
       });
-      const asset = await response.json();
+      const asset = (await response.json()) as { url: string };
       return asset.url;
     } catch (err) {
       console.error("Upload failed:", err);
@@ -44,7 +45,7 @@ export function useChatActions(
           const response = await fetch(file.url);
           const blob = await response.blob();
           const url = await uploadFile(
-            new File([blob], file.filename || "img.png", {
+            new File([blob], file.filename ?? "img.png", {
               type: file.mediaType,
             }),
           );
@@ -55,12 +56,12 @@ export function useChatActions(
       }
 
       const userMsg: ChatMessage = {
+        attachments: finalAttachments,
+        content: content.trim(),
+        contextNodes,
+        createdAt: Date.now(),
         id: uuidv4(),
         role: "user",
-        content: content.trim(),
-        createdAt: Date.now(),
-        attachments: finalAttachments,
-        contextNodes,
       };
 
       setHistory((prev) => [...prev, userMsg]);
@@ -70,15 +71,18 @@ export function useChatActions(
           payload: {
             case: "actionExecute",
             value: create(ActionExecutionRequestSchema, {
-              actionId: "chat:generate",
-              sourceNodeId: nodeId,
+              actionId: "flowcraft.action.node.chat.generate",
               contextNodeIds: contextNodes.map((n) => n.id),
-              paramsJson: JSON.stringify({
-                model: selectedModel,
-                webSearch: useWebSearch,
-                messages: [userMsg],
-                stream: true,
-              }),
+              params: {
+                case: "chatGenerate",
+                value: {
+                  endpointId: "", // Optional
+                  modelId: selectedModel,
+                  userContent: content.trim(),
+                  useWebSearch: useWebSearch,
+                },
+              },
+              sourceNodeId: nodeId,
             }),
           },
         });

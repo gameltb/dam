@@ -1,14 +1,18 @@
-import { create } from "zustand";
-import { temporal, type TemporalState } from "zundo";
+import { create as createProto } from "@bufbuild/protobuf";
 import {
+  applyEdgeChanges,
+  applyNodeChanges,
   type Connection,
   type Edge,
   type EdgeChange,
   type NodeChange,
-  applyNodeChanges,
-  applyEdgeChanges,
 } from "@xyflow/react";
-import { type AppNode, MutationSource, FlowEvent } from "../types";
+import * as Y from "yjs";
+import { temporal, type TemporalState } from "zundo";
+import { create } from "zustand";
+
+import { MutationSource as ProtoSource } from "../generated/flowcraft/v1/core/base_pb";
+import { PresentationSchema } from "../generated/flowcraft/v1/core/base_pb";
 import {
   type MediaType,
   type PortType,
@@ -18,29 +22,25 @@ import {
   GraphMutationSchema,
 } from "../generated/flowcraft/v1/core/service_pb";
 import { type WidgetSignal } from "../generated/flowcraft/v1/core/signals_pb";
-import * as Y from "yjs";
-import { ydoc, yNodes, yEdges } from "./yjsInstance";
+import { type AppNode, FlowEvent, MutationSource } from "../types";
+import { type DynamicNodeData } from "../types";
 import { dehydrateNode, findPort } from "../utils/nodeUtils";
 import { getValidator } from "../utils/portValidators";
-import { handleGraphMutation } from "./mutationHandlers";
-import { getWidgetSignalListener } from "./signalHandlers";
+import { toProtoNode, toProtoNodeData } from "../utils/protoAdapter";
 import { pipeline } from "./middleware/pipeline";
 import { MutationDirection } from "./middleware/types";
-import { MutationSource as ProtoSource } from "../generated/flowcraft/v1/core/base_pb";
-import { PresentationSchema } from "../generated/flowcraft/v1/core/base_pb";
-import { create as createProto } from "@bufbuild/protobuf";
-import { toProtoNodeData, toProtoNode } from "../utils/protoAdapter";
-import { type DynamicNodeData } from "../types";
+import { handleGraphMutation } from "./mutationHandlers";
+import { getWidgetSignalListener } from "./signalHandlers";
+import { ydoc, yEdges, yNodes } from "./yjsInstance";
 
 export interface MutationContext {
-  taskId?: string;
-  source?: MutationSource;
   description?: string;
+  source?: MutationSource;
+  taskId?: string;
 }
 
 export interface NodeHandlers {
   onChange: (id: string, data: Record<string, unknown>) => void;
-  onWidgetClick?: (nodeId: string, widgetId: string) => void;
   onGalleryItemContext?: (
     nodeId: string,
     url: string,
@@ -48,50 +48,51 @@ export interface NodeHandlers {
     x: number,
     y: number,
   ) => void;
+  onWidgetClick?: (nodeId: string, widgetId: string) => void;
 }
 
 export interface RFState {
-  nodes: AppNode[];
-  edges: Edge[];
-  version: number;
-  isLayoutDirty: boolean; // Flag to indicate if topological sort is needed
-
-  ydoc: Y.Doc;
-  yNodes: Y.Map<unknown>;
-  yEdges: Y.Map<unknown>;
-
-  lastNodeEvent: {
-    type: FlowEvent;
-    payload: Record<string, unknown>;
-    timestamp: number;
-  } | null;
-  dispatchNodeEvent: (
-    type: FlowEvent,
-    payload: Record<string, unknown>,
-  ) => void;
-
-  onNodesChange: (changes: NodeChange[]) => void;
-  onEdgesChange: (changes: EdgeChange[]) => void;
-  onConnect: (connection: Connection) => void;
-
-  setGraph: (
-    graph: { nodes: AppNode[]; edges: Edge[] },
-    version: number,
-  ) => void;
   addNode: (node: AppNode) => void;
-  updateNodeData: (id: string, data: Partial<DynamicNodeData>) => void;
-
   applyMutations: (
     mutations: GraphMutation[],
     context?: MutationContext,
   ) => void;
   applyYjsUpdate: (update: Uint8Array) => void;
-  syncFromYjs: () => void;
-  resetStore: () => void;
+  dispatchNodeEvent: (
+    type: FlowEvent,
+    payload: Record<string, unknown>,
+  ) => void;
 
+  edges: Edge[];
+  handleIncomingWidgetSignal: (signal: WidgetSignal) => void;
+  isLayoutDirty: boolean; // Flag to indicate if topological sort is needed
+
+  lastNodeEvent: null | {
+    payload: Record<string, unknown>;
+    timestamp: number;
+    type: FlowEvent;
+  };
+  nodes: AppNode[];
+
+  onConnect: (connection: Connection) => void;
+  onEdgesChange: (changes: EdgeChange[]) => void;
+  onNodesChange: (changes: NodeChange[]) => void;
+
+  resetStore: () => void;
   // --- Widget Interaction Signals ---
   sendWidgetSignal: (signal: WidgetSignal) => void;
-  handleIncomingWidgetSignal: (signal: WidgetSignal) => void;
+  setGraph: (
+    graph: { edges: Edge[]; nodes: AppNode[] },
+    version: number,
+  ) => void;
+
+  syncFromYjs: () => void;
+  updateNodeData: (id: string, data: Partial<DynamicNodeData>) => void;
+  version: number;
+  ydoc: Y.Doc;
+
+  yEdges: Y.Map<unknown>;
+  yNodes: Y.Map<unknown>;
 }
 
 const useStore = create(
@@ -119,88 +120,16 @@ const useStore = create(
       });
 
       return {
-        nodes: [],
-        edges: [],
-        version: 0,
-        isLayoutDirty: false,
-        ydoc: ydoc,
-        yNodes: yNodes,
-        yEdges: yEdges,
-        lastNodeEvent: null,
-
-        dispatchNodeEvent: (type, payload) => {
-          set({ lastNodeEvent: { type, payload, timestamp: Date.now() } });
+        addNode: (node) => {
+          get().applyMutations([
+            createProto(GraphMutationSchema, {
+              operation: {
+                case: "addNode",
+                value: { node: toProtoNode(node) },
+              },
+            }),
+          ]);
         },
-
-        syncFromYjs: () => {
-          const state = get();
-          const rawNodes: AppNode[] = [];
-          yNodes.forEach((v) => rawNodes.push(v as AppNode));
-
-          const edges: Edge[] = [];
-          yEdges.forEach((v) => edges.push(v as Edge));
-
-          // If layout is not dirty, we can just update nodes without sorting
-          if (!state.isLayoutDirty) {
-            set({ nodes: rawNodes, edges, version: state.version + 1 });
-            return;
-          }
-
-          const nodes: AppNode[] = [];
-          const visited = new Set<string>();
-
-          const visit = (node: AppNode) => {
-            if (visited.has(node.id)) return;
-
-            if (node.parentId && !visited.has(node.parentId)) {
-              const parent = rawNodes.find((n) => n.id === node.parentId);
-              if (parent) visit(parent);
-            }
-
-            visited.add(node.id);
-            nodes.push(node);
-          };
-
-          rawNodes.forEach((n) => {
-            visit(n);
-          });
-
-          set({
-            nodes,
-            edges,
-            isLayoutDirty: false,
-            version: state.version + 1,
-          });
-        },
-
-        applyYjsUpdate: (update) => {
-          // Updates from remote might change parent/child relationships
-          set({ isLayoutDirty: true });
-          Y.applyUpdate(ydoc, update, "remote");
-          // syncFromYjs will be called by the observers
-        },
-
-        updateNodeData: (id, data) => {
-          const node = get().nodes.find((n) => n.id === id);
-          if (node) {
-            const updatedData: DynamicNodeData = {
-              ...(node.data as DynamicNodeData),
-              ...data,
-            };
-            get().applyMutations([
-              createProto(GraphMutationSchema, {
-                operation: {
-                  case: "updateNode",
-                  value: {
-                    id: id,
-                    data: toProtoNodeData(updatedData),
-                  },
-                },
-              }),
-            ]);
-          }
-        },
-
         applyMutations: (mutations, context) => {
           const source = context?.source ?? MutationSource.SOURCE_USER;
 
@@ -210,7 +139,7 @@ const useStore = create(
           }
 
           pipeline.execute(
-            { mutations, context: context ?? {}, direction },
+            { context: context ?? {}, direction, mutations },
             (finalEvent) => {
               set({ isLayoutDirty: true });
               ydoc.transact(() => {
@@ -222,92 +151,26 @@ const useStore = create(
             },
           );
         },
-        onNodesChange: (changes) => {
-          const nextNodes = applyNodeChanges(changes, get().nodes) as AppNode[];
-          set({ nodes: nextNodes });
-
-          const mutations: GraphMutation[] = [];
-
-          changes.forEach((c) => {
-            if (c.type === "remove") {
-              mutations.push(
-                createProto(GraphMutationSchema, {
-                  operation: { case: "removeNode", value: { id: c.id } },
-                }),
-              );
-            } else if (c.type === "position" && !c.dragging) {
-              const n = nextNodes.find((node) => node.id === c.id);
-              if (n) {
-                const presentation = createProto(PresentationSchema, {
-                  position: { x: n.position.x, y: n.position.y },
-                  width: n.measured?.width ?? 0,
-                  height: n.measured?.height ?? 0,
-                  parentId: n.parentId ?? "",
-                  isInitialized: true,
-                });
-
-                mutations.push(
-                  createProto(GraphMutationSchema, {
-                    operation: {
-                      case: "updateNode",
-                      value: {
-                        id: n.id,
-                        presentation,
-                        data: toProtoNodeData(n.data as DynamicNodeData),
-                      },
-                    },
-                  }),
-                );
-              }
-            }
-          });
-
-          if (mutations.length > 0) {
-            get().applyMutations(mutations);
-          }
-
-          // Local-only state updates (like selection) that don't need sync
-          ydoc.transact(() => {
-            changes.forEach((c) => {
-              if (c.type === "select") {
-                const n = nextNodes.find((node) => node.id === c.id);
-                if (n) {
-                  yNodes.set(n.id, dehydrateNode(n));
-                }
-              }
-            });
-          }, "zustand-sync");
+        applyYjsUpdate: (update) => {
+          // Updates from remote might change parent/child relationships
+          set({ isLayoutDirty: true });
+          Y.applyUpdate(ydoc, update, "remote");
+          // syncFromYjs will be called by the observers
         },
-        onEdgesChange: (changes) => {
-          const nextEdges = applyEdgeChanges(changes, get().edges);
-          set({ edges: nextEdges });
-
-          const removals = changes.filter((c) => c.type === "remove") as {
-            id: string;
-            type: "remove";
-          }[];
-          if (removals.length > 0) {
-            get().applyMutations(
-              removals.map((r) =>
-                createProto(GraphMutationSchema, {
-                  operation: { case: "removeEdge", value: { id: r.id } },
-                }),
-              ),
-            );
-            return;
-          }
-
-          ydoc.transact(() => {
-            changes.forEach((c) => {
-              if (c.type === "select") {
-                const e = nextEdges.find((edge) => edge.id === c.id);
-                if (e) yEdges.set(e.id, e);
-              }
-            });
-          }, "zustand-sync");
+        dispatchNodeEvent: (type, payload) => {
+          set({ lastNodeEvent: { payload, timestamp: Date.now(), type } });
         },
+        edges: [],
+        handleIncomingWidgetSignal: (signal) => {
+          getWidgetSignalListener(signal.nodeId, signal.widgetId)?.(signal);
+        },
+        isLayoutDirty: false,
+        lastNodeEvent: null,
+
+        nodes: [],
+
         onConnect: (connection) => {
-          const { nodes, edges } = get();
+          const { edges, nodes } = get();
           const targetNode = nodes.find((n) => n.id === connection.target);
           let maxInputs = 999;
 
@@ -345,11 +208,11 @@ const useStore = create(
                 value: {
                   edge: {
                     edgeId,
-                    sourceNodeId: connection.source,
-                    targetNodeId: connection.target,
-                    sourceHandle: connection.sourceHandle ?? "",
-                    targetHandle: connection.targetHandle ?? "",
                     metadata: {},
+                    sourceHandle: connection.sourceHandle ?? "",
+                    sourceNodeId: connection.source,
+                    targetHandle: connection.targetHandle ?? "",
+                    targetNodeId: connection.target,
                   },
                 },
               },
@@ -357,6 +220,110 @@ const useStore = create(
           );
 
           get().applyMutations(mutations, { description: "Connect handles" });
+        },
+
+        onEdgesChange: (changes) => {
+          const nextEdges = applyEdgeChanges(changes, get().edges);
+          set({ edges: nextEdges });
+
+          const removals = changes.filter((c) => c.type === "remove") as {
+            id: string;
+            type: "remove";
+          }[];
+          if (removals.length > 0) {
+            get().applyMutations(
+              removals.map((r) =>
+                createProto(GraphMutationSchema, {
+                  operation: { case: "removeEdge", value: { id: r.id } },
+                }),
+              ),
+            );
+            return;
+          }
+
+          ydoc.transact(() => {
+            changes.forEach((c) => {
+              if (c.type === "select") {
+                const e = nextEdges.find((edge) => edge.id === c.id);
+                if (e) yEdges.set(e.id, e);
+              }
+            });
+          }, "zustand-sync");
+        },
+
+        onNodesChange: (changes) => {
+          const nextNodes = applyNodeChanges(changes, get().nodes) as AppNode[];
+          set({ nodes: nextNodes });
+
+          const mutations: GraphMutation[] = [];
+
+          changes.forEach((c) => {
+            if (c.type === "remove") {
+              mutations.push(
+                createProto(GraphMutationSchema, {
+                  operation: { case: "removeNode", value: { id: c.id } },
+                }),
+              );
+            } else if (c.type === "position" && !c.dragging) {
+              const n = nextNodes.find((node) => node.id === c.id);
+              if (n) {
+                const presentation = createProto(PresentationSchema, {
+                  height: n.measured?.height ?? 0,
+                  isInitialized: true,
+                  parentId: n.parentId ?? "",
+                  position: { x: n.position.x, y: n.position.y },
+                  width: n.measured?.width ?? 0,
+                });
+
+                mutations.push(
+                  createProto(GraphMutationSchema, {
+                    operation: {
+                      case: "updateNode",
+                      value: {
+                        data: toProtoNodeData(n.data as DynamicNodeData),
+                        id: n.id,
+                        presentation,
+                      },
+                    },
+                  }),
+                );
+              }
+            }
+          });
+
+          if (mutations.length > 0) {
+            get().applyMutations(mutations);
+          }
+
+          // Local-only state updates (like selection) that don't need sync
+          ydoc.transact(() => {
+            changes.forEach((c) => {
+              if (c.type === "select") {
+                const n = nextNodes.find((node) => node.id === c.id);
+                if (n) {
+                  yNodes.set(n.id, dehydrateNode(n));
+                }
+              }
+            });
+          }, "zustand-sync");
+        },
+
+        resetStore: () => {
+          get().applyMutations([
+            createProto(GraphMutationSchema, {
+              operation: { case: "clearGraph", value: {} },
+            }),
+          ]);
+          lastPastLength = 0;
+          lastFutureLength = 0;
+          set({ edges: [], isLayoutDirty: false, nodes: [], version: 0 });
+        },
+        sendWidgetSignal: (signal) => {
+          void import("../utils/SocketClient").then(({ socketClient }) => {
+            void socketClient.send({
+              payload: { case: "widgetSignal", value: signal },
+            });
+          });
         },
         setGraph: (graph, version) => {
           set({ isLayoutDirty: true });
@@ -369,51 +336,85 @@ const useStore = create(
           set({ version });
           get().syncFromYjs();
         },
-        addNode: (node) => {
-          get().applyMutations([
-            createProto(GraphMutationSchema, {
-              operation: {
-                case: "addNode",
-                value: { node: toProtoNode(node) },
-              },
-            }),
-          ]);
-        },
-        resetStore: () => {
-          get().applyMutations([
-            createProto(GraphMutationSchema, {
-              operation: { case: "clearGraph", value: {} },
-            }),
-          ]);
-          lastPastLength = 0;
-          lastFutureLength = 0;
-          set({ nodes: [], edges: [], version: 0, isLayoutDirty: false });
-        },
+        syncFromYjs: () => {
+          const state = get();
+          const rawNodes: AppNode[] = [];
+          yNodes.forEach((v) => rawNodes.push(v as AppNode));
 
-        sendWidgetSignal: (signal) => {
-          void import("../utils/SocketClient").then(({ socketClient }) => {
-            void socketClient.send({
-              payload: { case: "widgetSignal", value: signal },
-            });
+          const edges: Edge[] = [];
+          yEdges.forEach((v) => edges.push(v as Edge));
+
+          // If layout is not dirty, we can just update nodes without sorting
+          if (!state.isLayoutDirty) {
+            set({ edges, nodes: rawNodes, version: state.version + 1 });
+            return;
+          }
+
+          const nodes: AppNode[] = [];
+          const visited = new Set<string>();
+
+          const visit = (node: AppNode) => {
+            if (visited.has(node.id)) return;
+
+            if (node.parentId && !visited.has(node.parentId)) {
+              const parent = rawNodes.find((n) => n.id === node.parentId);
+              if (parent) visit(parent);
+            }
+
+            visited.add(node.id);
+            nodes.push(node);
+          };
+
+          rawNodes.forEach((n) => {
+            visit(n);
+          });
+
+          set({
+            edges,
+            isLayoutDirty: false,
+            nodes,
+            version: state.version + 1,
           });
         },
-
-        handleIncomingWidgetSignal: (signal) => {
-          getWidgetSignalListener(signal.nodeId, signal.widgetId)?.(signal);
+        updateNodeData: (id, data) => {
+          const node = get().nodes.find((n) => n.id === id);
+          if (node) {
+            const updatedData = {
+              ...node.data,
+              ...data,
+            } as DynamicNodeData;
+            get().applyMutations([
+              createProto(GraphMutationSchema, {
+                operation: {
+                  case: "updateNode",
+                  value: {
+                    data: toProtoNodeData(updatedData),
+                    id: id,
+                  },
+                },
+              }),
+            ]);
+          }
         },
+        version: 0,
+        ydoc: ydoc,
+
+        yEdges: yEdges,
+
+        yNodes: yNodes,
       };
     },
     {
-      partialize: (state) => {
-        const { nodes, edges, version } = state;
-        return { nodes, edges, version } as unknown as RFState;
-      },
       equality: (a, b) => a.version === b.version,
       handleSet: (handleSet) => (state) => {
         // Skip recording history if we're in the middle of a drag
         const isDragging = (state as RFState).nodes.some((n) => n.dragging);
         if (isDragging) return;
         handleSet(state);
+      },
+      partialize: (state) => {
+        const { edges, nodes, version } = state;
+        return { edges, nodes, version } as unknown as RFState;
       },
     },
   ),

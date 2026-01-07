@@ -1,7 +1,9 @@
 import { useMemo } from "react";
-import { RenderMode, MediaType } from "../generated/flowcraft/v1/core/node_pb";
+
 import type { DynamicNodeData } from "../types";
+
 import { MEDIA_CONFIGS } from "../components/media/mediaConfigs";
+import { MediaType, RenderMode } from "../generated/flowcraft/v1/core/node_pb";
 
 const HEADER_HEIGHT = 46;
 const PORT_HEIGHT_PER_ROW = 24;
@@ -39,10 +41,10 @@ export function useNodeLayout(data: DynamicNodeData) {
     }
 
     return {
+      isAudio,
+      isMedia,
       minHeight,
       minWidth,
-      isMedia,
-      isAudio,
     };
   }, [data]);
 }

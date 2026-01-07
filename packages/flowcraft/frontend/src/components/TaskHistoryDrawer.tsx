@@ -1,15 +1,16 @@
 import React, { useMemo } from "react";
+
 import { useTaskStore } from "../store/taskStore";
 import { MutationSource, TaskStatus } from "../types";
 
 export const TaskHistoryDrawer: React.FC = () => {
   const {
-    tasks,
-    mutationLogs,
     isDrawerOpen,
-    setDrawerOpen,
+    mutationLogs,
     selectedTaskId,
+    setDrawerOpen,
     setSelectedTaskId,
+    tasks,
   } = useTaskStore();
 
   const taskList = useMemo(
@@ -24,29 +25,29 @@ export const TaskHistoryDrawer: React.FC = () => {
           setDrawerOpen(true);
         }}
         style={{
-          position: "fixed",
-          bottom: 0,
-          right: "20px",
+          alignItems: "center",
           background: "var(--node-bg)",
-          padding: "8px 16px",
           border: "1px solid var(--node-border)",
           borderBottom: "none",
           borderRadius: "8px 8px 0 0",
+          bottom: 0,
           cursor: "pointer",
-          zIndex: 1000,
-          fontSize: "12px",
           display: "flex",
-          alignItems: "center",
+          fontSize: "12px",
           gap: "8px",
+          padding: "8px 16px",
+          position: "fixed",
+          right: "20px",
+          zIndex: 1000,
         }}
       >
         <span>📊 Task History</span>
         <span
           style={{
             background: "var(--primary-color)",
-            padding: "2px 6px",
             borderRadius: "10px",
             fontSize: "10px",
+            padding: "2px 6px",
           }}
         >
           {taskList.length}
@@ -63,32 +64,32 @@ export const TaskHistoryDrawer: React.FC = () => {
   return (
     <div
       style={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: "300px",
         background: "#1a1a1a",
         borderTop: "1px solid #333",
-        zIndex: 2000,
+        bottom: 0,
+        color: "#ccc",
         display: "flex",
         flexDirection: "column",
-        color: "#ccc",
         fontFamily: "monospace",
+        height: "300px",
+        left: 0,
+        position: "fixed",
+        right: 0,
+        zIndex: 2000,
       }}
     >
       {/* Header */}
       <div
         style={{
-          padding: "8px 16px",
+          alignItems: "center",
           background: "#222",
+          borderBottom: "1px solid #333",
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
-          borderBottom: "1px solid #333",
+          padding: "8px 16px",
         }}
       >
-        <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
+        <div style={{ alignItems: "center", display: "flex", gap: "20px" }}>
           <b style={{ color: "#fff" }}>ACTIVITY TRACER</b>
           <div style={{ fontSize: "11px" }}>
             Total Tasks: {taskList.length} | Logs: {mutationLogs.length}
@@ -113,9 +114,9 @@ export const TaskHistoryDrawer: React.FC = () => {
         {/* Task List */}
         <div
           style={{
-            width: "300px",
             borderRight: "1px solid #333",
             overflowY: "auto",
+            width: "300px",
           }}
         >
           {taskList.map((task) => (
@@ -125,12 +126,12 @@ export const TaskHistoryDrawer: React.FC = () => {
                 setSelectedTaskId(task.taskId);
               }}
               style={{
-                padding: "8px 12px",
-                borderBottom: "1px solid #222",
-                cursor: "pointer",
                 background:
                   selectedTaskId === task.taskId ? "#2d2d2d" : "transparent",
+                borderBottom: "1px solid #222",
+                cursor: "pointer",
                 fontSize: "12px",
+                padding: "8px 12px",
               }}
             >
               <div
@@ -172,7 +173,7 @@ export const TaskHistoryDrawer: React.FC = () => {
         <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
           {!selectedTask ? (
             <div
-              style={{ opacity: 0.5, textAlign: "center", marginTop: "40px" }}
+              style={{ marginTop: "40px", opacity: 0.5, textAlign: "center" }}
             >
               Select a task to view mutation details
             </div>
@@ -180,16 +181,16 @@ export const TaskHistoryDrawer: React.FC = () => {
             <div>
               <div
                 style={{
-                  marginBottom: "16px",
                   borderBottom: "1px solid #333",
+                  marginBottom: "16px",
                   paddingBottom: "8px",
                 }}
               >
-                <h3 style={{ margin: 0, color: "#fff" }}>
+                <h3 style={{ color: "#fff", margin: 0 }}>
                   {selectedTask.label}
                 </h3>
                 <div
-                  style={{ fontSize: "11px", opacity: 0.7, marginTop: "4px" }}
+                  style={{ fontSize: "11px", marginTop: "4px", opacity: 0.7 }}
                 >
                   ID: {selectedTask.taskId} | Status:{" "}
                   {Object.keys(TaskStatus).find(
@@ -208,16 +209,16 @@ export const TaskHistoryDrawer: React.FC = () => {
                 relatedLogs.map((log) => (
                   <div
                     key={log.id}
-                    style={{ marginBottom: "12px", fontSize: "12px" }}
+                    style={{ fontSize: "12px", marginBottom: "12px" }}
                   >
                     <div style={{ color: "#ed8936", marginBottom: "4px" }}>
                       ➜ {log.description}
                     </div>
                     <div
                       style={{
-                        paddingLeft: "12px",
                         borderLeft: "2px solid #333",
                         opacity: 0.8,
+                        paddingLeft: "12px",
                       }}
                     >
                       {log.mutations.map((m, idx) => {

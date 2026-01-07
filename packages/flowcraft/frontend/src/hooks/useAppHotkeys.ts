@@ -1,33 +1,34 @@
 import { useHotkeys } from "react-hotkeys-hook";
-import { useUiStore } from "../store/uiStore";
-import { useGraphOperations } from "./useGraphOperations";
-import { useFlowStore, useTemporalStore } from "../store/flowStore";
 import { useShallow } from "zustand/react/shallow";
+
+import { useFlowStore, useTemporalStore } from "../store/flowStore";
+import { useUiStore } from "../store/uiStore";
 import { type AppNode, type Edge } from "../types";
+import { useGraphOperations } from "./useGraphOperations";
 
 export const useAppHotkeys = () => {
   const {
-    copySelected,
-    paste,
-    duplicateSelected,
     autoLayout,
-    deleteNode,
+    copySelected,
     deleteEdge,
+    deleteNode,
+    duplicateSelected,
+    paste,
   } = useGraphOperations({
     clientVersion: 0,
   });
 
-  const { nodes, edges } = useFlowStore(
+  const { edges, nodes } = useFlowStore(
     useShallow((state) => ({
-      nodes: state.nodes,
       edges: state.edges,
+      nodes: state.nodes,
     })),
   );
 
-  const { undo, redo } = useTemporalStore(
+  const { redo, undo } = useTemporalStore(
     useShallow((state) => ({
-      undo: state.undo,
       redo: state.redo,
+      undo: state.undo,
     })),
   );
 

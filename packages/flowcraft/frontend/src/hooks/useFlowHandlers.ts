@@ -1,25 +1,35 @@
-import { useCallback } from "react";
+import { create } from "@bufbuild/protobuf";
 import {
-  type OnConnectStartParams,
+  type Node,
   type NodeChange,
+  type OnConnectStartParams,
   type ReactFlowInstance,
   type XYPosition,
-  type Node,
 } from "@xyflow/react";
-import { useFlowStore } from "../store/flowStore";
-import { useUiStore } from "../store/uiStore";
-import { socketClient } from "../utils/SocketClient";
-import { create } from "@bufbuild/protobuf";
+import { useCallback } from "react";
+
 import { ActionDiscoveryRequestSchema } from "../generated/flowcraft/v1/core/action_pb";
 import { PortMainType } from "../generated/flowcraft/v1/core/base_pb";
+import { useFlowStore } from "../store/flowStore";
+import { useUiStore } from "../store/uiStore";
 import { type AppNode } from "../types";
-import { type HelperLines } from "./useHelperLines";
 import { findPort } from "../utils/nodeUtils";
 import { PORT_MAIN_TYPE_TO_PROTO } from "../utils/protoAdapter";
+import { socketClient } from "../utils/SocketClient";
+import { type HelperLines } from "./useHelperLines";
 
 interface FlowHandlersProps {
+  calculateLines: (
+    node: Node,
+    nodes: Node[],
+    show: boolean,
+    pos: XYPosition,
+  ) => { helperLines: HelperLines; snappedPosition: XYPosition };
+  contextMenuDragStop: () => void;
   nodes: AppNode[];
+  onNodeContextMenuHook: (event: React.MouseEvent, node: AppNode) => void;
   onNodesChange: (changes: NodeChange[]) => void;
+  setHelperLines: (lines: HelperLines) => void;
   updateViewport: (
     x: number,
     y: number,
@@ -27,25 +37,16 @@ interface FlowHandlersProps {
     width: number,
     height: number,
   ) => void;
-  calculateLines: (
-    node: Node,
-    nodes: Node[],
-    show: boolean,
-    pos: XYPosition,
-  ) => { snappedPosition: XYPosition; helperLines: HelperLines };
-  setHelperLines: (lines: HelperLines) => void;
-  onNodeContextMenuHook: (event: React.MouseEvent, node: AppNode) => void;
-  contextMenuDragStop: () => void;
 }
 
 export function useFlowHandlers({
-  nodes,
-  onNodesChange,
-  updateViewport,
   calculateLines,
-  setHelperLines,
-  onNodeContextMenuHook,
   contextMenuDragStop,
+  nodes,
+  onNodeContextMenuHook,
+  onNodesChange,
+  setHelperLines,
+  updateViewport,
 }: FlowHandlersProps) {
   const setConnectionStartHandle = useUiStore(
     (s) => s.setConnectionStartHandle,
@@ -53,7 +54,7 @@ export function useFlowHandlers({
 
   const handleMoveEnd = useCallback(
     (_: unknown, viewport: { x: number; y: number; zoom: number }) => {
-      const { innerWidth, innerHeight } = window;
+      const { innerHeight, innerWidth } = window;
       const x = -viewport.x / viewport.zoom;
       const y = -viewport.y / viewport.zoom;
       const width = innerWidth / viewport.zoom;
@@ -91,30 +92,30 @@ export function useFlowHandlers({
   );
 
   const onConnectStart = useCallback(
-    (_: unknown, { nodeId, handleId, handleType }: OnConnectStartParams) => {
+    (_: unknown, { handleId, handleType, nodeId }: OnConnectStartParams) => {
       setTimeout(() => {
         const store = useFlowStore.getState();
         const node = store.nodes.find((n) => n.id === nodeId);
         let portInfo = {
-          mainType: PortMainType.ANY as number,
           itemType: "",
+          mainType: PortMainType.ANY as number,
         };
 
         if (node) {
           const port = findPort(node, handleId ?? "");
           if (port?.type) {
             portInfo = {
+              itemType: port.type.itemType,
               mainType: (PORT_MAIN_TYPE_TO_PROTO[port.type.mainType] ??
                 PortMainType.ANY) as number,
-              itemType: port.type.itemType,
             };
           }
         }
 
         if (handleType) {
           setConnectionStartHandle({
-            nodeId: nodeId ?? "",
             handleId: handleId ?? "",
+            nodeId: nodeId ?? "",
             type: handleType,
             ...portInfo,
           });
@@ -160,11 +161,11 @@ export function useFlowHandlers({
 
   return {
     handleMoveEnd,
-    handleNodeDragStop,
-    onNodesChangeWithSnapping,
-    onConnectStart,
-    onConnectEnd,
     handleNodeContextMenu,
+    handleNodeDragStop,
+    onConnectEnd,
+    onConnectStart,
     onInit,
+    onNodesChangeWithSnapping,
   };
 }

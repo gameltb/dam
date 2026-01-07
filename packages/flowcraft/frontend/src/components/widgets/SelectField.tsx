@@ -1,19 +1,19 @@
 import React, { useState } from "react";
 
 export interface SelectFieldProps {
-  value: unknown;
-  onChange: (value: unknown) => void;
   label?: string;
-  options: { label: string; value: unknown }[];
+  onChange: (value: unknown) => void;
   onFetchOptions?: () => Promise<{ label: string; value: unknown }[]>;
+  options: { label: string; value: unknown }[];
+  value: unknown;
 }
 
 export const SelectField: React.FC<SelectFieldProps> = ({
-  value,
-  onChange,
   label,
-  options: initialOptions,
+  onChange,
   onFetchOptions,
+  options: initialOptions,
+  value,
 }) => {
   const [options, setOptions] = useState(initialOptions);
   const [loading, setLoading] = useState(false);
@@ -36,28 +36,28 @@ export const SelectField: React.FC<SelectFieldProps> = ({
     <div className="widget select-field">
       {label && (
         <label
-          style={{ fontSize: "11px", display: "block", marginBottom: "2px" }}
+          style={{ display: "block", fontSize: "11px", marginBottom: "2px" }}
         >
           {label} {loading && "(Loading...)"}
         </label>
       )}
       <select
         className="nodrag"
-        value={String(value)}
+        disabled={loading}
         onChange={(e) => {
           onChange(e.target.value);
         }}
         onFocus={() => {
           void handleFocus();
         }}
-        disabled={loading}
         style={{
-          width: "100%",
-          padding: "4px",
-          borderRadius: "4px",
           border: "1px solid #ccc",
+          borderRadius: "4px",
           opacity: loading ? 0.7 : 1,
+          padding: "4px",
+          width: "100%",
         }}
+        value={String(value)}
       >
         {options.map((opt) => (
           <option key={String(opt.value)} value={String(opt.value)}>
