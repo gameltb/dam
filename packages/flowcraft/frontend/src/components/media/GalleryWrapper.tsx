@@ -1,8 +1,8 @@
 import { Layers, X } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
-import { useFlowStore } from "../../store/flowStore";
-import { FlowEvent, type MediaType } from "../../types";
+import { useFlowStore } from "@/store/flowStore";
+import { FlowEvent, type MediaType } from "@/types";
 import { IconButton } from "../base/IconButton";
 
 interface GalleryWrapperProps {

@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 
-import { type NodeTemplate } from "../../types";
-import { buildNodeTree } from "../../utils/menuUtils";
+import { type NodeTemplate } from "@/types";
+import { buildNodeTree } from "@/utils/menuUtils";
 import { NodeSubMenu } from "../base/SubMenu";
 import { MenuContainer } from "./MenuContainer";
 

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 
-import { type ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
-import { useFlowStore } from "../store/flowStore";
-import { useTaskStore } from "../store/taskStore";
+import { type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
+import { useFlowStore } from "@/store/flowStore";
+import { useTaskStore } from "@/store/taskStore";
 import {
   type AppNode,
   AppNodeType,
@@ -11,7 +11,7 @@ import {
   isDynamicNode,
   MediaType,
   MutationSource,
-} from "../types";
+} from "@/types";
 
 export interface ContextMenuData {
   galleryItemType?: MediaType;

@@ -1,9 +1,17 @@
+import { create } from "@bufbuild/protobuf";
 import { useEffect, useRef, useState } from "react";
 
-import { socketClient } from "../../../utils/SocketClient";
+import { ChatMessagePartSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
+import { socketClient } from "@/utils/SocketClient";
 import { type ChatMessage } from "./types";
+import { partsToText } from "./utils";
 
-export function useChatHistory(conversationHeadId: string | undefined) {
+export function useChatHistory(
+  conversationHeadId: string | undefined,
+  optimisticContent?: string,
+  isStreamDone?: boolean,
+  shouldFetch = true,
+) {
   const [history, setHistory] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -14,61 +22,81 @@ export function useChatHistory(conversationHeadId: string | undefined) {
   }, [history]);
 
   useEffect(() => {
-    if (!conversationHeadId) {
-      // Only clear if we actually have history (to avoid unnecessary renders)
-      // and if we are not in the middle of an optimistic update that hasn't been persisted yet?
-      // Actually, if headId is undefined, it means no conversation on backend.
-      // But if we just started a conversation, headId is undefined until backend confirms.
-      // So clearing here is dangerous if we have local unsaved messages.
-
-      // However, usually headId becomes defined once backend replies.
-      // If we switch nodes, headId changes.
-
-      // Safety: If history is empty, it's fine.
-      if (historyRef.current.length > 0) {
-        // Check if we are potentially in a "new conversation" state locally
-        // We can't easily know if the local history is "unsaved" or "old".
-        // But typically if headId is undefined, it means "empty conversation".
-        // We'll clear for now, but rely on the fact that optimistic updates usually happen
-        // *before* headId updates, so headId won't go from "Something" to "Undefined"
-        // unless we explicitly deleted everything.
+    if (!shouldFetch || !conversationHeadId) {
+      if (!conversationHeadId && historyRef.current.length > 0) {
         setHistory([]);
       }
       return;
     }
 
-    // Check if our local history's last message matches the new headId.
-    // If so, we assume our local state is up to date (optimistic update succeeded)
-    // and we don't need to re-fetch, avoiding race conditions.
-    const lastMsg = historyRef.current[historyRef.current.length - 1];
+    const currentHistory = historyRef.current;
+    const lastMsg = currentHistory[currentHistory.length - 1];
+
+    // 1. If the current head matches our last message ID, we are perfectly synced.
     if (lastMsg?.id === conversationHeadId) {
-      // We are up to date.
       return;
     }
 
+    // 2. If we just finished a stream and the new conversationHeadId is different from our last message,
+    // it's likely the ID of the assistant message we just streamed.
+    if (isStreamDone && optimisticContent && lastMsg) {
+      // Check if we already added this assistant message (to prevent double append)
+      const lastMsgText = partsToText(lastMsg.parts);
+      const alreadyHasAssistant =
+        lastMsg.role === "assistant" && lastMsgText === optimisticContent;
+
+      if (!alreadyHasAssistant) {
+        const optimisticMsg: ChatMessage = {
+          createdAt: Date.now(),
+          id: conversationHeadId, // Use the real server ID provided by the mutation
+          parentId: lastMsg.id,
+          parts: [
+            create(ChatMessagePartSchema, {
+              part: { case: "text", value: optimisticContent },
+            }),
+          ],
+          role: "assistant",
+          siblingIds: [],
+        };
+        setHistory((prev) => [...prev, optimisticMsg]);
+        return; // Successfully transitioned locally, SKIP FETCH
+      } else if (lastMsg.id !== conversationHeadId) {
+        // If we have the message but the ID was temporary/wrong, update it quietly
+        setHistory((prev) =>
+          prev.map((m, i) =>
+            i === prev.length - 1 ? { ...m, id: conversationHeadId } : m,
+          ),
+        );
+        return;
+      }
+    }
+
+    // 3. Fallback: Fetch full history only if we can't reconcile locally
     const fetchHistory = async () => {
       setIsLoading(true);
       try {
         const res = await socketClient.getChatHistory(conversationHeadId);
         const mapped: ChatMessage[] = res.entries.map((m) => {
-          let metadata: unknown = {};
+          let metadata: Record<string, unknown> = {};
           if (m.metadata.case === "chatMetadata") {
             metadata = {
               attachments: m.metadata.value.attachmentUrls,
               modelId: m.metadata.value.modelId,
             };
           } else if (m.metadata.case === "metadataStruct") {
-            metadata = m.metadata.value;
+            metadata = m.metadata.value as Record<string, unknown>;
           }
 
           return {
-            content: m.content,
             createdAt: Number(m.timestamp),
             id: m.id,
             metadata,
+            parentId: m.parentId || undefined,
+            parts: m.parts,
             role: (["assistant", "system", "user"].includes(m.role)
               ? m.role
               : "user") as "assistant" | "system" | "user",
+            siblingIds: m.siblingIds,
           };
         });
         setHistory(mapped);
@@ -80,7 +108,7 @@ export function useChatHistory(conversationHeadId: string | undefined) {
     };
 
     void fetchHistory();
-  }, [conversationHeadId]);
+  }, [conversationHeadId, optimisticContent, isStreamDone, shouldFetch]);
 
   return { history, isLoading, setHistory };
 }

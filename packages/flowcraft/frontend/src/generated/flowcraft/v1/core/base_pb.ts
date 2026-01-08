@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file flowcraft/v1/core/base.proto.
  */
 export const file_flowcraft_v1_core_base: GenFile = /*@__PURE__*/
-  fileDesc("ChxmbG93Y3JhZnQvdjEvY29yZS9iYXNlLnByb3RvEhJmbG93Y3JhZnRfcHJvdG8udjEiIAoIUG9zaXRpb24SCQoBeBgBIAEoARIJCgF5GAIgASgBIr8BCgxQcmVzZW50YXRpb24SLgoIcG9zaXRpb24YASABKAsyHC5mbG93Y3JhZnRfcHJvdG8udjEuUG9zaXRpb24SDQoFd2lkdGgYAiABKAESDgoGaGVpZ2h0GAMgASgBEhEKCXBhcmVudF9pZBgEIAEoCRIPCgd6X2luZGV4GAUgASgFEhEKCWlzX2hpZGRlbhgGIAEoCBIRCglpc19sb2NrZWQYByABKAgSFgoOaXNfaW5pdGlhbGl6ZWQYCCABKAgihgIKClZpc3VhbEhpbnQSOwoJcGxhY2VtZW50GAEgASgOMiguZmxvd2NyYWZ0X3Byb3RvLnYxLlZpc3VhbEhpbnQuUGxhY2VtZW50EhkKEXJlZmVyZW5jZV9ub2RlX2lkGAIgASgJEiwKBm9mZnNldBgDIAEoCzIcLmZsb3djcmFmdF9wcm90by52MS5Qb3NpdGlvbiJyCglQbGFjZW1lbnQSDwoLVU5TUEVDSUZJRUQQABISCg5DRU5URVJfT0ZfVklFVxABEhQKEE5FQVJfU09VUkNFX05PREUQAhIYChRCRUxPV19TRUxFQ1RFRF9OT0RFUxADEhAKDE1PVVNFX0NVUlNPUhAEIjsKBFJlY3QSCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoASIuCghWaWV3cG9ydBIJCgF4GAEgASgBEgkKAXkYAiABKAESDAoEem9vbRgDIAEoASp8CghOb2RlS2luZBIZChVOT0RFX0tJTkRfVU5TUEVDSUZJRUQQABIVChFOT0RFX0tJTkRfRFlOQU1JQxABEhMKD05PREVfS0lORF9HUk9VUBACEhUKEU5PREVfS0lORF9QUk9DRVNTEAMSEgoOTk9ERV9LSU5EX05PVEUQBCp1Cg5NdXRhdGlvblNvdXJjZRIWChJTT1VSQ0VfVU5TUEVDSUZJRUQQABIPCgtTT1VSQ0VfVVNFUhABEhYKElNPVVJDRV9SRU1PVEVfVEFTSxACEhEKDVNPVVJDRV9TWVNURU0QAxIPCgtTT1VSQ0VfU1lOQxAEKrICCgxQb3J0TWFpblR5cGUSHgoaUE9SVF9NQUlOX1RZUEVfVU5TUEVDSUZJRUQQABIWChJQT1JUX01BSU5fVFlQRV9BTlkQARIZChVQT1JUX01BSU5fVFlQRV9TVFJJTkcQAhIZChVQT1JUX01BSU5fVFlQRV9OVU1CRVIQAxIaChZQT1JUX01BSU5fVFlQRV9CT09MRUFOEAQSGAoUUE9SVF9NQUlOX1RZUEVfSU1BR0UQBRIYChRQT1JUX01BSU5fVFlQRV9WSURFTxAGEhgKFFBPUlRfTUFJTl9UWVBFX0FVRElPEAcSFwoTUE9SVF9NQUlOX1RZUEVfTElTVBAIEhYKElBPUlRfTUFJTl9UWVBFX1NFVBAJEhkKFVBPUlRfTUFJTl9UWVBFX1NZU1RFTRAKYgZwcm90bzM");
+  fileDesc("ChxmbG93Y3JhZnQvdjEvY29yZS9iYXNlLnByb3RvEhJmbG93Y3JhZnRfcHJvdG8udjEiIAoIUG9zaXRpb24SCQoBeBgBIAEoARIJCgF5GAIgASgBIr8BCgxQcmVzZW50YXRpb24SLgoIcG9zaXRpb24YASABKAsyHC5mbG93Y3JhZnRfcHJvdG8udjEuUG9zaXRpb24SDQoFd2lkdGgYAiABKAESDgoGaGVpZ2h0GAMgASgBEhEKCXBhcmVudF9pZBgEIAEoCRIPCgd6X2luZGV4GAUgASgFEhEKCWlzX2hpZGRlbhgGIAEoCBIRCglpc19sb2NrZWQYByABKAgSFgoOaXNfaW5pdGlhbGl6ZWQYCCABKAgihgIKClZpc3VhbEhpbnQSOwoJcGxhY2VtZW50GAEgASgOMiguZmxvd2NyYWZ0X3Byb3RvLnYxLlZpc3VhbEhpbnQuUGxhY2VtZW50EhkKEXJlZmVyZW5jZV9ub2RlX2lkGAIgASgJEiwKBm9mZnNldBgDIAEoCzIcLmZsb3djcmFmdF9wcm90by52MS5Qb3NpdGlvbiJyCglQbGFjZW1lbnQSDwoLVU5TUEVDSUZJRUQQABISCg5DRU5URVJfT0ZfVklFVxABEhQKEE5FQVJfU09VUkNFX05PREUQAhIYChRCRUxPV19TRUxFQ1RFRF9OT0RFUxADEhAKDE1PVVNFX0NVUlNPUhAEIjsKBFJlY3QSCQoBeBgBIAEoARIJCgF5GAIgASgBEg0KBXdpZHRoGAMgASgBEg4KBmhlaWdodBgEIAEoASIuCghWaWV3cG9ydBIJCgF4GAEgASgBEgkKAXkYAiABKAESDAoEem9vbRgDIAEoASKFAQoMTWVkaWFDb250ZW50EisKBHR5cGUYASABKA4yHS5mbG93Y3JhZnRfcHJvdG8udjEuTWVkaWFUeXBlEgsKA3VybBgCIAEoCRIPCgdjb250ZW50GAMgASgJEhQKDGFzcGVjdF9yYXRpbxgEIAEoARIUCgxnYWxsZXJ5X3VybHMYBSADKAkqfAoITm9kZUtpbmQSGQoVTk9ERV9LSU5EX1VOU1BFQ0lGSUVEEAASFQoRTk9ERV9LSU5EX0RZTkFNSUMQARITCg9OT0RFX0tJTkRfR1JPVVAQAhIVChFOT0RFX0tJTkRfUFJPQ0VTUxADEhIKDk5PREVfS0lORF9OT1RFEAQqdQoOTXV0YXRpb25Tb3VyY2USFgoSU09VUkNFX1VOU1BFQ0lGSUVEEAASDwoLU09VUkNFX1VTRVIQARIWChJTT1VSQ0VfUkVNT1RFX1RBU0sQAhIRCg1TT1VSQ0VfU1lTVEVNEAMSDwoLU09VUkNFX1NZTkMQBCqyAgoMUG9ydE1haW5UeXBlEh4KGlBPUlRfTUFJTl9UWVBFX1VOU1BFQ0lGSUVEEAASFgoSUE9SVF9NQUlOX1RZUEVfQU5ZEAESGQoVUE9SVF9NQUlOX1RZUEVfU1RSSU5HEAISGQoVUE9SVF9NQUlOX1RZUEVfTlVNQkVSEAMSGgoWUE9SVF9NQUlOX1RZUEVfQk9PTEVBThAEEhgKFFBPUlRfTUFJTl9UWVBFX0lNQUdFEAUSGAoUUE9SVF9NQUlOX1RZUEVfVklERU8QBhIYChRQT1JUX01BSU5fVFlQRV9BVURJTxAHEhcKE1BPUlRfTUFJTl9UWVBFX0xJU1QQCBIWChJQT1JUX01BSU5fVFlQRV9TRVQQCRIZChVQT1JUX01BSU5fVFlQRV9TWVNURU0QCippCglNZWRpYVR5cGUSFQoRTUVESUFfVU5TUEVDSUZJRUQQABIPCgtNRURJQV9JTUFHRRABEg8KC01FRElBX1ZJREVPEAISDwoLTUVESUFfQVVESU8QAxISCg5NRURJQV9NQVJLRE9XThAEYgZwcm90bzM");
 
 /**
  * @generated from message flowcraft_proto.v1.Position
@@ -211,6 +211,43 @@ export const ViewportSchema: GenMessage<Viewport> = /*@__PURE__*/
   messageDesc(file_flowcraft_v1_core_base, 4);
 
 /**
+ * @generated from message flowcraft_proto.v1.MediaContent
+ */
+export type MediaContent = Message<"flowcraft_proto.v1.MediaContent"> & {
+  /**
+   * @generated from field: flowcraft_proto.v1.MediaType type = 1;
+   */
+  type: MediaType;
+
+  /**
+   * @generated from field: string url = 2;
+   */
+  url: string;
+
+  /**
+   * @generated from field: string content = 3;
+   */
+  content: string;
+
+  /**
+   * @generated from field: double aspect_ratio = 4;
+   */
+  aspectRatio: number;
+
+  /**
+   * @generated from field: repeated string gallery_urls = 5;
+   */
+  galleryUrls: string[];
+};
+
+/**
+ * Describes the message flowcraft_proto.v1.MediaContent.
+ * Use `create(MediaContentSchema)` to create a new message.
+ */
+export const MediaContentSchema: GenMessage<MediaContent> = /*@__PURE__*/
+  messageDesc(file_flowcraft_v1_core_base, 5);
+
+/**
  * @generated from enum flowcraft_proto.v1.NodeKind
  */
 export enum NodeKind {
@@ -355,4 +392,40 @@ export enum PortMainType {
  */
 export const PortMainTypeSchema: GenEnum<PortMainType> = /*@__PURE__*/
   enumDesc(file_flowcraft_v1_core_base, 2);
+
+/**
+ * @generated from enum flowcraft_proto.v1.MediaType
+ */
+export enum MediaType {
+  /**
+   * @generated from enum value: MEDIA_UNSPECIFIED = 0;
+   */
+  MEDIA_UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: MEDIA_IMAGE = 1;
+   */
+  MEDIA_IMAGE = 1,
+
+  /**
+   * @generated from enum value: MEDIA_VIDEO = 2;
+   */
+  MEDIA_VIDEO = 2,
+
+  /**
+   * @generated from enum value: MEDIA_AUDIO = 3;
+   */
+  MEDIA_AUDIO = 3,
+
+  /**
+   * @generated from enum value: MEDIA_MARKDOWN = 4;
+   */
+  MEDIA_MARKDOWN = 4,
+}
+
+/**
+ * Describes the enum flowcraft_proto.v1.MediaType.
+ */
+export const MediaTypeSchema: GenEnum<MediaType> = /*@__PURE__*/
+  enumDesc(file_flowcraft_v1_core_base, 3);
 

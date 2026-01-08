@@ -1,6 +1,6 @@
 import { useShallow } from "zustand/react/shallow";
 
-import { useFlowStore } from "../store/flowStore";
+import { useFlowStore } from "@/store/flowStore";
 import { useClipboard } from "./useClipboard";
 import { useLayoutOperations } from "./useLayoutOperations";
 import { useNodeOperations } from "./useNodeOperations";

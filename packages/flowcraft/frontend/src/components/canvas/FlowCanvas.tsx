@@ -26,8 +26,8 @@ import {
   nodeTypes,
   snapGrid,
 } from "../../flowConfig";
-import { type HelperLines } from "../../hooks/useHelperLines";
-import { type AppNode } from "../../types";
+import { type HelperLines } from "@/hooks/useHelperLines";
+import { type AppNode } from "@/types";
 import { HelperLinesRenderer } from "../HelperLinesRenderer";
 import { Notifications } from "../Notifications";
 

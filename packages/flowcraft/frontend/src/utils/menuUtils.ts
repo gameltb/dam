@@ -1,5 +1,5 @@
 import { type MenuNode } from "../components/base/SubMenu";
-import { type NodeTemplate } from "../types";
+import { type NodeTemplate } from "@/types";
 
 export const buildNodeTree = (templates: NodeTemplate[]): MenuNode[] => {
   const menuTree: MenuNode[] = [];

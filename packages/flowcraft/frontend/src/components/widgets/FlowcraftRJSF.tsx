@@ -11,11 +11,11 @@ import Form from "@rjsf/core";
 import validator from "@rjsf/validator-ajv8";
 import React, { useEffect, useState } from "react";
 
-import type { WidgetStreamEvent } from "../../generated/flowcraft/v1/core/service_pb";
+import type { WidgetStreamEvent } from "@/generated/flowcraft/v1/core/service_pb";
 
-import { WidgetSignalSchema } from "../../generated/flowcraft/v1/core/signals_pb";
-import { useFlowStore } from "../../store/flowStore";
-import { socketClient } from "../../utils/SocketClient";
+import { WidgetSignalSchema } from "@/generated/flowcraft/v1/core/signals_pb";
+import { useFlowStore } from "@/store/flowStore";
+import { socketClient } from "@/utils/SocketClient";
 
 /**
  * 自定义对象模板：移除 fieldset 和 legend
@@ -109,8 +109,11 @@ const SignalButtonWidget = (props: WidgetProps) => {
         e.preventDefault();
         sendWidgetSignal(
           create(WidgetSignalSchema, {
-            dataJson: JSON.stringify({ action: "trigger" }),
             nodeId: nodeId,
+            payload: {
+              case: "dataJson",
+              value: JSON.stringify({ action: "trigger" }),
+            },
             widgetId: widgetId,
           }),
         );

@@ -2,9 +2,9 @@ import { type Node, type NodeProps, NodeResizer } from "@xyflow/react";
 import { memo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { useTheme } from "../hooks/useTheme";
-import { useFlowStore } from "../store/flowStore";
-import { AppNodeType } from "../types";
+import { useTheme } from "@/hooks/useTheme";
+import { useFlowStore } from "@/store/flowStore";
+import { AppNodeType } from "@/types";
 
 export type GroupNodeData = Record<string, unknown> & {
   label?: string;

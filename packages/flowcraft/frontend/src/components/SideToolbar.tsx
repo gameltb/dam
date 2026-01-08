@@ -1,8 +1,8 @@
 import { Settings } from "lucide-react";
 import React from "react";
 
-import { useUiStore } from "../store/uiStore";
-import { SocketStatus } from "../utils/SocketClient";
+import { useUiStore } from "@/store/uiStore";
+import { SocketStatus } from "@/utils/SocketClient";
 
 interface SideToolbarProps {
   connectionStatus: SocketStatus;

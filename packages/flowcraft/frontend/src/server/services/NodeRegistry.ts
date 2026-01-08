@@ -1,16 +1,17 @@
 import {
   type ActionExecutionRequest,
   type ActionTemplate,
-} from "../generated/flowcraft/v1/core/action_pb";
+} from "@/generated/flowcraft/v1/core/action_pb";
 import {
   type NodeTemplate,
   type TaskUpdate,
-} from "../generated/flowcraft/v1/core/node_pb";
+} from "@/generated/flowcraft/v1/core/node_pb";
 import {
   type MutationList,
   type NodeEvent,
-} from "../generated/flowcraft/v1/core/service_pb";
-import { type AppNode } from "../types";
+} from "@/generated/flowcraft/v1/core/service_pb";
+import { type NodeSignal } from "@/generated/flowcraft/v1/core/signals_pb";
+import { type AppNode } from "@/types";
 
 export type ActionHandler = (ctx: ActionHandlerContext) => Promise<void>;
 
@@ -27,20 +28,26 @@ export interface ActionHandlerContext {
   taskId: string;
 }
 
+import { NodeInstance } from "./NodeInstance";
+// ... (imports)
 export interface NodeDefinition {
   actions?: ActionTemplate[];
+  /**
+   * Optional: Create a persistent instance for this node.
+   */
+  createInstance?: (nodeId: string) => NodeInstance;
   execute?: (ctx: NodeExecutionContext) => Promise<void>;
   template: NodeTemplate;
 }
 
 export interface NodeExecutionContext {
-  actionId: string;
+  actionId?: string;
   emitMutation: (mutation: MutationList) => void;
   emitNodeEvent: (event: NodeEvent) => void;
   emitTaskUpdate: (update: TaskUpdate) => void;
   emitWidgetStream: (widgetId: string, chunk: string, isDone?: boolean) => void;
   node: AppNode;
-  params: ActionExecutionRequest["params"];
+  params: ActionExecutionRequest["params"] | NodeSignal["payload"];
   taskId: string;
 }
 
@@ -74,7 +81,7 @@ class NodeRegistryImpl {
   }
 
   /**
-   * 注册一个节点定义 (显式注册函数，代替装饰器以获得更好的类型支持)
+   * 注册一个节点定义
    */
   register(def: NodeDefinition) {
     this.definitions.set(def.template.templateId, def);

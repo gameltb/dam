@@ -1,5 +1,9 @@
-import { MediaType, PortStyle } from "../generated/flowcraft/v1/core/node_pb";
-import { type AppNode, type ClientPort, isDynamicNode } from "../types";
+import {
+  MediaType,
+  PortMainType,
+} from "@/generated/flowcraft/v1/core/base_pb";
+import { PortStyle } from "@/generated/flowcraft/v1/core/node_pb";
+import { type AppNode, type ClientPort, isDynamicNode } from "@/types";
 
 /**
  * Dehydrates a node by ensuring it only contains serializable data.
@@ -50,7 +54,7 @@ export function findPort(
       type: {
         isGeneric: false,
         itemType: "",
-        mainType: "string",
+        mainType: PortMainType.STRING,
       },
     };
   }

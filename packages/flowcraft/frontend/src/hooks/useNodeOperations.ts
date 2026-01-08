@@ -7,10 +7,10 @@ import { v4 as uuidv4 } from "uuid";
 import {
   type GraphMutation,
   GraphMutationSchema,
-} from "../generated/flowcraft/v1/core/service_pb";
-import { type MutationContext } from "../store/flowStore";
-import { type AppNode, AppNodeType, type DynamicNodeData } from "../types";
-import { toProtoNode } from "../utils/protoAdapter";
+} from "@/generated/flowcraft/v1/core/service_pb";
+import { type MutationContext } from "@/store/types";
+import { type AppNode, AppNodeType, type DynamicNodeData } from "@/types";
+import { toProtoNode } from "@/utils/protoAdapter";
 
 export const useNodeOperations = (
   applyMutations: (
@@ -28,7 +28,7 @@ export const useNodeOperations = (
     ) => {
       const newNode: AppNode = {
         data: {
-          label: "Loading...",
+          label: initialData?.label ?? "New Node",
           modes: [],
           typeId: templateId,
           ...initialData,

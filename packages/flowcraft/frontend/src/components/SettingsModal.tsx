@@ -1,71 +1,11 @@
-import { Keyboard, Moon, MousePointer2, Settings, Sun, X } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { Settings, X } from "lucide-react";
+import React, { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { type ShortcutConfig, useUiStore } from "../store/uiStore";
-
-const ShortcutRecordButton: React.FC<{
-  label: string;
-  onSave: (val: string) => void;
-  value: string;
-}> = ({ onSave, value }) => {
-  const [isRecording, setIsRecording] = useState(false);
-
-  useEffect(() => {
-    if (!isRecording) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const keys = [];
-      if (e.ctrlKey || e.metaKey) keys.push("mod");
-      if (e.shiftKey) keys.push("shift");
-      if (e.altKey) keys.push("alt");
-
-      const key = e.key.toLowerCase();
-      if (
-        key !== "control" &&
-        key !== "shift" &&
-        key !== "alt" &&
-        key !== "meta"
-      ) {
-        keys.push(key);
-        onSave(keys.join("+"));
-        setIsRecording(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [isRecording, onSave]);
-
-  return (
-    <button
-      onClick={() => {
-        setIsRecording(true);
-      }}
-      style={{
-        backgroundColor: isRecording
-          ? "rgba(100, 108, 255, 0.2)"
-          : "rgba(255,255,255,0.08)",
-        border: `1px solid ${isRecording ? "var(--primary-color)" : "rgba(255,255,255,0.1)"}`,
-        borderRadius: "6px",
-        color: isRecording ? "var(--primary-color)" : "#fff",
-        cursor: "pointer",
-        fontFamily: "monospace",
-        fontSize: "11px",
-        minWidth: "80px",
-        padding: "4px 10px",
-        textAlign: "center",
-      }}
-    >
-      {isRecording ? "Press keys..." : value}
-    </button>
-  );
-};
+import { useUiStore } from "@/store/uiStore";
+import { AiSettings } from "./settings/AiSettings";
+import { GeneralSettings } from "./settings/GeneralSettings";
+import { ShortcutSettings } from "./settings/ShortcutSettings";
 
 export const SettingsModal: React.FC = () => {
   const {
@@ -90,21 +30,11 @@ export const SettingsModal: React.FC = () => {
     })),
   );
 
-  const [activeTab, setActiveTab] = useState<"general" | "shortcuts">(
+  const [activeTab, setActiveTab] = useState<"ai" | "general" | "shortcuts">(
     "general",
   );
 
   if (!isOpen) return null;
-
-  const shortcutList: { key: keyof ShortcutConfig; label: string }[] = [
-    { key: "undo", label: "Undo" },
-    { key: "redo", label: "Redo" },
-    { key: "copy", label: "Copy" },
-    { key: "paste", label: "Paste" },
-    { key: "duplicate", label: "Duplicate" },
-    { key: "delete", label: "Delete" },
-    { key: "autoLayout", label: "Auto Layout" },
-  ];
 
   return (
     <div
@@ -195,6 +125,24 @@ export const SettingsModal: React.FC = () => {
           </button>
           <button
             onClick={() => {
+              setActiveTab("ai");
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              borderBottom: `2px solid ${activeTab === "ai" ? "var(--primary-color)" : "transparent"}`,
+              color:
+                activeTab === "ai" ? "var(--text-color)" : "var(--sub-text)",
+              cursor: "pointer",
+              fontSize: "13px",
+              fontWeight: 500,
+              padding: "12px 15px",
+            }}
+          >
+            AI Local
+          </button>
+          <button
+            onClick={() => {
               setActiveTab("shortcuts");
             }}
             style={{
@@ -218,247 +166,16 @@ export const SettingsModal: React.FC = () => {
         {/* Content */}
         <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
           {activeTab === "general" && (
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "24px" }}
-            >
-              {/* Server Address */}
-              <div>
-                <label
-                  style={{
-                    color: "var(--sub-text)",
-                    display: "block",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    marginBottom: "8px",
-                  }}
-                >
-                  Server Address
-                </label>
-                <input
-                  onChange={(e) => {
-                    setSettings({ serverAddress: e.target.value });
-                  }}
-                  placeholder="http://localhost:3000"
-                  style={{
-                    backgroundColor: "rgba(255,255,255,0.03)",
-                    border: "1px solid var(--node-border)",
-                    borderRadius: "8px",
-                    color: "var(--text-color)",
-                    fontSize: "13px",
-                    outline: "none",
-                    padding: "10px 12px",
-                    width: "100%",
-                  }}
-                  type="text"
-                  value={settings.serverAddress}
-                />
-                <p
-                  style={{
-                    color: "var(--sub-text)",
-                    fontSize: "11px",
-                    marginTop: "6px",
-                  }}
-                >
-                  The base URL of the gRPC/Connect backend.
-                </p>
-              </div>
-
-              {/* Drag Mode */}
-              <div>
-                <label
-                  style={{
-                    color: "var(--sub-text)",
-                    display: "block",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    marginBottom: "12px",
-                  }}
-                >
-                  Canvas Interaction
-                </label>
-                <div style={{ display: "flex", gap: "12px" }}>
-                  <button
-                    onClick={() => {
-                      setDragMode("pan");
-                    }}
-                    style={{
-                      alignItems: "center",
-                      backgroundColor:
-                        dragMode === "pan"
-                          ? "rgba(100, 108, 255, 0.1)"
-                          : "rgba(255,255,255,0.03)",
-                      border: `1px solid ${dragMode === "pan" ? "var(--primary-color)" : "var(--node-border)"}`,
-                      borderRadius: "8px",
-                      color:
-                        dragMode === "pan"
-                          ? "var(--primary-color)"
-                          : "var(--text-color)",
-                      cursor: "pointer",
-                      display: "flex",
-                      flex: 1,
-                      flexDirection: "column",
-                      gap: "8px",
-                      padding: "12px",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    <MousePointer2 size={20} />
-                    <span style={{ fontSize: "12px", fontWeight: 500 }}>
-                      Panning (Left Click)
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setDragMode("select");
-                    }}
-                    style={{
-                      alignItems: "center",
-                      backgroundColor:
-                        dragMode === "select"
-                          ? "rgba(100, 108, 255, 0.1)"
-                          : "rgba(255,255,255,0.03)",
-                      border: `1px solid ${dragMode === "select" ? "var(--primary-color)" : "var(--node-border)"}`,
-                      borderRadius: "8px",
-                      color:
-                        dragMode === "select"
-                          ? "var(--primary-color)"
-                          : "var(--text-color)",
-                      cursor: "pointer",
-                      display: "flex",
-                      flex: 1,
-                      flexDirection: "column",
-                      gap: "8px",
-                      padding: "12px",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    <Keyboard size={20} />
-                    <span style={{ fontSize: "12px", fontWeight: 500 }}>
-                      Selection (Left Click)
-                    </span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Appearance */}
-              <div>
-                <label
-                  style={{
-                    color: "var(--sub-text)",
-                    display: "block",
-                    fontSize: "13px",
-                    fontWeight: 500,
-                    marginBottom: "12px",
-                  }}
-                >
-                  Appearance
-                </label>
-                <div style={{ display: "flex", gap: "12px" }}>
-                  <button
-                    onClick={() => {
-                      setSettings({ theme: "dark" });
-                    }}
-                    style={{
-                      alignItems: "center",
-                      backgroundColor:
-                        settings.theme === "dark"
-                          ? "rgba(100, 108, 255, 0.1)"
-                          : "rgba(255,255,255,0.03)",
-                      border: `1px solid ${settings.theme === "dark" ? "var(--primary-color)" : "var(--node-border)"}`,
-                      borderRadius: "8px",
-                      color:
-                        settings.theme === "dark"
-                          ? "var(--primary-color)"
-                          : "var(--text-color)",
-                      cursor: "pointer",
-                      display: "flex",
-                      flex: 1,
-                      gap: "8px",
-                      justifyContent: "center",
-                      padding: "12px",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    <Moon size={18} />
-                    <span style={{ fontSize: "12px", fontWeight: 500 }}>
-                      Dark Mode
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSettings({ theme: "light" });
-                    }}
-                    style={{
-                      alignItems: "center",
-                      backgroundColor:
-                        settings.theme === "light"
-                          ? "rgba(100, 108, 255, 0.1)"
-                          : "rgba(255,255,255,0.03)",
-                      border: `1px solid ${settings.theme === "light" ? "var(--primary-color)" : "var(--node-border)"}`,
-                      borderRadius: "8px",
-                      color:
-                        settings.theme === "light"
-                          ? "var(--primary-color)"
-                          : "var(--text-color)",
-                      cursor: "pointer",
-                      display: "flex",
-                      flex: 1,
-                      gap: "8px",
-                      justifyContent: "center",
-                      padding: "12px",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    <Sun size={18} />
-                    <span style={{ fontSize: "12px", fontWeight: 500 }}>
-                      Light Mode
-                    </span>
-                  </button>
-                </div>
-              </div>
-            </div>
+            <GeneralSettings
+              dragMode={dragMode}
+              setDragMode={setDragMode}
+              setSettings={setSettings}
+              settings={settings}
+            />
           )}
-
+          {activeTab === "ai" && <AiSettings />}
           {activeTab === "shortcuts" && (
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "12px" }}
-            >
-              {shortcutList.map((s, i) => (
-                <div
-                  key={i}
-                  style={{
-                    alignItems: "center",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    padding: "8px 0",
-                  }}
-                >
-                  <span style={{ fontSize: "13px" }}>{s.label}</span>
-                  <ShortcutRecordButton
-                    label={s.label}
-                    onSave={(val) => {
-                      setShortcut(s.key, val);
-                    }}
-                    value={shortcuts[s.key]}
-                  />
-                </div>
-              ))}
-
-              <div
-                style={{
-                  backgroundColor: "rgba(100, 108, 255, 0.05)",
-                  borderRadius: "6px",
-                  color: "var(--sub-text)",
-                  fontSize: "11px",
-                  fontStyle: "italic",
-                  marginTop: "10px",
-                  padding: "10px",
-                }}
-              >
-                Click on a shortcut to re-bind it.
-              </div>
-            </div>
+            <ShortcutSettings setShortcut={setShortcut} shortcuts={shortcuts} />
           )}
         </div>
       </div>

@@ -4,9 +4,9 @@ import Form from "@rjsf/core";
 import validator from "@rjsf/validator-ajv8";
 import React from "react";
 
-import type { ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
+import type { ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
 
-import { getSchemaForTemplate } from "../utils/schemaRegistry";
+import { getSchemaForTemplate } from "@/utils/schemaRegistry";
 
 interface ActionParamsModalProps {
   action: ActionTemplate;

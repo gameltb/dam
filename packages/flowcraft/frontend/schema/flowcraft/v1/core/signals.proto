@@ -2,12 +2,32 @@ syntax = "proto3";
 
 package flowcraft_proto.v1;
 
+import "google/protobuf/struct.proto";
+import "flowcraft/v1/actions/chat_actions.proto";
+
 message WidgetSignal {
   string node_id = 1;
   string widget_id = 2;
   
-  /**
-   * 信号负载 (JSON 字符串，保持灵活性)
-   */
-  string data_json = 10;
+  oneof payload {
+    /**
+     * @deprecated Use typed payloads instead.
+     */
+    string data_json = 10;
+    bytes data = 11;
+  }
 }
+
+message NodeSignal {
+  string node_id = 1;
+  oneof payload {
+    google.protobuf.Struct parameters = 2;
+    flowcraft_proto.v1.ChatActionParams chat_generate = 10;
+    flowcraft_proto.v1.ChatSyncBranchParams chat_sync = 11;
+    flowcraft_proto.v1.ChatEditParams chat_edit = 12;
+    flowcraft_proto.v1.ChatSwitchBranchParams chat_switch = 13;
+    RestartInstance restart_instance = 14;
+  }
+}
+
+message RestartInstance {}

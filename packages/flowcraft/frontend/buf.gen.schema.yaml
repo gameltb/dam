@@ -1,6 +1,10 @@
 version: v2
 inputs:
-  - directory: schema/flowcraft/v1/actions
+  - directory: schema
+    paths:
+      - schema/flowcraft/v1/actions/prompt_gen.proto
+      - schema/flowcraft/v1/actions/image_enhance.proto
+      - schema/flowcraft/v1/actions/node_transform.proto
 plugins:
   - remote: buf.build/bufbuild/protoschema-jsonschema
     out: src/generated/schemas

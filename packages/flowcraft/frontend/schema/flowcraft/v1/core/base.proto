@@ -74,3 +74,19 @@ message Viewport {
   double y = 2;
   double zoom = 3;
 }
+
+message MediaContent {
+  MediaType type = 1;
+  string url = 2;
+  string content = 3;
+  double aspect_ratio = 4;
+  repeated string gallery_urls = 5;
+}
+
+enum MediaType {
+  MEDIA_UNSPECIFIED = 0;
+  MEDIA_IMAGE = 1;
+  MEDIA_VIDEO = 2;
+  MEDIA_AUDIO = 3;
+  MEDIA_MARKDOWN = 4;
+}

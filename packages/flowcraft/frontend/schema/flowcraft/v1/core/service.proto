@@ -22,13 +22,17 @@ message FlowMessage {
     TaskCancelRequest task_cancel = 15;
     ViewportUpdate viewport_update = 16;
     WidgetSignal widget_signal = 18;
+    NodeSignal node_signal = 27;
     TemplateDiscoveryRequest template_discovery = 19;
+    InferenceConfigDiscoveryRequest inference_discovery = 28;
 
     GraphSnapshot snapshot = 20;
     MutationList mutations = 21;
     ActionDiscoveryResponse actions = 25;
     TemplateDiscoveryResponse templates = 26;
+    InferenceConfigDiscoveryResponse inference_config = 29;
     TaskUpdate task_update = 22;
+    ClearChatHistoryRequest chat_clear = 30;
     NodeEvent node_event = 23; // REPLACES StreamChunk
     ErrorResponse error = 24;
   }
@@ -153,6 +157,8 @@ message RollbackRequest {
   int64 target_seq = 2; // The sequence number to roll back to
 }
 
+import "flowcraft/v1/actions/chat_actions.proto";
+
 message GetChatHistoryRequest {
   string head_id = 1;
 }
@@ -164,12 +170,19 @@ message ChatHistoryResponse {
 message ChatMessage {
   string id = 1;
   string role = 2;
-  string content = 3;
+  repeated ChatMessagePart parts = 3;
   oneof metadata {
     google.protobuf.Struct metadata_struct = 4;
     ChatMsgMetadata chat_metadata = 5;
   }
   int64 timestamp = 6;
+  string parent_id = 7;
+  repeated string sibling_ids = 8;
+  string tree_id = 9;
+}
+
+message ClearChatHistoryRequest {
+  string node_id = 1;
 }
 
 message ChatMsgMetadata {
@@ -189,13 +202,13 @@ message GraphSnapshot {
 }
 
 message GraphMutation {
+  string origin_task_id = 1; // 溯源：哪个任务产生的变更
   oneof operation {
-    AddNode add_node = 1;
-    UpdateNode update_node = 2;
-    RemoveNode remove_node = 3;
-    AddEdge add_edge = 4;
-    RemoveEdge remove_edge = 5;
-    AddSubGraph add_subgraph = 6;
+    AddNode add_node = 2;
+    UpdateNode update_node = 3;
+    RemoveNode remove_node = 4;
+    AddEdge add_edge = 5;
+    RemoveEdge remove_edge = 6;
     ClearGraph clear_graph = 7;
     PathUpdate path_update = 8;
   }
@@ -227,6 +240,20 @@ message PathUpdate {
 
 message TaskCancelRequest { string task_id = 1; }
 
+message InferenceConfigDiscoveryRequest {}
+
+message InferenceConfigDiscoveryResponse {
+  repeated InferenceEndpointSummary endpoints = 1;
+  string default_endpoint_id = 2;
+  string default_model = 3;
+}
+
+message InferenceEndpointSummary {
+  string id = 1;
+  string name = 2;
+  repeated string models = 3;
+}
+
 service FlowService {
   // Establish a stream for graph updates
   rpc WatchGraph(SyncRequest) returns (stream FlowMessage);
@@ -238,11 +265,13 @@ service FlowService {
   rpc UpdateNode(UpdateNodeRequest) returns (ErrorResponse);
   rpc UpdateWidget(UpdateWidgetRequest) returns (ErrorResponse);
   rpc SendWidgetSignal(WidgetSignal) returns (ErrorResponse);
+  rpc SendNodeSignal(NodeSignal) returns (ErrorResponse);
 
   // Execution and Discovery
   rpc ExecuteAction(ActionExecutionRequest) returns (ErrorResponse);
   rpc DiscoverActions(ActionDiscoveryRequest) returns (ActionDiscoveryResponse);
   rpc DiscoverTemplates(TemplateDiscoveryRequest) returns (TemplateDiscoveryResponse);
+  rpc DiscoverInferenceConfig(InferenceConfigDiscoveryRequest) returns (InferenceConfigDiscoveryResponse);
 
   // Control
   rpc CancelTask(TaskCancelRequest) returns (ErrorResponse);
@@ -252,4 +281,5 @@ service FlowService {
   rpc GetHistory(GetHistoryRequest) returns (HistoryResponse);
   rpc Rollback(RollbackRequest) returns (ErrorResponse);
   rpc GetChatHistory(GetChatHistoryRequest) returns (ChatHistoryResponse);
+  rpc ClearChatHistory(ClearChatHistoryRequest) returns (ErrorResponse);
 }

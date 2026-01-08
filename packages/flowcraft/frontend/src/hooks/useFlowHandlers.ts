@@ -8,14 +8,13 @@ import {
 } from "@xyflow/react";
 import { useCallback } from "react";
 
-import { ActionDiscoveryRequestSchema } from "../generated/flowcraft/v1/core/action_pb";
-import { PortMainType } from "../generated/flowcraft/v1/core/base_pb";
-import { useFlowStore } from "../store/flowStore";
-import { useUiStore } from "../store/uiStore";
-import { type AppNode } from "../types";
-import { findPort } from "../utils/nodeUtils";
-import { PORT_MAIN_TYPE_TO_PROTO } from "../utils/protoAdapter";
-import { socketClient } from "../utils/SocketClient";
+import { ActionDiscoveryRequestSchema } from "@/generated/flowcraft/v1/core/action_pb";
+import { PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
+import { useFlowStore } from "@/store/flowStore";
+import { useUiStore } from "@/store/uiStore";
+import { type AppNode } from "@/types";
+import { findPort } from "@/utils/nodeUtils";
+import { socketClient } from "@/utils/SocketClient";
 import { type HelperLines } from "./useHelperLines";
 
 interface FlowHandlersProps {
@@ -98,7 +97,7 @@ export function useFlowHandlers({
         const node = store.nodes.find((n) => n.id === nodeId);
         let portInfo = {
           itemType: "",
-          mainType: PortMainType.ANY as number,
+          mainType: PortMainType.ANY,
         };
 
         if (node) {
@@ -106,8 +105,7 @@ export function useFlowHandlers({
           if (port?.type) {
             portInfo = {
               itemType: port.type.itemType,
-              mainType: (PORT_MAIN_TYPE_TO_PROTO[port.type.mainType] ??
-                PortMainType.ANY) as number,
+              mainType: port.type.mainType,
             };
           }
         }

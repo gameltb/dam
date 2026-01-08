@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import React from "react";
 
+import { VideoMode } from "@/types";
 import { IconButton } from "../base/IconButton";
 
 interface MediaPreviewToolbarProps {
@@ -19,11 +20,11 @@ interface MediaPreviewToolbarProps {
   onClose: (e: React.MouseEvent) => void;
   onReset: () => void;
   onRotate: (e?: React.MouseEvent) => void;
-  onSetVideoMode: (mode: "fit" | "original") => void;
+  onSetVideoMode: (mode: VideoMode) => void;
   onZoomIn: (e?: React.MouseEvent) => void;
   onZoomOut: (e?: React.MouseEvent) => void;
   totalItems: number;
-  videoMode: "fit" | "original";
+  videoMode: VideoMode;
 }
 
 export const MediaPreviewToolbar: React.FC<MediaPreviewToolbarProps> = ({
@@ -110,19 +111,19 @@ export const MediaPreviewToolbar: React.FC<MediaPreviewToolbarProps> = ({
           {isVideo && (
             <>
               <IconButton
-                active={videoMode === "fit"}
+                active={videoMode === VideoMode.FIT}
                 icon={<Minimize size={18} />}
                 label="Fit to View"
                 onClick={() => {
-                  onSetVideoMode("fit");
+                  onSetVideoMode(VideoMode.FIT);
                 }}
               />
               <IconButton
-                active={videoMode === "original"}
+                active={videoMode === VideoMode.ORIGINAL}
                 icon={<Maximize size={18} />}
                 label="Original Size"
                 onClick={() => {
-                  onSetVideoMode("original");
+                  onSetVideoMode(VideoMode.ORIGINAL);
                 }}
               />
             </>

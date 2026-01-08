@@ -4,12 +4,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   NodeKind,
   PresentationSchema,
-} from "../generated/flowcraft/v1/core/base_pb";
-import { NodeSchema } from "../generated/flowcraft/v1/core/node_pb";
-import { useFlowStore } from "../store/flowStore";
-import { type AppNode, AppNodeType } from "../types";
-import { dehydrateNode } from "../utils/nodeUtils";
-import { fromProtoNode } from "../utils/protoAdapter";
+} from "@/generated/flowcraft/v1/core/base_pb";
+import { NodeSchema } from "@/generated/flowcraft/v1/core/node_pb";
+import { useFlowStore } from "@/store/flowStore";
+import { type AppNode, AppNodeType } from "@/types";
+import { dehydrateNode } from "@/utils/nodeUtils";
+import { fromProtoNode } from "@/utils/protoAdapter";
 
 /**
  * ARCHITECTURAL REGRESSION TESTS

@@ -4,14 +4,22 @@ import {
   NodeResizer,
   type ResizeDragEvent,
 } from "@xyflow/react";
+import { AlertCircle } from "lucide-react";
 import React, { memo, useCallback } from "react";
 
-import { PresentationSchema } from "../generated/flowcraft/v1/core/base_pb";
-import { GraphMutationSchema } from "../generated/flowcraft/v1/core/service_pb";
-import { useNodeHandlers } from "../hooks/useNodeHandlers";
-import { useFlowStore } from "../store/flowStore";
-import { type DynamicNodeData, type DynamicNodeType } from "../types";
-import { toProtoNodeData } from "../utils/protoAdapter";
+import { PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
+import { GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
+import { useNodeHandlers } from "@/hooks/useNodeHandlers";
+import { cn } from "@/lib/utils";
+import { useFlowStore } from "@/store/flowStore";
+import { useTaskStore } from "@/store/taskStore";
+import {
+  type DynamicNodeData,
+  type DynamicNodeType,
+  OverflowMode,
+  TaskStatus,
+} from "@/types";
+import { toProtoNodeData } from "@/utils/protoAdapter";
 import { BaseNode } from "./base/BaseNode";
 import { NodeErrorBoundary } from "./base/NodeErrorBoundary";
 import { ChatRenderer } from "./media/ChatRenderer";
@@ -29,7 +37,7 @@ const RenderMedia: React.FC<{
   height?: number;
   id: string;
   measured?: { height: number; width: number };
-  onOverflowChange?: (o: "hidden" | "visible") => void;
+  onOverflowChange?: (o: OverflowMode) => void;
   width?: number;
 }> = (props) => {
   const { data, id, onOverflowChange } = props;
@@ -85,6 +93,12 @@ export const DynamicNode = memo(
       shouldLockAspectRatio,
     } = useNodeHandlers(data, selected, positionAbsoluteX, positionAbsoluteY);
 
+    const hasError = useTaskStore((s) =>
+      Object.values(s.tasks).some(
+        (t) => t.nodeId === id && t.status === TaskStatus.TASK_FAILED,
+      ),
+    );
+
     const handleResizeEnd = useCallback(
       (_event: ResizeDragEvent, params: { height: number; width: number }) => {
         const { applyMutations } = useFlowStore.getState();
@@ -113,7 +127,11 @@ export const DynamicNode = memo(
 
     return (
       <div
-        className="custom-node"
+        className={cn(
+          "custom-node relative transition-shadow duration-300",
+          hasError &&
+            "ring-2 ring-destructive ring-offset-2 ring-offset-background",
+        )}
         style={{
           ...containerStyle,
           overflow: "visible", // Ensure floating panel is not clipped
@@ -122,6 +140,12 @@ export const DynamicNode = memo(
         <style>{`
           .custom-node:hover .react-flow__handle { opacity: 1 !important; }
       `}</style>
+
+        {hasError && !selected && (
+          <div className="absolute -top-3 -right-3 bg-destructive text-white rounded-full p-1.5 shadow-xl animate-bounce z-[1000]">
+            <AlertCircle size={14} />
+          </div>
+        )}
 
         <NodeResizer
           handleStyle={{

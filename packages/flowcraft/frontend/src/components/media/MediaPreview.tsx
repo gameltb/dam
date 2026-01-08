@@ -1,9 +1,9 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-import { MediaType } from "../../generated/flowcraft/v1/core/node_pb";
-import { useMediaTransform } from "../../hooks/useMediaTransform";
-import { type AppNode, AppNodeType } from "../../types";
+import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
+import { useMediaTransform } from "@/hooks/useMediaTransform";
+import { type AppNode, AppNodeType, VideoMode } from "@/types";
 import { IconButton } from "../base/IconButton";
 import { MediaPreviewToolbar } from "./MediaPreviewToolbar";
 
@@ -37,7 +37,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
   } = useMediaTransform(activeIndex);
 
   // Video Modes
-  const [videoMode, setVideoMode] = useState<"fit" | "original">("fit");
+  const [videoMode, setVideoMode] = useState<VideoMode>(VideoMode.FIT);
 
   const media = node.type === AppNodeType.DYNAMIC ? node.data.media : null;
   const items = useMemo(() => {
@@ -240,11 +240,12 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
               src={currentUrl}
               style={{
                 boxShadow: "0 30px 60px rgba(0,0,0,0.8)",
-                height: videoMode === "original" ? "auto" : "85vh",
+                height: videoMode === VideoMode.ORIGINAL ? "auto" : "85vh",
                 maxHeight: "100%",
                 maxWidth: "100%",
-                objectFit: videoMode === "original" ? "none" : "contain",
-                width: videoMode === "original" ? "auto" : "90vw",
+                objectFit:
+                  videoMode === VideoMode.ORIGINAL ? "none" : "contain",
+                width: videoMode === VideoMode.ORIGINAL ? "auto" : "90vw",
               }}
             />
           ) : (

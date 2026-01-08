@@ -2,15 +2,19 @@ import { type JsonObject } from "@bufbuild/protobuf";
 import { Maximize2, MessageSquare, PanelRight } from "lucide-react";
 import React, { memo } from "react";
 
-import type { DynamicNodeData, WidgetDef } from "../../types";
-
-import { PortStyle } from "../../generated/flowcraft/v1/core/node_pb";
-import { useFlowSocket } from "../../hooks/useFlowSocket";
-import { useNodeHandlers } from "../../hooks/useNodeHandlers";
-import { cn } from "../../lib/utils";
-import { useUiStore } from "../../store/uiStore";
-import { getSchemaForTemplate } from "../../utils/schemaRegistry";
-import { getPortColor } from "../../utils/themeUtils";
+import { PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
+import { PortStyle } from "@/generated/flowcraft/v1/core/node_pb";
+import { useFlowSocket } from "@/hooks/useFlowSocket";
+import { useNodeHandlers } from "@/hooks/useNodeHandlers";
+import { cn } from "@/lib/utils";
+import { useUiStore } from "@/store/uiStore";
+import {
+  ChatViewMode,
+  type DynamicNodeData,
+  type WidgetDef,
+} from "@/types";
+import { getSchemaForTemplate } from "@/utils/schemaRegistry";
+import { getPortColor } from "@/utils/themeUtils";
 import { PortHandle } from "../base/PortHandle";
 import { ChatBot } from "../media/ChatBot";
 import { Button } from "../ui/button";
@@ -66,9 +70,10 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
     const { activeChatNodeId, chatViewMode, setActiveChat } = useUiStore();
 
     const isChatNode = data.typeId?.toLowerCase().includes("chat");
-    const isSidebarMode = activeChatNodeId === id && chatViewMode === "sidebar";
+    const isSidebarMode =
+      activeChatNodeId === id && chatViewMode === ChatViewMode.SIDEBAR;
     const isFullscreenMode =
-      activeChatNodeId === id && chatViewMode === "fullscreen";
+      activeChatNodeId === id && chatViewMode === ChatViewMode.FULLSCREEN;
     const isActiveExternally = isSidebarMode || isFullscreenMode;
 
     const isSwitchable = data.modes.length > 1;
@@ -138,7 +143,7 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
                   <Button
                     className="h-6 w-6"
                     onClick={() => {
-                      setActiveChat(id, "fullscreen");
+                      setActiveChat(id, ChatViewMode.FULLSCREEN);
                     }}
                     size="icon"
                     title="Open Fullscreen"
@@ -152,7 +157,10 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
                       isSidebarMode && "text-primary-color bg-primary-color/10",
                     )}
                     onClick={() => {
-                      setActiveChat(isActiveExternally ? null : id, "sidebar");
+                      setActiveChat(
+                        isActiveExternally ? null : id,
+                        ChatViewMode.SIDEBAR,
+                      );
                     }}
                     size="icon"
                     title={
@@ -177,7 +185,7 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
                   <Button
                     className="h-auto p-0 text-[10px]"
                     onClick={() => {
-                      setActiveChat(id, "inline");
+                      setActiveChat(id, ChatViewMode.INLINE);
                     }}
                     variant="link"
                   >
@@ -203,7 +211,7 @@ export const WidgetContent: React.FC<WidgetContentProps> = memo(
                       color={getPortColor({
                         isGeneric: false,
                         itemType: "",
-                        mainType: "string",
+                        mainType: PortMainType.STRING,
                       })}
                       isImplicit={true}
                       nodeId={id}

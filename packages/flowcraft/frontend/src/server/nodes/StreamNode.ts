@@ -1,25 +1,34 @@
-import { create, type JsonObject } from "@bufbuild/protobuf";
+import { create } from "@bufbuild/protobuf";
 
 import {
   NodeDataSchema,
   NodeTemplateSchema,
   RenderMode,
-} from "../../generated/flowcraft/v1/core/node_pb";
-import { NodeRegistry } from "../registry";
+} from "@/generated/flowcraft/v1/core/node_pb";
+import {
+  type NodeExecutionContext,
+  NodeRegistry,
+} from "../services/NodeRegistry";
 
 NodeRegistry.register({
+  execute: async (ctx: NodeExecutionContext) => {
+    const { emitWidgetStream, taskId } = ctx;
+    console.log(`[StreamNode] Executing task ${taskId}`);
+
+    for (let i = 0; i < 10; i++) {
+      emitWidgetStream("output", `Chunk ${i.toString()} `, false);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    emitWidgetStream("output", "Done.", true);
+  },
   template: create(NodeTemplateSchema, {
     defaultState: create(NodeDataSchema, {
-      activeMode: RenderMode.MODE_MEDIA,
-      availableModes: [RenderMode.MODE_MEDIA, RenderMode.MODE_WIDGETS],
-      displayName: "AI Result",
-      widgetsValues: {
-        agent_name: "Assistant",
-        logs: "Waiting for content...",
-      } as unknown as JsonObject,
+      activeMode: RenderMode.MODE_WIDGETS,
+      availableModes: [RenderMode.MODE_WIDGETS],
+      displayName: "Streamer",
     }),
-    displayName: "Real-time Stream Viewer",
-    menuPath: ["AI"],
-    templateId: "flowcraft.node.utility.stream_viewer",
+    displayName: "Stream Demo Node",
+    menuPath: ["Debug"],
+    templateId: "flowcraft.node.debug.stream",
   }),
 });

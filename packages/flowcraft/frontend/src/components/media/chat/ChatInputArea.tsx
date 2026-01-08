@@ -1,6 +1,7 @@
 import { CheckIcon, GlobeIcon } from "lucide-react";
 import React, { useState } from "react";
 
+import { type InferenceConfigDiscoveryResponse } from "@/generated/flowcraft/v1/core/service_pb";
 import {
   ModelSelector,
   ModelSelectorContent,
@@ -29,22 +30,6 @@ import {
 import { Suggestion, Suggestions } from "../../ai-elements/suggestion";
 import { type ChatStatus, type ContextNode } from "./types";
 
-const MODELS = [
-  { chefSlug: "openai", id: "gpt-4o", name: "GPT-4o", providers: ["openai"] },
-  {
-    chefSlug: "openai",
-    id: "gpt-4o-mini",
-    name: "GPT-4o Mini",
-    providers: ["openai"],
-  },
-  {
-    chefSlug: "anthropic",
-    id: "claude-3-5-sonnet",
-    name: "Claude 3.5 Sonnet",
-    providers: ["anthropic"],
-  },
-];
-
 const SUGGESTIONS = [
   "Explain how this graph works",
   "Summarize current results",
@@ -53,8 +38,14 @@ const SUGGESTIONS = [
 
 interface Props {
   droppedNodes: ContextNode[];
-  onModelChange: (m: string) => void;
-  onSubmit: (msg: PromptInputMessage, model: string, search: boolean) => void;
+  inferenceConfig: InferenceConfigDiscoveryResponse | null;
+  onModelChange: (m: string, endpoint?: string) => void;
+  onSubmit: (
+    msg: PromptInputMessage,
+    model: string,
+    endpoint: string,
+    search: boolean,
+  ) => void;
   onWebSearchChange: (v: boolean) => void;
   selectedModel: string;
   setDroppedNodes: (n: ContextNode[]) => void;
@@ -64,6 +55,7 @@ interface Props {
 
 export const ChatInputArea: React.FC<Props> = ({
   droppedNodes,
+  inferenceConfig,
   onModelChange,
   onSubmit,
   onWebSearchChange,
@@ -75,8 +67,24 @@ export const ChatInputArea: React.FC<Props> = ({
   const [inputText, setInputText] = useState("");
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
 
+  const allModels = React.useMemo(() => {
+    if (!inferenceConfig) return [];
+    return inferenceConfig.endpoints.flatMap((e) =>
+      e.models.map((m) => ({
+        endpointId: e.id,
+        endpointName: e.name,
+        id: m,
+        name: m,
+      })),
+    );
+  }, [inferenceConfig]);
+
+  const currentModel = allModels.find((m) => m.id === selectedModel);
+  const currentModelName = currentModel?.name ?? selectedModel;
+
   const handleSubmit = (msg: PromptInputMessage) => {
-    onSubmit(msg, selectedModel, useWebSearch);
+    if (status !== "ready") return;
+    onSubmit(msg, selectedModel, currentModel?.endpointId ?? "", useWebSearch);
     setInputText("");
   };
 
@@ -109,7 +117,13 @@ export const ChatInputArea: React.FC<Props> = ({
             <Suggestion
               key={s}
               onClick={() => {
-                onSubmit({ files: [], text: s }, selectedModel, useWebSearch);
+                if (status !== "ready") return;
+                onSubmit(
+                  { files: [], text: s },
+                  selectedModel,
+                  currentModel?.endpointId ?? "",
+                  useWebSearch,
+                );
               }}
               suggestion={s}
             />
@@ -124,10 +138,13 @@ export const ChatInputArea: React.FC<Props> = ({
             <PromptInputBody>
               <PromptInputTextarea
                 className="min-h-[44px]"
+                disabled={status !== "ready"}
                 onChange={(e) => {
                   setInputText(e.target.value);
                 }}
-                placeholder="Ask anything..."
+                placeholder={
+                  status === "ready" ? "Ask anything..." : "Please wait..."
+                }
                 value={inputText}
               />
             </PromptInputBody>
@@ -153,30 +170,30 @@ export const ChatInputArea: React.FC<Props> = ({
                 >
                   <ModelSelectorTrigger asChild>
                     <PromptInputButton>
-                      <span>
-                        {MODELS.find((m) => m.id === selectedModel)?.name}
-                      </span>
+                      <span>{currentModelName}</span>
                     </PromptInputButton>
                   </ModelSelectorTrigger>
                   <ModelSelectorContent>
                     <ModelSelectorList>
-                      <ModelSelectorGroup heading="Models">
-                        {MODELS.map((m) => (
-                          <ModelSelectorItem
-                            key={m.id}
-                            onSelect={() => {
-                              onModelChange(m.id);
-                              setModelSelectorOpen(false);
-                            }}
-                            value={m.id}
-                          >
-                            <ModelSelectorName>{m.name}</ModelSelectorName>
-                            {selectedModel === m.id && (
-                              <CheckIcon className="ml-auto size-3" />
-                            )}
-                          </ModelSelectorItem>
-                        ))}
-                      </ModelSelectorGroup>
+                      {inferenceConfig?.endpoints.map((e) => (
+                        <ModelSelectorGroup heading={e.name} key={e.id}>
+                          {e.models.map((m) => (
+                            <ModelSelectorItem
+                              key={`${e.id}-${m}`}
+                              onSelect={() => {
+                                onModelChange(m, e.id);
+                                setModelSelectorOpen(false);
+                              }}
+                              value={m}
+                            >
+                              <ModelSelectorName>{m}</ModelSelectorName>
+                              {selectedModel === m && (
+                                <CheckIcon className="ml-auto size-3" />
+                              )}
+                            </ModelSelectorItem>
+                          ))}
+                        </ModelSelectorGroup>
+                      ))}
                     </ModelSelectorList>
                   </ModelSelectorContent>
                 </ModelSelector>

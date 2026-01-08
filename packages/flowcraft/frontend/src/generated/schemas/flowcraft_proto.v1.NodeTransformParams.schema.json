@@ -2,7 +2,6 @@
   "$id": "flowcraft_proto.v1.NodeTransformParams.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "*\n 基于选中节点上下文生成内容的参数",
   "properties": {
     "instruction": {
       "default": "",

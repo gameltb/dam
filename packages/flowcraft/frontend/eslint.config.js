@@ -15,6 +15,7 @@ export default defineConfig([
     ".gemini",
     "src/components/ui",
     "src/components/ai-elements",
+    "ai-elements",
   ]),
   {
     files: ["**/*.{ts,tsx}"],
@@ -38,7 +39,6 @@ export default defineConfig([
       },
     },
     rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": "off",
       "unused-imports/no-unused-imports": "error",

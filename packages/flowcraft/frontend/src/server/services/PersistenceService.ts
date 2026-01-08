@@ -1,68 +1,8 @@
-import Database from "better-sqlite3";
 import { EventEmitter } from "events";
-import fs from "fs";
-import path from "path";
 
-import { type AppNode, type Edge } from "../types";
-import { generateGallery } from "./generators";
-
-const STORAGE_DIR =
-  process.env.FLOWCRAFT_STORAGE_DIR ?? path.join(process.cwd(), "storage");
-if (!fs.existsSync(STORAGE_DIR)) {
-  fs.mkdirSync(STORAGE_DIR, { recursive: true });
-}
-
-const DB_FILE = path.join(STORAGE_DIR, "flowcraft.db");
-const db = new Database(DB_FILE);
-
-// Initialize Schema
-db.exec(`
-  CREATE TABLE IF NOT EXISTS nodes (
-    id TEXT PRIMARY KEY,
-    type TEXT,
-    data TEXT,
-    position_x REAL,
-    position_y REAL,
-    parent_id TEXT,
-    width REAL,
-    height REAL
-  );
-
-  CREATE TABLE IF NOT EXISTS edges (
-    id TEXT PRIMARY KEY,
-    source TEXT,
-    target TEXT,
-    source_handle TEXT,
-    target_handle TEXT,
-    data TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS metadata (
-    key TEXT PRIMARY KEY,
-    value TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS mutations (
-    seq INTEGER PRIMARY KEY AUTOINCREMENT,
-    type TEXT,
-    payload BLOB,
-    timestamp INTEGER,
-    source INTEGER,
-    description TEXT,
-    user_id TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS conversations (
-    id TEXT PRIMARY KEY,
-    parent_id TEXT,
-    role TEXT,
-    content TEXT,
-    metadata TEXT,
-    timestamp INTEGER,
-    node_id TEXT,
-    FOREIGN KEY(parent_id) REFERENCES conversations(id)
-  );
-`);
+import { type AppNode, type Edge } from "@/types";
+import { db } from "./Database";
+import { generateGallery } from "./Generators";
 
 export let serverVersion = 0;
 
@@ -80,23 +20,6 @@ export const serverGraph: {
 };
 
 export const eventBus = new EventEmitter();
-
-interface ChatMessage {
-  content: string;
-  id: string;
-  metadata: Record<string, unknown>;
-  role: string;
-  timestamp: number;
-}
-
-interface ConversationRow {
-  content: string;
-  id: string;
-  metadata: string;
-  parent_id: null | string;
-  role: string;
-  timestamp: number;
-}
 
 interface EdgeRow {
   data: string;
@@ -116,50 +39,6 @@ interface NodeRow {
   position_y: number;
   type: string;
   width: null | number;
-}
-
-export function addChatMessage(params: {
-  content: string;
-  id: string;
-  metadata?: unknown;
-  nodeId?: string;
-  parentId: null | string;
-  role: string;
-}) {
-  const stmt = db.prepare(`
-    INSERT INTO conversations (id, parent_id, role, content, metadata, timestamp, node_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(
-    params.id,
-    params.parentId,
-    params.role,
-    params.content,
-    JSON.stringify(params.metadata ?? {}),
-    Date.now(),
-    params.nodeId ?? null,
-  );
-}
-
-export function getChatHistory(headId: string): ChatMessage[] {
-  const history: ChatMessage[] = [];
-  let currentId: null | string = headId;
-
-  while (currentId) {
-    const row = db
-      .prepare("SELECT * FROM conversations WHERE id = ?")
-      .get(currentId) as ConversationRow | undefined;
-    if (!row) break;
-    history.unshift({
-      content: row.content,
-      id: row.id,
-      metadata: JSON.parse(row.metadata) as Record<string, unknown>,
-      role: row.role,
-      timestamp: row.timestamp,
-    });
-    currentId = row.parent_id;
-  }
-  return history;
 }
 
 export function getMutations(fromSeq: number, toSeq?: number) {
@@ -215,11 +94,13 @@ export function loadFromDisk() {
     })) as Edge[];
 
     console.log(
-      `[DB] Loaded ${serverGraph.nodes.length.toString()} nodes from database.`,
+      `[Persistence] Loaded ${serverGraph.nodes.length.toString()} nodes from database.`,
     );
 
     if (serverGraph.nodes.length === 0) {
-      console.log("[DB] Initializing empty graph with gallery showcase.");
+      console.log(
+        "[Persistence] Initializing empty graph with gallery showcase.",
+      );
       const gallery = generateGallery();
       serverGraph.nodes = gallery.nodes;
       serverGraph.edges = gallery.edges;
@@ -251,7 +132,7 @@ export function logMutation(
   return result.lastInsertRowid;
 }
 
-function syncToDB() {
+export function syncToDB() {
   const transaction = db.transaction(() => {
     // Sync Version
     db.prepare(
@@ -303,3 +184,11 @@ function syncToDB() {
     console.error("Failed to sync to database:", err);
   }
 }
+
+export {
+  addChatMessage,
+  clearChatHistory,
+  duplicateBranch,
+  getChatHistory,
+  getMessage,
+} from "./ChatService";

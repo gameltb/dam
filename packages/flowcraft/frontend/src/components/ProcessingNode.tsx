@@ -2,13 +2,13 @@ import { type NodeProps } from "@xyflow/react";
 import { Position } from "@xyflow/react";
 import { memo } from "react";
 
-import { useFlowSocket } from "../hooks/useFlowSocket";
-import { useTaskStore } from "../store/taskStore";
+import { useFlowSocket } from "@/hooks/useFlowSocket";
+import { useTaskStore } from "@/store/taskStore";
 import {
   type ProcessingNodeData,
   type ProcessingNodeType,
   TaskStatus,
-} from "../types";
+} from "@/types";
 import { BaseNode } from "./base/BaseNode";
 import { Handle } from "./base/Handle";
 import { NodeErrorBoundary } from "./base/NodeErrorBoundary";

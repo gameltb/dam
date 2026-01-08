@@ -26,6 +26,10 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 
 - **FlowMessage Envelope**: All communications (snapshots, mutations, task updates, streaming chunks) are wrapped in a unified Protobuf message.
 - **Incremental Mutations**: The graph state is updated via atomic mutations (`addNode`, `updateNode`, `removeNode`, `addEdge`, etc.), ensuring efficient synchronization.
+- **RJSF & JSON Schema Integration**:
+  - **Contract-First Forms**: UI forms for node/action configurations are driven by `react-jsonschema-form` (RJSF).
+  - **Schema Generation**: JSON Schemas are generated from Protobuf definitions. There is no hard requirement for the file location, but targets must be manually added to `buf.gen.schema.yaml`.
+  - **Keep Artifacts Clean**: Only include messages intended for user-facing configuration (RJSF) in the schema generation process. NEVER run the `jsonschema` generator on entire core or state packages. This ensures the frontend bundle stays lean and the schema registry remains free of redundant or internal state schemas.
 - **Hydration**: Client-side handlers are re-attached to server-provided node data using a centralized hydration utility.
 - **Client**: `socketClient` (Connect/gRPC) handles all communication with the Node.js backend.
 - **Hooks**: `useFlowSocket` provides the main interface for components to interact with the backend.
@@ -56,6 +60,7 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
   - **Defensive Parsing:** When parsing backend-provided JSON (e.g., `widgetsSchemaJson`, `widgetsValues`), always use `try-catch` blocks and provide sensible fallback/default values.
   - **Mutation Atomicity:** All persistent graph changes (position, data, edges) MUST go through `applyMutations` to ensure Yjs and Backend synchronization. Avoid mixing local component state with store state for data that needs to be synchronized.
 - **Modularity & File Size:** Keep components small and focused. **A single file should ideally not exceed 300 lines of code.** If a component or utility grows beyond this limit, consider refactoring logic into custom hooks and splitting UI into smaller sub-components.
+- **Imports & Path Aliases:** Use the `@/` alias for all absolute imports from the `src` directory (e.g., `import { useFlowStore } from "@/store/flowStore"`). Avoid deep relative paths (e.g., `../../hooks/...`) whenever possible to improve maintainability and readability.
 - **Polymorphism over Conditionals:**
   - **Avoid `if/else` or `switch` on node types** in shared logic (hooks, stores, utils).
   - Use **Data-Driven Design**: Define type-specific constraints (min-size, default data) in `NodeTemplate` or dedicated config registries (e.g., `mediaConfigs.ts`).

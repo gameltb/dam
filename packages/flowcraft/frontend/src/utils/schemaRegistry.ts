@@ -1,8 +1,8 @@
 import type { RJSFSchema } from "@rjsf/utils";
 
-import ImageEnhanceParamsSchema from "../generated/schemas/flowcraft_proto.v1.ImageEnhanceParams.schema.json";
-import NodeTransformParamsSchema from "../generated/schemas/flowcraft_proto.v1.NodeTransformParams.schema.json";
-import PromptGenParamsSchema from "../generated/schemas/flowcraft_proto.v1.PromptGenParams.schema.json";
+import ImageEnhanceParamsSchema from "@/generated/schemas/flowcraft_proto.v1.ImageEnhanceParams.schema.json";
+import NodeTransformParamsSchema from "@/generated/schemas/flowcraft_proto.v1.NodeTransformParams.schema.json";
+import PromptGenParamsSchema from "@/generated/schemas/flowcraft_proto.v1.PromptGenParams.schema.json";
 
 /**
  * 静态 Schema 注册表

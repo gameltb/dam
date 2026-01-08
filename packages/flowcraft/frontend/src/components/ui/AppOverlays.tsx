@@ -5,10 +5,10 @@ import { TaskHistoryDrawer } from "../TaskHistoryDrawer";
 import { SideToolbar } from "../SideToolbar";
 import { SettingsModal } from "../SettingsModal";
 import { ActionParamsModal } from "../ActionParamsModal";
-import { type AppNode } from "../../types";
-import { SocketStatus } from "../../utils/SocketClient";
-import { type ActionTemplate } from "../../generated/flowcraft/v1/core/action_pb";
-import { type PreviewData } from "../../hooks/useNodeEventListener";
+import { type AppNode } from "@/types";
+import { SocketStatus } from "@/utils/SocketClient";
+import { type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
+import { type PreviewData } from "@/hooks/useNodeEventListener";
 
 interface Props {
   nodes: AppNode[];
@@ -21,7 +21,7 @@ interface Props {
   setPendingAction: (a: ActionTemplate | null) => void;
   onExecuteAction: (
     action: ActionTemplate,
-    params?: Record<string, any>,
+    params?: Record<string, unknown>,
   ) => void;
 }
 

@@ -1,12 +1,8 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import {
-  MediaType,
-  PortStyle,
-  RenderMode,
-} from "../../generated/flowcraft/v1/core/node_pb";
-import { type DynamicNodeData } from "../../types";
+import { MediaType, PortMainType, PortStyle, RenderMode } from "@/types";
+import { type DynamicNodeData } from "@/types";
 import { useNodeLayout } from "../useNodeLayout";
 
 describe("useNodeLayout", () => {
@@ -18,7 +14,11 @@ describe("useNodeLayout", () => {
           id: "in1",
           label: "In 1",
           style: PortStyle.CIRCLE,
-          type: { isGeneric: false, itemType: "", mainType: "string" },
+          type: {
+            isGeneric: false,
+            itemType: "",
+            mainType: PortMainType.STRING,
+          },
         },
       ],
       label: "Node",
@@ -28,7 +28,11 @@ describe("useNodeLayout", () => {
           id: "out1",
           label: "Out 1",
           style: PortStyle.CIRCLE,
-          type: { isGeneric: false, itemType: "", mainType: "string" },
+          type: {
+            isGeneric: false,
+            itemType: "",
+            mainType: PortMainType.STRING,
+          },
         },
       ],
       widgets: [{ id: "w1", label: "W1", type: 1, value: 0 }],

@@ -8,15 +8,15 @@ import { v4 as uuidv4 } from "uuid";
 import {
   NodeKind,
   PresentationSchema,
-} from "../generated/flowcraft/v1/core/base_pb";
-import { NodeSchema } from "../generated/flowcraft/v1/core/node_pb";
+} from "@/generated/flowcraft/v1/core/base_pb";
+import { NodeSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import {
   type GraphMutation,
   GraphMutationSchema,
-} from "../generated/flowcraft/v1/core/service_pb";
-import { type MutationContext } from "../store/flowStore";
-import { type AppNode, AppNodeType, type DynamicNodeData } from "../types";
-import { toProtoNodeData } from "../utils/protoAdapter";
+} from "@/generated/flowcraft/v1/core/service_pb";
+import { type MutationContext } from "@/store/types";
+import { type AppNode, AppNodeType, type DynamicNodeData } from "@/types";
+import { toProtoNodeData } from "@/utils/protoAdapter";
 
 export const useLayoutOperations = (
   nodes: AppNode[],

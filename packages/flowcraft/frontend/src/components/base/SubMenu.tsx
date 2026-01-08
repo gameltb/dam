@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import { type NodeTemplate } from "../../types";
+import { type NodeTemplate } from "@/types";
 
 export interface MenuNode {
   action?: { id: string; name: string; onClick: () => void };

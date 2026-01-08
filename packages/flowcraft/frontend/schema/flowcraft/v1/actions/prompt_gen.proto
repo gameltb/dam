@@ -1,0 +1,9 @@
+syntax = "proto3";
+package flowcraft_proto.v1;
+
+message PromptGenParams {
+  string prompt = 1;
+  string negative_prompt = 2;
+  int32 steps = 3;
+  float cfg_scale = 4;
+}

@@ -1,10 +1,10 @@
 import type { Edge } from "@xyflow/react";
 
-import { PortMainType } from "../generated/flowcraft/v1/core/base_pb";
+import { PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
 import {
   type Port,
   type PortType,
-} from "../generated/flowcraft/v1/core/node_pb";
+} from "@/generated/flowcraft/v1/core/node_pb";
 import { PORT_MAIN_TYPE_FROM_PROTO } from "./protoAdapter";
 
 export interface ConnectionResult {

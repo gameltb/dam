@@ -1,0 +1,7 @@
+syntax = "proto3";
+package flowcraft_proto.v1;
+
+message NodeTransformParams {
+  string instruction = 1;
+  string style = 2;
+}

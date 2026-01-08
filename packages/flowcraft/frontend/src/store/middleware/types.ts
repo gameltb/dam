@@ -1,5 +1,5 @@
-import { type GraphMutation } from "../../generated/flowcraft/v1/core/service_pb";
-import { type MutationContext } from "../flowStore";
+import { type GraphMutation } from "@/generated/flowcraft/v1/core/service_pb";
+import { type MutationContext } from "@/store/types";
 
 export enum MutationDirection {
   INCOMING = "INCOMING", // From Server

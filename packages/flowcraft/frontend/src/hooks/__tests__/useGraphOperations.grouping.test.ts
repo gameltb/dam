@@ -1,17 +1,17 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
-import { NodeKind } from "../../generated/flowcraft/v1/core/base_pb";
-import { type GraphMutation } from "../../generated/flowcraft/v1/core/service_pb";
-import { useFlowStore } from "../../store/flowStore";
-import { useUiStore } from "../../store/uiStore";
+import { NodeKind } from "@/generated/flowcraft/v1/core/base_pb";
+import { type GraphMutation } from "@/generated/flowcraft/v1/core/service_pb";
+import { useFlowStore } from "@/store/flowStore";
+import { useUiStore } from "@/store/uiStore";
 import { useGraphOperations } from "../useGraphOperations";
 
-vi.mock("../../store/flowStore", () => ({
+vi.mock("@/store/flowStore", () => ({
   useFlowStore: vi.fn(),
 }));
 
-vi.mock("../../store/uiStore", () => ({
+vi.mock("@/store/uiStore", () => ({
   useUiStore: vi.fn(),
 }));
 

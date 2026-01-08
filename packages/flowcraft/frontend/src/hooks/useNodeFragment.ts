@@ -1,6 +1,7 @@
 import { useShallow } from "zustand/react/shallow";
 
-import { type RFState, useFlowStore } from "../store/flowStore";
+import { useFlowStore } from "@/store/flowStore";
+import { type RFState } from "@/store/types";
 
 /**
  * useNodeFragment 允许组件只订阅节点数据的特定子集。

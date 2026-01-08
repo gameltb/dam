@@ -2,15 +2,15 @@ import { create } from "@bufbuild/protobuf";
 import { Position, Handle as ReactFlowHandle, useStore } from "@xyflow/react";
 import React, { useState } from "react";
 
-import { PortMainType } from "../../generated/flowcraft/v1/core/base_pb";
+import { PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
 import {
   PortSchema,
   PortStyle,
   PortTypeSchema,
-} from "../../generated/flowcraft/v1/core/node_pb";
-import { useUiStore } from "../../store/uiStore";
-import { getValidator, validateConnection } from "../../utils/portValidators";
-import { PORT_MAIN_TYPE_FROM_PROTO } from "../../utils/protoAdapter";
+} from "@/generated/flowcraft/v1/core/node_pb";
+import { useUiStore } from "@/store/uiStore";
+import { getValidator, validateConnection } from "@/utils/portValidators";
+import { PORT_MAIN_TYPE_FROM_PROTO } from "@/utils/protoAdapter";
 import { PortIcon } from "./PortIcon";
 
 interface PortHandleProps {

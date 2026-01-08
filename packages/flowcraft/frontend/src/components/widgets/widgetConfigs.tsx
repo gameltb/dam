@@ -1,6 +1,6 @@
 import React from "react";
 
-import { WidgetType } from "../../generated/flowcraft/v1/core/node_pb";
+import { WidgetType } from "@/generated/flowcraft/v1/core/node_pb";
 import { CheckboxField } from "./CheckboxField";
 import { SelectField } from "./SelectField";
 import { SliderField } from "./SliderField";

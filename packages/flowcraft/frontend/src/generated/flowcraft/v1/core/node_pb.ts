@@ -6,21 +6,21 @@ import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2"
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Value } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { NodeKind, PortMainType, Presentation, VisualHint } from "./base_pb";
+import type { MediaContent, NodeKind, PortMainType, Presentation, VisualHint } from "./base_pb";
 import { file_flowcraft_v1_core_base } from "./base_pb";
-import type { ChatNodeState } from "../nodes/chat_pb";
-import { file_flowcraft_v1_nodes_chat } from "../nodes/chat_pb";
-import type { AiGenNodeState } from "../nodes/ai_gen_pb";
-import { file_flowcraft_v1_nodes_ai_gen } from "../nodes/ai_gen_pb";
-import type { AcousticNodeState, DocumentNodeState, VisualNodeState } from "../nodes/media_pb";
-import { file_flowcraft_v1_nodes_media } from "../nodes/media_pb";
+import type { ChatNodeState } from "../nodes/chat_node_pb";
+import { file_flowcraft_v1_nodes_chat_node } from "../nodes/chat_node_pb";
+import type { AiGenNodeState } from "../nodes/ai_gen_node_pb";
+import { file_flowcraft_v1_nodes_ai_gen_node } from "../nodes/ai_gen_node_pb";
+import type { AcousticNodeState, DocumentNodeState, VisualNodeState } from "../nodes/media_node_pb";
+import { file_flowcraft_v1_nodes_media_node } from "../nodes/media_node_pb";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file flowcraft/v1/core/node.proto.
  */
 export const file_flowcraft_v1_core_node: GenFile = /*@__PURE__*/
-  fileDesc("ChxmbG93Y3JhZnQvdjEvY29yZS9ub2RlLnByb3RvEhJmbG93Y3JhZnRfcHJvdG8udjEijAIKBE5vZGUSDwoHbm9kZV9pZBgBIAEoCRITCgt0ZW1wbGF0ZV9pZBgCIAEoCRIvCglub2RlX2tpbmQYAyABKA4yHC5mbG93Y3JhZnRfcHJvdG8udjEuTm9kZUtpbmQSNgoMcHJlc2VudGF0aW9uGAQgASgLMiAuZmxvd2NyYWZ0X3Byb3RvLnYxLlByZXNlbnRhdGlvbhIrCgVzdGF0ZRgFIAEoCzIcLmZsb3djcmFmdF9wcm90by52MS5Ob2RlRGF0YRIzCgt2aXN1YWxfaGludBgGIAEoCzIeLmZsb3djcmFmdF9wcm90by52MS5WaXN1YWxIaW50EhMKC2lzX3NlbGVjdGVkGAcgASgIIuEBCgxOb2RlVGVtcGxhdGUSEwoLdGVtcGxhdGVfaWQYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEhEKCW1lbnVfcGF0aBgDIAMoCRIzCg1kZWZhdWx0X3N0YXRlGAQgASgLMhwuZmxvd2NyYWZ0X3Byb3RvLnYxLk5vZGVEYXRhEhUKDWRlZmF1bHRfd2lkdGgYBSABKAUSFgoOZGVmYXVsdF9oZWlnaHQYBiABKAUSLwoOd2lkZ2V0c19zY2hlbWEYByABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0ItAGCghOb2RlRGF0YRIUCgxkaXNwbGF5X25hbWUYASABKAkSNwoPYXZhaWxhYmxlX21vZGVzGAIgAygOMh4uZmxvd2NyYWZ0X3Byb3RvLnYxLlJlbmRlck1vZGUSMwoLYWN0aXZlX21vZGUYAyABKA4yHi5mbG93Y3JhZnRfcHJvdG8udjEuUmVuZGVyTW9kZRIvCgVtZWRpYRgEIAEoCzIgLmZsb3djcmFmdF9wcm90by52MS5NZWRpYUNvbnRlbnQSKwoHd2lkZ2V0cxgFIAMoCzIaLmZsb3djcmFmdF9wcm90by52MS5XaWRnZXQSLQoLaW5wdXRfcG9ydHMYBiADKAsyGC5mbG93Y3JhZnRfcHJvdG8udjEuUG9ydBIuCgxvdXRwdXRfcG9ydHMYByADKAsyGC5mbG93Y3JhZnRfcHJvdG8udjEuUG9ydBI8CghtZXRhZGF0YRgIIAMoCzIqLmZsb3djcmFmdF9wcm90by52MS5Ob2RlRGF0YS5NZXRhZGF0YUVudHJ5Eg8KB3Rhc2tfaWQYCyABKAkSLwoOd2lkZ2V0c192YWx1ZXMYDCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ei8KDndpZGdldHNfc2NoZW1hGA0gASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIxCgRjaGF0GBQgASgLMiEuZmxvd2NyYWZ0X3Byb3RvLnYxLkNoYXROb2RlU3RhdGVIABI0CgZhaV9nZW4YFSABKAsyIi5mbG93Y3JhZnRfcHJvdG8udjEuQWlHZW5Ob2RlU3RhdGVIABI1CgZ2aXN1YWwYFiABKAsyIy5mbG93Y3JhZnRfcHJvdG8udjEuVmlzdWFsTm9kZVN0YXRlSAASOQoIZG9jdW1lbnQYFyABKAsyJS5mbG93Y3JhZnRfcHJvdG8udjEuRG9jdW1lbnROb2RlU3RhdGVIABI5CghhY291c3RpYxgYIAEoCzIlLmZsb3djcmFmdF9wcm90by52MS5BY291c3RpY05vZGVTdGF0ZUgAGi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUILCglleHRlbnNpb24ihQEKDE1lZGlhQ29udGVudBIrCgR0eXBlGAEgASgOMh0uZmxvd2NyYWZ0X3Byb3RvLnYxLk1lZGlhVHlwZRILCgN1cmwYAiABKAkSDwoHY29udGVudBgDIAEoCRIUCgxhc3BlY3RfcmF0aW8YBCABKAESFAoMZ2FsbGVyeV91cmxzGAUgAygJIp8BCgRQb3J0EgoKAmlkGAEgASgJEg0KBWxhYmVsGAIgASgJEioKBHR5cGUYAyABKAsyHC5mbG93Y3JhZnRfcHJvdG8udjEuUG9ydFR5cGUSDQoFY29sb3IYBCABKAkSLAoFc3R5bGUYBSABKA4yHS5mbG93Y3JhZnRfcHJvdG8udjEuUG9ydFN0eWxlEhMKC2Rlc2NyaXB0aW9uGAYgASgJImYKCFBvcnRUeXBlEjMKCW1haW5fdHlwZRgBIAEoDjIgLmZsb3djcmFmdF9wcm90by52MS5Qb3J0TWFpblR5cGUSEQoJaXRlbV90eXBlGAIgASgJEhIKCmlzX2dlbmVyaWMYAyABKAginQIKBldpZGdldBIKCgJpZBgBIAEoCRIsCgR0eXBlGAIgASgOMh4uZmxvd2NyYWZ0X3Byb3RvLnYxLldpZGdldFR5cGUSDQoFbGFiZWwYAyABKAkSJQoFdmFsdWUYBCABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSMAoGY29uZmlnGAUgASgLMiAuZmxvd2NyYWZ0X3Byb3RvLnYxLldpZGdldENvbmZpZxIxCgdvcHRpb25zGAYgAygLMiAuZmxvd2NyYWZ0X3Byb3RvLnYxLldpZGdldE9wdGlvbhITCgtpc19yZWFkb25seRgHIAEoCBISCgppc19sb2FkaW5nGAggASgIEhUKDWlucHV0X3BvcnRfaWQYCSABKAkiQQoMV2lkZ2V0T3B0aW9uEg0KBWxhYmVsGAEgASgJEg0KBXZhbHVlGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJInsKDFdpZGdldENvbmZpZxITCgtwbGFjZWhvbGRlchgBIAEoCRILCgNtaW4YAiABKAESCwoDbWF4GAMgASgBEgwKBHN0ZXAYBCABKAESFwoPZHluYW1pY19vcHRpb25zGAUgASgIEhUKDWFjdGlvbl90YXJnZXQYBiABKAki4AEKBEVkZ2USDwoHZWRnZV9pZBgBIAEoCRIWCg5zb3VyY2Vfbm9kZV9pZBgCIAEoCRIWCg50YXJnZXRfbm9kZV9pZBgDIAEoCRIVCg1zb3VyY2VfaGFuZGxlGAQgASgJEhUKDXRhcmdldF9oYW5kbGUYBSABKAkSOAoIbWV0YWRhdGEYBiADKAsyJi5mbG93Y3JhZnRfcHJvdG8udjEuRWRnZS5NZXRhZGF0YUVudHJ5Gi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKYAQoKVGFza1VwZGF0ZRIPCgd0YXNrX2lkGAEgASgJEi4KBnN0YXR1cxgCIAEoDjIeLmZsb3djcmFmdF9wcm90by52MS5UYXNrU3RhdHVzEhAKCHByb2dyZXNzGAMgASgBEg8KB21lc3NhZ2UYBCABKAkSJgoGcmVzdWx0GAUgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlKmYKClJlbmRlck1vZGUSFAoQTU9ERV9VTlNQRUNJRklFRBAAEg4KCk1PREVfTUVESUEQARIQCgxNT0RFX1dJREdFVFMQAhIRCg1NT0RFX01BUktET1dOEAMSDQoJTU9ERV9DSEFUEAQqaQoJTWVkaWFUeXBlEhUKEU1FRElBX1VOU1BFQ0lGSUVEEAASDwoLTUVESUFfSU1BR0UQARIPCgtNRURJQV9WSURFTxACEg8KC01FRElBX0FVRElPEAMSEgoOTUVESUFfTUFSS0RPV04QBCo6CglQb3J0U3R5bGUSCgoGQ0lSQ0xFEAASCgoGU1FVQVJFEAESCwoHRElBTU9ORBACEggKBERBU0gQAyqDAQoKV2lkZ2V0VHlwZRIWChJXSURHRVRfVU5TUEVDSUZJRUQQABIPCgtXSURHRVRfVEVYVBABEhEKDVdJREdFVF9TRUxFQ1QQAhITCg9XSURHRVRfQ0hFQ0tCT1gQAxIRCg1XSURHRVRfU0xJREVSEAQSEQoNV0lER0VUX0JVVFRPThAFKmwKClRhc2tTdGF0dXMSEAoMVEFTS19QRU5ESU5HEAASEwoPVEFTS19QUk9DRVNTSU5HEAESEgoOVEFTS19DT01QTEVURUQQAhIPCgtUQVNLX0ZBSUxFRBADEhIKDlRBU0tfQ0FOQ0VMTEVEEARiBnByb3RvMw", [file_google_protobuf_struct, file_flowcraft_v1_core_base, file_flowcraft_v1_nodes_chat, file_flowcraft_v1_nodes_ai_gen, file_flowcraft_v1_nodes_media]);
+  fileDesc("ChxmbG93Y3JhZnQvdjEvY29yZS9ub2RlLnByb3RvEhJmbG93Y3JhZnRfcHJvdG8udjEijAIKBE5vZGUSDwoHbm9kZV9pZBgBIAEoCRITCgt0ZW1wbGF0ZV9pZBgCIAEoCRIvCglub2RlX2tpbmQYAyABKA4yHC5mbG93Y3JhZnRfcHJvdG8udjEuTm9kZUtpbmQSNgoMcHJlc2VudGF0aW9uGAQgASgLMiAuZmxvd2NyYWZ0X3Byb3RvLnYxLlByZXNlbnRhdGlvbhIrCgVzdGF0ZRgFIAEoCzIcLmZsb3djcmFmdF9wcm90by52MS5Ob2RlRGF0YRIzCgt2aXN1YWxfaGludBgGIAEoCzIeLmZsb3djcmFmdF9wcm90by52MS5WaXN1YWxIaW50EhMKC2lzX3NlbGVjdGVkGAcgASgIIuEBCgxOb2RlVGVtcGxhdGUSEwoLdGVtcGxhdGVfaWQYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEhEKCW1lbnVfcGF0aBgDIAMoCRIzCg1kZWZhdWx0X3N0YXRlGAQgASgLMhwuZmxvd2NyYWZ0X3Byb3RvLnYxLk5vZGVEYXRhEhUKDWRlZmF1bHRfd2lkdGgYBSABKAUSFgoOZGVmYXVsdF9oZWlnaHQYBiABKAUSLwoOd2lkZ2V0c19zY2hlbWEYByABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0ItAGCghOb2RlRGF0YRIUCgxkaXNwbGF5X25hbWUYASABKAkSNwoPYXZhaWxhYmxlX21vZGVzGAIgAygOMh4uZmxvd2NyYWZ0X3Byb3RvLnYxLlJlbmRlck1vZGUSMwoLYWN0aXZlX21vZGUYAyABKA4yHi5mbG93Y3JhZnRfcHJvdG8udjEuUmVuZGVyTW9kZRIvCgVtZWRpYRgEIAEoCzIgLmZsb3djcmFmdF9wcm90by52MS5NZWRpYUNvbnRlbnQSKwoHd2lkZ2V0cxgFIAMoCzIaLmZsb3djcmFmdF9wcm90by52MS5XaWRnZXQSLQoLaW5wdXRfcG9ydHMYBiADKAsyGC5mbG93Y3JhZnRfcHJvdG8udjEuUG9ydBIuCgxvdXRwdXRfcG9ydHMYByADKAsyGC5mbG93Y3JhZnRfcHJvdG8udjEuUG9ydBI8CghtZXRhZGF0YRgIIAMoCzIqLmZsb3djcmFmdF9wcm90by52MS5Ob2RlRGF0YS5NZXRhZGF0YUVudHJ5Eg8KB3Rhc2tfaWQYCyABKAkSLwoOd2lkZ2V0c192YWx1ZXMYDCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ei8KDndpZGdldHNfc2NoZW1hGA0gASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIxCgRjaGF0GBQgASgLMiEuZmxvd2NyYWZ0X3Byb3RvLnYxLkNoYXROb2RlU3RhdGVIABI0CgZhaV9nZW4YFSABKAsyIi5mbG93Y3JhZnRfcHJvdG8udjEuQWlHZW5Ob2RlU3RhdGVIABI1CgZ2aXN1YWwYFiABKAsyIy5mbG93Y3JhZnRfcHJvdG8udjEuVmlzdWFsTm9kZVN0YXRlSAASOQoIZG9jdW1lbnQYFyABKAsyJS5mbG93Y3JhZnRfcHJvdG8udjEuRG9jdW1lbnROb2RlU3RhdGVIABI5CghhY291c3RpYxgYIAEoCzIlLmZsb3djcmFmdF9wcm90by52MS5BY291c3RpY05vZGVTdGF0ZUgAGi8KDU1ldGFkYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUILCglleHRlbnNpb24inwEKBFBvcnQSCgoCaWQYASABKAkSDQoFbGFiZWwYAiABKAkSKgoEdHlwZRgDIAEoCzIcLmZsb3djcmFmdF9wcm90by52MS5Qb3J0VHlwZRINCgVjb2xvchgEIAEoCRIsCgVzdHlsZRgFIAEoDjIdLmZsb3djcmFmdF9wcm90by52MS5Qb3J0U3R5bGUSEwoLZGVzY3JpcHRpb24YBiABKAkiZgoIUG9ydFR5cGUSMwoJbWFpbl90eXBlGAEgASgOMiAuZmxvd2NyYWZ0X3Byb3RvLnYxLlBvcnRNYWluVHlwZRIRCglpdGVtX3R5cGUYAiABKAkSEgoKaXNfZ2VuZXJpYxgDIAEoCCKdAgoGV2lkZ2V0EgoKAmlkGAEgASgJEiwKBHR5cGUYAiABKA4yHi5mbG93Y3JhZnRfcHJvdG8udjEuV2lkZ2V0VHlwZRINCgVsYWJlbBgDIAEoCRIlCgV2YWx1ZRgEIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZRIwCgZjb25maWcYBSABKAsyIC5mbG93Y3JhZnRfcHJvdG8udjEuV2lkZ2V0Q29uZmlnEjEKB29wdGlvbnMYBiADKAsyIC5mbG93Y3JhZnRfcHJvdG8udjEuV2lkZ2V0T3B0aW9uEhMKC2lzX3JlYWRvbmx5GAcgASgIEhIKCmlzX2xvYWRpbmcYCCABKAgSFQoNaW5wdXRfcG9ydF9pZBgJIAEoCSJBCgxXaWRnZXRPcHRpb24SDQoFbGFiZWwYASABKAkSDQoFdmFsdWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkiewoMV2lkZ2V0Q29uZmlnEhMKC3BsYWNlaG9sZGVyGAEgASgJEgsKA21pbhgCIAEoARILCgNtYXgYAyABKAESDAoEc3RlcBgEIAEoARIXCg9keW5hbWljX29wdGlvbnMYBSABKAgSFQoNYWN0aW9uX3RhcmdldBgGIAEoCSLgAQoERWRnZRIPCgdlZGdlX2lkGAEgASgJEhYKDnNvdXJjZV9ub2RlX2lkGAIgASgJEhYKDnRhcmdldF9ub2RlX2lkGAMgASgJEhUKDXNvdXJjZV9oYW5kbGUYBCABKAkSFQoNdGFyZ2V0X2hhbmRsZRgFIAEoCRI4CghtZXRhZGF0YRgGIAMoCzImLmZsb3djcmFmdF9wcm90by52MS5FZGdlLk1ldGFkYXRhRW50cnkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIs4BCgpUYXNrVXBkYXRlEg8KB3Rhc2tfaWQYASABKAkSLgoGc3RhdHVzGAIgASgOMh4uZmxvd2NyYWZ0X3Byb3RvLnYxLlRhc2tTdGF0dXMSEAoIcHJvZ3Jlc3MYAyABKAESDwoHbWVzc2FnZRgEIAEoCRImCgZyZXN1bHQYBSABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUSDwoHbm9kZV9pZBgGIAEoCRIVCg1kaXNwbGF5X2xhYmVsGAcgASgJEgwKBHR5cGUYCCABKAkqZgoKUmVuZGVyTW9kZRIUChBNT0RFX1VOU1BFQ0lGSUVEEAASDgoKTU9ERV9NRURJQRABEhAKDE1PREVfV0lER0VUUxACEhEKDU1PREVfTUFSS0RPV04QAxINCglNT0RFX0NIQVQQBCo6CglQb3J0U3R5bGUSCgoGQ0lSQ0xFEAASCgoGU1FVQVJFEAESCwoHRElBTU9ORBACEggKBERBU0gQAyqDAQoKV2lkZ2V0VHlwZRIWChJXSURHRVRfVU5TUEVDSUZJRUQQABIPCgtXSURHRVRfVEVYVBABEhEKDVdJREdFVF9TRUxFQ1QQAhITCg9XSURHRVRfQ0hFQ0tCT1gQAxIRCg1XSURHRVRfU0xJREVSEAQSEQoNV0lER0VUX0JVVFRPThAFKoEBCgpUYXNrU3RhdHVzEhAKDFRBU0tfUEVORElORxAAEhMKD1RBU0tfUFJPQ0VTU0lORxABEhIKDlRBU0tfQ09NUExFVEVEEAISDwoLVEFTS19GQUlMRUQQAxISCg5UQVNLX0NBTkNFTExFRBAEEhMKD1RBU0tfUkVTVEFSVElORxAFYgZwcm90bzM", [file_google_protobuf_struct, file_flowcraft_v1_core_base, file_flowcraft_v1_nodes_chat_node, file_flowcraft_v1_nodes_ai_gen_node, file_flowcraft_v1_nodes_media_node]);
 
 /**
  * @generated from message flowcraft_proto.v1.Node
@@ -243,43 +243,6 @@ export const NodeDataSchema: GenMessage<NodeData> = /*@__PURE__*/
   messageDesc(file_flowcraft_v1_core_node, 2);
 
 /**
- * @generated from message flowcraft_proto.v1.MediaContent
- */
-export type MediaContent = Message<"flowcraft_proto.v1.MediaContent"> & {
-  /**
-   * @generated from field: flowcraft_proto.v1.MediaType type = 1;
-   */
-  type: MediaType;
-
-  /**
-   * @generated from field: string url = 2;
-   */
-  url: string;
-
-  /**
-   * @generated from field: string content = 3;
-   */
-  content: string;
-
-  /**
-   * @generated from field: double aspect_ratio = 4;
-   */
-  aspectRatio: number;
-
-  /**
-   * @generated from field: repeated string gallery_urls = 5;
-   */
-  galleryUrls: string[];
-};
-
-/**
- * Describes the message flowcraft_proto.v1.MediaContent.
- * Use `create(MediaContentSchema)` to create a new message.
- */
-export const MediaContentSchema: GenMessage<MediaContent> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_node, 3);
-
-/**
  * @generated from message flowcraft_proto.v1.Port
  */
 export type Port = Message<"flowcraft_proto.v1.Port"> & {
@@ -319,7 +282,7 @@ export type Port = Message<"flowcraft_proto.v1.Port"> & {
  * Use `create(PortSchema)` to create a new message.
  */
 export const PortSchema: GenMessage<Port> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_node, 4);
+  messageDesc(file_flowcraft_v1_core_node, 3);
 
 /**
  * @generated from message flowcraft_proto.v1.PortType
@@ -346,7 +309,7 @@ export type PortType = Message<"flowcraft_proto.v1.PortType"> & {
  * Use `create(PortTypeSchema)` to create a new message.
  */
 export const PortTypeSchema: GenMessage<PortType> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_node, 5);
+  messageDesc(file_flowcraft_v1_core_node, 4);
 
 /**
  * @generated from message flowcraft_proto.v1.Widget
@@ -403,7 +366,7 @@ export type Widget = Message<"flowcraft_proto.v1.Widget"> & {
  * Use `create(WidgetSchema)` to create a new message.
  */
 export const WidgetSchema: GenMessage<Widget> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_node, 6);
+  messageDesc(file_flowcraft_v1_core_node, 5);
 
 /**
  * @generated from message flowcraft_proto.v1.WidgetOption
@@ -430,7 +393,7 @@ export type WidgetOption = Message<"flowcraft_proto.v1.WidgetOption"> & {
  * Use `create(WidgetOptionSchema)` to create a new message.
  */
 export const WidgetOptionSchema: GenMessage<WidgetOption> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_node, 7);
+  messageDesc(file_flowcraft_v1_core_node, 6);
 
 /**
  * @generated from message flowcraft_proto.v1.WidgetConfig
@@ -472,7 +435,7 @@ export type WidgetConfig = Message<"flowcraft_proto.v1.WidgetConfig"> & {
  * Use `create(WidgetConfigSchema)` to create a new message.
  */
 export const WidgetConfigSchema: GenMessage<WidgetConfig> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_node, 8);
+  messageDesc(file_flowcraft_v1_core_node, 7);
 
 /**
  * @generated from message flowcraft_proto.v1.Edge
@@ -514,7 +477,7 @@ export type Edge = Message<"flowcraft_proto.v1.Edge"> & {
  * Use `create(EdgeSchema)` to create a new message.
  */
 export const EdgeSchema: GenMessage<Edge> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_node, 9);
+  messageDesc(file_flowcraft_v1_core_node, 8);
 
 /**
  * @generated from message flowcraft_proto.v1.TaskUpdate
@@ -544,6 +507,21 @@ export type TaskUpdate = Message<"flowcraft_proto.v1.TaskUpdate"> & {
    * @generated from field: google.protobuf.Value result = 5;
    */
   result?: Value;
+
+  /**
+   * @generated from field: string node_id = 6;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: string display_label = 7;
+   */
+  displayLabel: string;
+
+  /**
+   * @generated from field: string type = 8;
+   */
+  type: string;
 };
 
 /**
@@ -551,7 +529,7 @@ export type TaskUpdate = Message<"flowcraft_proto.v1.TaskUpdate"> & {
  * Use `create(TaskUpdateSchema)` to create a new message.
  */
 export const TaskUpdateSchema: GenMessage<TaskUpdate> = /*@__PURE__*/
-  messageDesc(file_flowcraft_v1_core_node, 10);
+  messageDesc(file_flowcraft_v1_core_node, 9);
 
 /**
  * @generated from enum flowcraft_proto.v1.RenderMode
@@ -590,42 +568,6 @@ export const RenderModeSchema: GenEnum<RenderMode> = /*@__PURE__*/
   enumDesc(file_flowcraft_v1_core_node, 0);
 
 /**
- * @generated from enum flowcraft_proto.v1.MediaType
- */
-export enum MediaType {
-  /**
-   * @generated from enum value: MEDIA_UNSPECIFIED = 0;
-   */
-  MEDIA_UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: MEDIA_IMAGE = 1;
-   */
-  MEDIA_IMAGE = 1,
-
-  /**
-   * @generated from enum value: MEDIA_VIDEO = 2;
-   */
-  MEDIA_VIDEO = 2,
-
-  /**
-   * @generated from enum value: MEDIA_AUDIO = 3;
-   */
-  MEDIA_AUDIO = 3,
-
-  /**
-   * @generated from enum value: MEDIA_MARKDOWN = 4;
-   */
-  MEDIA_MARKDOWN = 4,
-}
-
-/**
- * Describes the enum flowcraft_proto.v1.MediaType.
- */
-export const MediaTypeSchema: GenEnum<MediaType> = /*@__PURE__*/
-  enumDesc(file_flowcraft_v1_core_node, 1);
-
-/**
  * @generated from enum flowcraft_proto.v1.PortStyle
  */
 export enum PortStyle {
@@ -654,7 +596,7 @@ export enum PortStyle {
  * Describes the enum flowcraft_proto.v1.PortStyle.
  */
 export const PortStyleSchema: GenEnum<PortStyle> = /*@__PURE__*/
-  enumDesc(file_flowcraft_v1_core_node, 2);
+  enumDesc(file_flowcraft_v1_core_node, 1);
 
 /**
  * @generated from enum flowcraft_proto.v1.WidgetType
@@ -695,7 +637,7 @@ export enum WidgetType {
  * Describes the enum flowcraft_proto.v1.WidgetType.
  */
 export const WidgetTypeSchema: GenEnum<WidgetType> = /*@__PURE__*/
-  enumDesc(file_flowcraft_v1_core_node, 3);
+  enumDesc(file_flowcraft_v1_core_node, 2);
 
 /**
  * @generated from enum flowcraft_proto.v1.TaskStatus
@@ -725,11 +667,16 @@ export enum TaskStatus {
    * @generated from enum value: TASK_CANCELLED = 4;
    */
   TASK_CANCELLED = 4,
+
+  /**
+   * @generated from enum value: TASK_RESTARTING = 5;
+   */
+  TASK_RESTARTING = 5,
 }
 
 /**
  * Describes the enum flowcraft_proto.v1.TaskStatus.
  */
 export const TaskStatusSchema: GenEnum<TaskStatus> = /*@__PURE__*/
-  enumDesc(file_flowcraft_v1_core_node, 4);
+  enumDesc(file_flowcraft_v1_core_node, 3);
 

@@ -27,8 +27,10 @@ message ActionDiscoveryResponse {
   repeated ActionTemplate actions = 1;
 }
 
-import "flowcraft/v1/actions/ai.proto";
-import "flowcraft/v1/actions/chat.proto";
+import "flowcraft/v1/actions/prompt_gen.proto";
+import "flowcraft/v1/actions/node_transform.proto";
+import "flowcraft/v1/actions/image_enhance.proto";
+import "flowcraft/v1/actions/chat_actions.proto";
 
 message ActionExecutionRequest {
   string action_id = 1;
@@ -44,5 +46,6 @@ message ActionExecutionRequest {
     NodeTransformParams transform = 21;
     ImageEnhanceParams enhance = 22;
     ChatActionParams chat_generate = 23;
+    ChatSyncBranchParams chat_sync = 24;
   }
 }

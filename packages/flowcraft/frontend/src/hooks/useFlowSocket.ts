@@ -9,19 +9,21 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import type { NodeTemplate, TaskDefinition } from "../types";
+import type { NodeTemplate, TaskDefinition } from "@/types";
 
 import {
   ActionExecutionRequestSchema,
   type ActionTemplate,
-} from "../generated/flowcraft/v1/core/action_pb";
-import { PresentationSchema } from "../generated/flowcraft/v1/core/base_pb";
-import { type NodeData } from "../generated/flowcraft/v1/core/node_pb";
+} from "@/generated/flowcraft/v1/core/action_pb";
+import { PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
+import { type NodeData } from "@/generated/flowcraft/v1/core/node_pb";
 import {
   type GraphMutation,
   type GraphSnapshot,
-} from "../generated/flowcraft/v1/core/service_pb";
+} from "@/generated/flowcraft/v1/core/service_pb";
 import {
+  InferenceConfigDiscoveryRequestSchema,
+  type InferenceConfigDiscoveryResponse,
   SyncRequestSchema,
   TaskCancelRequestSchema,
   TemplateDiscoveryRequestSchema,
@@ -29,13 +31,17 @@ import {
   UpdateNodeRequestSchema,
   UpdateWidgetRequestSchema,
   ViewportUpdateSchema,
-} from "../generated/flowcraft/v1/core/service_pb";
-import { useFlowStore } from "../store/flowStore";
-import { useTaskStore } from "../store/taskStore";
-import { useUiStore } from "../store/uiStore";
-import { MutationSource, TaskStatus } from "../types";
-import { fromProtoGraph } from "../utils/protoAdapter";
-import { socketClient } from "../utils/SocketClient";
+} from "@/generated/flowcraft/v1/core/service_pb";
+import {
+  NodeSignalSchema,
+  RestartInstanceSchema,
+} from "@/generated/flowcraft/v1/core/signals_pb";
+import { useFlowStore } from "@/store/flowStore";
+import { useTaskStore } from "@/store/taskStore";
+import { useUiStore } from "@/store/uiStore";
+import { MutationSource, TaskStatus } from "@/types";
+import { fromProtoGraph } from "@/utils/protoAdapter";
+import { socketClient } from "@/utils/SocketClient";
 
 export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
   const { applyMutations, applyYjsUpdate, setGraph } = useFlowStore(
@@ -54,6 +60,8 @@ export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
 
   const { updateTask } = useTaskStore();
   const [templates, setTemplates] = useState<NodeTemplate[]>([]);
+  const [inferenceConfig, setInferenceConfig] =
+    useState<InferenceConfigDiscoveryResponse | null>(null);
   const hasRequestedSync = useRef(false);
   const lastServerAddress = useRef(serverAddress);
 
@@ -90,11 +98,16 @@ export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
       setTemplates(response.templates);
     };
 
+    const onInferenceConfig = (response: InferenceConfigDiscoveryResponse) => {
+      setInferenceConfig(response);
+    };
+
     socketClient.on("snapshot", onSnapshot);
     socketClient.on("yjsUpdate", onYjsUpdate);
     socketClient.on("mutations", onMutations);
     socketClient.on("taskUpdate", onTaskUpdate);
     socketClient.on("templates", onTemplates);
+    socketClient.on("inferenceConfig", onInferenceConfig);
 
     const onError = (error: unknown) => {
       if (error instanceof ConnectError && error.code === Code.Canceled) {
@@ -131,6 +144,14 @@ export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
           value: create(TemplateDiscoveryRequestSchema, {}),
         },
       });
+
+      // Initial Inference Config Discovery
+      void socketClient.send({
+        payload: {
+          case: "inferenceDiscovery",
+          value: create(InferenceConfigDiscoveryRequestSchema, {}),
+        },
+      });
     }
 
     return () => {
@@ -139,6 +160,7 @@ export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
       socketClient.off("mutations", onMutations);
       socketClient.off("taskUpdate", onTaskUpdate);
       socketClient.off("templates", onTemplates);
+      socketClient.off("inferenceConfig", onInferenceConfig);
       socketClient.off("error", onError);
     };
   }, [applyMutations, setGraph, applyYjsUpdate, updateTask, serverAddress]);
@@ -240,10 +262,27 @@ export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
     [],
   );
 
+  const restartTask = useCallback((nodeId: string) => {
+    void socketClient.send({
+      payload: {
+        case: "nodeSignal",
+        value: create(NodeSignalSchema, {
+          nodeId,
+          payload: {
+            case: "restartInstance",
+            value: create(RestartInstanceSchema, {}),
+          },
+        }),
+      },
+    });
+  }, []);
+
   return useMemo(
     () => ({
       cancelTask,
       executeTask,
+      inferenceConfig,
+      restartTask,
       streamAction,
       templates,
       updateNodeData,
@@ -252,8 +291,10 @@ export const useFlowSocket = (_config?: { disablePolling?: boolean }) => {
     }),
     [
       templates,
+      inferenceConfig,
       executeTask,
       cancelTask,
+      restartTask,
       updateNodeData,
       updateWidget,
       streamAction,

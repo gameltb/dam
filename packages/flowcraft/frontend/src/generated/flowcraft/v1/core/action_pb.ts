@@ -5,17 +5,21 @@
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { ImageEnhanceParams, NodeTransformParams, PromptGenParams } from "../actions/ai_pb";
-import { file_flowcraft_v1_actions_ai } from "../actions/ai_pb";
-import type { ChatActionParams } from "../actions/chat_pb";
-import { file_flowcraft_v1_actions_chat } from "../actions/chat_pb";
+import type { PromptGenParams } from "../actions/prompt_gen_pb";
+import { file_flowcraft_v1_actions_prompt_gen } from "../actions/prompt_gen_pb";
+import type { NodeTransformParams } from "../actions/node_transform_pb";
+import { file_flowcraft_v1_actions_node_transform } from "../actions/node_transform_pb";
+import type { ImageEnhanceParams } from "../actions/image_enhance_pb";
+import { file_flowcraft_v1_actions_image_enhance } from "../actions/image_enhance_pb";
+import type { ChatActionParams, ChatSyncBranchParams } from "../actions/chat_actions_pb";
+import { file_flowcraft_v1_actions_chat_actions } from "../actions/chat_actions_pb";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file flowcraft/v1/core/action.proto.
  */
 export const file_flowcraft_v1_core_action: GenFile = /*@__PURE__*/
-  fileDesc("Ch5mbG93Y3JhZnQvdjEvY29yZS9hY3Rpb24ucHJvdG8SEmZsb3djcmFmdF9wcm90by52MSKoAQoOQWN0aW9uVGVtcGxhdGUSCgoCaWQYASABKAkSDQoFbGFiZWwYAiABKAkSDAoEcGF0aBgDIAMoCRI9CghzdHJhdGVneRgEIAEoDjIrLmZsb3djcmFmdF9wcm90by52MS5BY3Rpb25FeGVjdXRpb25TdHJhdGVneRIuCg1wYXJhbXNfc2NoZW1hGAUgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCJEChZBY3Rpb25EaXNjb3ZlcnlSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSGQoRc2VsZWN0ZWRfbm9kZV9pZHMYAiADKAkiTgoXQWN0aW9uRGlzY292ZXJ5UmVzcG9uc2USMwoHYWN0aW9ucxgBIAMoCzIiLmZsb3djcmFmdF9wcm90by52MS5BY3Rpb25UZW1wbGF0ZSKMAwoWQWN0aW9uRXhlY3V0aW9uUmVxdWVzdBIRCglhY3Rpb25faWQYASABKAkSFgoOc291cmNlX25vZGVfaWQYAiABKAkSGAoQY29udGV4dF9ub2RlX2lkcxgDIAMoCRIwCg1wYXJhbXNfc3RydWN0GAogASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEgAEjkKCnByb21wdF9nZW4YFCABKAsyIy5mbG93Y3JhZnRfcHJvdG8udjEuUHJvbXB0R2VuUGFyYW1zSAASPAoJdHJhbnNmb3JtGBUgASgLMicuZmxvd2NyYWZ0X3Byb3RvLnYxLk5vZGVUcmFuc2Zvcm1QYXJhbXNIABI5CgdlbmhhbmNlGBYgASgLMiYuZmxvd2NyYWZ0X3Byb3RvLnYxLkltYWdlRW5oYW5jZVBhcmFtc0gAEj0KDWNoYXRfZ2VuZXJhdGUYFyABKAsyJC5mbG93Y3JhZnRfcHJvdG8udjEuQ2hhdEFjdGlvblBhcmFtc0gAQggKBnBhcmFtcyplChdBY3Rpb25FeGVjdXRpb25TdHJhdGVneRIXChNFWEVDVVRJT05fSU1NRURJQVRFEAASGAoURVhFQ1VUSU9OX0JBQ0tHUk9VTkQQARIXChNFWEVDVVRJT05fU1RSRUFNSU5HEAJiBnByb3RvMw", [file_google_protobuf_struct, file_flowcraft_v1_actions_ai, file_flowcraft_v1_actions_chat]);
+  fileDesc("Ch5mbG93Y3JhZnQvdjEvY29yZS9hY3Rpb24ucHJvdG8SEmZsb3djcmFmdF9wcm90by52MSKoAQoOQWN0aW9uVGVtcGxhdGUSCgoCaWQYASABKAkSDQoFbGFiZWwYAiABKAkSDAoEcGF0aBgDIAMoCRI9CghzdHJhdGVneRgEIAEoDjIrLmZsb3djcmFmdF9wcm90by52MS5BY3Rpb25FeGVjdXRpb25TdHJhdGVneRIuCg1wYXJhbXNfc2NoZW1hGAUgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCJEChZBY3Rpb25EaXNjb3ZlcnlSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSGQoRc2VsZWN0ZWRfbm9kZV9pZHMYAiADKAkiTgoXQWN0aW9uRGlzY292ZXJ5UmVzcG9uc2USMwoHYWN0aW9ucxgBIAMoCzIiLmZsb3djcmFmdF9wcm90by52MS5BY3Rpb25UZW1wbGF0ZSLLAwoWQWN0aW9uRXhlY3V0aW9uUmVxdWVzdBIRCglhY3Rpb25faWQYASABKAkSFgoOc291cmNlX25vZGVfaWQYAiABKAkSGAoQY29udGV4dF9ub2RlX2lkcxgDIAMoCRIwCg1wYXJhbXNfc3RydWN0GAogASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEgAEjkKCnByb21wdF9nZW4YFCABKAsyIy5mbG93Y3JhZnRfcHJvdG8udjEuUHJvbXB0R2VuUGFyYW1zSAASPAoJdHJhbnNmb3JtGBUgASgLMicuZmxvd2NyYWZ0X3Byb3RvLnYxLk5vZGVUcmFuc2Zvcm1QYXJhbXNIABI5CgdlbmhhbmNlGBYgASgLMiYuZmxvd2NyYWZ0X3Byb3RvLnYxLkltYWdlRW5oYW5jZVBhcmFtc0gAEj0KDWNoYXRfZ2VuZXJhdGUYFyABKAsyJC5mbG93Y3JhZnRfcHJvdG8udjEuQ2hhdEFjdGlvblBhcmFtc0gAEj0KCWNoYXRfc3luYxgYIAEoCzIoLmZsb3djcmFmdF9wcm90by52MS5DaGF0U3luY0JyYW5jaFBhcmFtc0gAQggKBnBhcmFtcyplChdBY3Rpb25FeGVjdXRpb25TdHJhdGVneRIXChNFWEVDVVRJT05fSU1NRURJQVRFEAASGAoURVhFQ1VUSU9OX0JBQ0tHUk9VTkQQARIXChNFWEVDVVRJT05fU1RSRUFNSU5HEAJiBnByb3RvMw", [file_google_protobuf_struct, file_flowcraft_v1_actions_prompt_gen, file_flowcraft_v1_actions_node_transform, file_flowcraft_v1_actions_image_enhance, file_flowcraft_v1_actions_chat_actions]);
 
 /**
  * @generated from message flowcraft_proto.v1.ActionTemplate
@@ -153,6 +157,12 @@ export type ActionExecutionRequest = Message<"flowcraft_proto.v1.ActionExecution
      */
     value: ChatActionParams;
     case: "chatGenerate";
+  } | {
+    /**
+     * @generated from field: flowcraft_proto.v1.ChatSyncBranchParams chat_sync = 24;
+     */
+    value: ChatSyncBranchParams;
+    case: "chatSync";
   } | { case: undefined; value?: undefined };
 };
 

@@ -1,9 +1,9 @@
 import { type Edge } from "@xyflow/react";
 import React from "react";
 
-import { type ActionTemplate } from "../../generated/flowcraft/v1/core/action_pb";
-import { type NodeTemplate } from "../../generated/flowcraft/v1/core/node_pb";
-import { type AppNode, AppNodeType, type MediaType } from "../../types";
+import { type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
+import { type NodeTemplate } from "@/generated/flowcraft/v1/core/node_pb";
+import { type AppNode, AppNodeType, type MediaType } from "@/types";
 import { EdgeContextMenu } from "./EdgeContextMenu";
 import { GalleryItemContextMenu } from "./GalleryItemContextMenu";
 import { NodeContextMenu } from "./NodeContextMenu";

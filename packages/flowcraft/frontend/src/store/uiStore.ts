@@ -1,12 +1,15 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import { PortMainType } from "../generated/flowcraft/v1/core/base_pb";
-import { type AppNode, type Edge } from "../types";
-
-export type ChatViewMode = "fullscreen" | "inline" | "sidebar";
-
-export type DragMode = "pan" | "select";
+import { PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
+import {
+  type AppNode,
+  ChatViewMode,
+  DragMode,
+  type Edge,
+  type LocalLLMClientConfig,
+  Theme,
+} from "@/types";
 
 export interface ShortcutConfig {
   autoLayout: string;
@@ -18,16 +21,19 @@ export interface ShortcutConfig {
   undo: string;
 }
 
-export interface UserSettings {
+export interface UISettings {
+  activeLocalClientId: null | string;
   hotkeys: ShortcutConfig;
+  localClients: LocalLLMClientConfig[];
   serverAddress: string;
   showControls: boolean;
   showMinimap: boolean;
-  theme: "dark" | "light";
+  theme: Theme;
 }
 
 interface UIState {
   activeChatNodeId: null | string;
+  addLocalClient: (client: Omit<LocalLLMClientConfig, "id">) => void;
   chatViewMode: ChatViewMode;
 
   clipboard: null | { edges: Edge[]; nodes: AppNode[] };
@@ -43,7 +49,9 @@ interface UIState {
   // Transient state
   isSettingsOpen: boolean;
   isSidebarOpen: boolean;
+  removeLocalClient: (id: string) => void;
   setActiveChat: (nodeId: null | string, mode?: ChatViewMode) => void;
+  setActiveLocalClient: (id: null | string) => void;
   setChatFullscreen: (fullscreen: boolean) => void;
 
   setClipboard: (content: null | { edges: Edge[]; nodes: AppNode[] }) => void;
@@ -51,18 +59,22 @@ interface UIState {
 
   setDragMode: (mode: DragMode) => void;
   // Actions for persistence
-  setSettings: (settings: Partial<UserSettings>) => void;
+  setSettings: (settings: Partial<UISettings>) => void;
   // Actions for transient state
   setSettingsOpen: (open: boolean) => void;
   setShortcut: (key: keyof ShortcutConfig, value: string) => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarWidth: (width: number) => void;
   // Persisted settings
-  settings: UserSettings;
+  settings: UISettings;
 
   // Compatibility helpers for existing components
   shortcuts: ShortcutConfig;
   sidebarWidth: number;
+  updateLocalClient: (
+    id: string,
+    client: Partial<LocalLLMClientConfig>,
+  ) => void;
 }
 
 const DEFAULT_SHORTCUTS: ShortcutConfig = {
@@ -75,32 +87,70 @@ const DEFAULT_SHORTCUTS: ShortcutConfig = {
   undo: "mod+z",
 };
 
-const DEFAULT_SETTINGS: UserSettings = {
+const DEFAULT_SETTINGS: UISettings = {
+  activeLocalClientId: "default-local",
   hotkeys: DEFAULT_SHORTCUTS,
+  localClients: [
+    {
+      apiKey: "lm-studio",
+      baseUrl: "http://localhost:1234/v1",
+      id: "default-local",
+      model: "local-model",
+      name: "Default Local",
+    },
+  ],
   serverAddress: "/", // Default to relative path (proxied)
   showControls: true,
   showMinimap: true,
-  theme: "dark",
+  theme: Theme.DARK,
 };
 
 export const useUiStore = create<UIState>()(
   persist(
     (set, get) => ({
       activeChatNodeId: null,
-      chatViewMode: "inline",
+      addLocalClient: (client) => {
+        const id = crypto.randomUUID();
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            localClients: [...state.settings.localClients, { ...client, id }],
+          },
+        }));
+      },
+      chatViewMode: ChatViewMode.INLINE,
       clipboard: null,
       connectionStartHandle: null,
-      dragMode: "select",
+      dragMode: DragMode.SELECT,
       isChatFullscreen: false,
       isSettingsOpen: false,
       isSidebarOpen: false,
-      setActiveChat: (nodeId, mode = "sidebar") =>
+      removeLocalClient: (id) => {
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            activeLocalClientId:
+              state.settings.activeLocalClientId === id
+                ? null
+                : state.settings.activeLocalClientId,
+            localClients: state.settings.localClients.filter(
+              (c) => c.id !== id,
+            ),
+          },
+        }));
+      },
+      setActiveChat: (nodeId, mode = ChatViewMode.SIDEBAR) =>
         set({
           activeChatNodeId: nodeId,
-          chatViewMode: nodeId ? mode : "inline",
-          isChatFullscreen: nodeId ? mode === "fullscreen" : false,
-          isSidebarOpen: nodeId ? mode === "sidebar" : false,
+          chatViewMode: nodeId ? mode : ChatViewMode.INLINE,
+          isChatFullscreen: nodeId ? mode === ChatViewMode.FULLSCREEN : false,
+          isSidebarOpen: nodeId ? mode === ChatViewMode.SIDEBAR : false,
         }),
+      setActiveLocalClient: (id) => {
+        set((state) => ({
+          settings: { ...state.settings, activeLocalClientId: id },
+        }));
+      },
       setChatFullscreen: (fullscreen) => set({ isChatFullscreen: fullscreen }),
       setClipboard: (content) => set({ clipboard: content }),
 
@@ -128,12 +178,49 @@ export const useUiStore = create<UIState>()(
       settings: DEFAULT_SETTINGS,
       shortcuts: DEFAULT_SHORTCUTS,
       sidebarWidth: 400,
+      updateLocalClient: (id, client) => {
+        set((state) => ({
+          settings: {
+            ...state.settings,
+            localClients: state.settings.localClients.map((c) =>
+              c.id === id ? { ...c, ...client } : c,
+            ),
+          },
+        }));
+      },
     }),
     {
       name: "flowcraft-ui-storage",
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.shortcuts = state.settings.hotkeys;
+
+          // Migration for old localLLM settings
+          const settings = state.settings as UISettings & {
+            localLLM?: {
+              apiKey: string;
+              baseUrl: string;
+              enabled: boolean;
+              model: string;
+            };
+          };
+          if (settings.localLLM) {
+            if (
+              settings.localLLM.enabled &&
+              state.settings.localClients.length === 1 &&
+              state.settings.localClients[0]?.id === "default-local"
+            ) {
+              state.settings.localClients[0] = {
+                apiKey: settings.localLLM.apiKey,
+                baseUrl: settings.localLLM.baseUrl,
+                id: "default-local",
+                model: settings.localLLM.model,
+                name: "Imported Local",
+              };
+              state.settings.activeLocalClientId = "default-local";
+            }
+            delete settings.localLLM;
+          }
         }
       },
       partialize: (state) => ({

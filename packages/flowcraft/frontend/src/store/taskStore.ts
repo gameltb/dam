@@ -5,7 +5,8 @@ import {
   MutationSource,
   type TaskDefinition,
   TaskStatus,
-} from "../types";
+  TaskType,
+} from "@/types";
 
 interface TaskState {
   addMutationLog: (log: MutationLogEntry) => void;
@@ -58,11 +59,12 @@ export const useTaskStore = create<TaskState>((set) => ({
           label: task.label,
           message: task.message ?? "Registered",
           mutationIds: [],
+          nodeId: task.nodeId,
           progress: task.progress ?? 0,
           source: task.source ?? MutationSource.SOURCE_SYSTEM,
           status: task.status ?? TaskStatus.TASK_PENDING,
           taskId: task.taskId,
-          type: task.type ?? "unknown",
+          type: task.type ?? TaskType.UNKNOWN,
           updatedAt: Date.now(),
         },
       },

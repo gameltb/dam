@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package flowcraft_proto.v1;
+
+import "flowcraft/v1/core/base.proto";
+
+message ChatActionParams {
+  string user_content = 1;
+  string model_id = 2;
+  string endpoint_id = 3;
+  bool use_web_search = 4;
+  repeated ChatMessagePreview history_override = 5;
+}
+
+message ChatMessagePart {
+  oneof part {
+    string text = 1;
+    MediaContent media = 2;
+  }
+}
+
+message ChatMessagePreview {
+  string role = 1;
+  repeated ChatMessagePart parts = 2;
+}
+
+message ChatEditParams {
+  string message_id = 1;
+  repeated ChatMessagePart new_parts = 2;
+}
+
+message ChatSwitchBranchParams {
+  string target_message_id = 1;
+}
+
+message ChatSyncBranchParams {
+  string tree_id = 1;
+  string anchor_message_id = 2;
+  repeated ChatSyncMessage new_messages = 3;
+  string idempotency_key = 4;
+}
+
+message ChatSyncMessage {
+  string id = 1;
+  string role = 2;
+  repeated ChatMessagePart parts = 3;
+  string model_id = 4;
+  int64 timestamp = 5;
+}

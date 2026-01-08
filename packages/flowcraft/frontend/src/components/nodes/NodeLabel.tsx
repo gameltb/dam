@@ -1,8 +1,8 @@
 import { create } from "@bufbuild/protobuf";
 import React, { memo, useState } from "react";
 
-import { NodeDataSchema } from "../../generated/flowcraft/v1/core/node_pb";
-import { useFlowSocket } from "../../hooks/useFlowSocket";
+import { NodeDataSchema } from "@/generated/flowcraft/v1/core/node_pb";
+import { useFlowSocket } from "@/hooks/useFlowSocket";
 
 interface NodeLabelProps {
   id: string;

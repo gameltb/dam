@@ -3,8 +3,8 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 
 import { useCallback, useEffect, useState } from "react";
 
-import { useFlowStore } from "../store/flowStore";
-import { FlowEvent, type MediaType } from "../types";
+import { useFlowStore } from "@/store/flowStore";
+import { FlowEvent, type MediaType } from "@/types";
 
 export const useContextMenu = (): {
   closeContextMenu: () => void;

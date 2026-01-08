@@ -1,8 +1,8 @@
 import OpenAI from "openai";
 
-import { AI_CONFIG, type AiEndpoint } from "./aiConfig";
+import { INFERENCE_CONFIG, type InferenceEndpoint } from "../config/inference";
 
-class AiService {
+class InferenceService {
   private clients = new Map<string, OpenAI>();
 
   async chatCompletion(params: {
@@ -11,8 +11,8 @@ class AiService {
     model?: string;
     stream?: boolean;
   }) {
-    const endpointId = params.endpointId ?? AI_CONFIG.defaultEndpointId;
-    const model = params.model ?? AI_CONFIG.defaultModel;
+    const endpointId = params.endpointId ?? INFERENCE_CONFIG.defaultEndpointId;
+    const model = params.model ?? INFERENCE_CONFIG.defaultModel;
     const client = this.getClient(endpointId);
 
     return client.chat.completions.create({
@@ -22,15 +22,21 @@ class AiService {
     });
   }
 
-  getEndpoints(): AiEndpoint[] {
-    return AI_CONFIG.endpoints;
+  getConfig() {
+    return INFERENCE_CONFIG;
+  }
+
+  getEndpoints(): InferenceEndpoint[] {
+    return INFERENCE_CONFIG.endpoints;
   }
 
   private getClient(endpointId: string): OpenAI {
     const existing = this.clients.get(endpointId);
     if (existing) return existing;
 
-    const endpoint = AI_CONFIG.endpoints.find((e) => e.id === endpointId);
+    const endpoint = INFERENCE_CONFIG.endpoints.find(
+      (e) => e.id === endpointId,
+    );
     if (!endpoint) {
       throw new Error(`Endpoint ${endpointId} not found`);
     }
@@ -44,4 +50,4 @@ class AiService {
   }
 }
 
-export const aiService = new AiService();
+export const inferenceService = new InferenceService();

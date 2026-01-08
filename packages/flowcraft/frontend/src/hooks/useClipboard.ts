@@ -4,16 +4,16 @@ import { create } from "@bufbuild/protobuf";
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 
-import type { AppNode } from "../types";
+import type { AppNode } from "@/types";
 
-import { EdgeSchema } from "../generated/flowcraft/v1/core/node_pb";
+import { EdgeSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import {
   type GraphMutation,
   GraphMutationSchema,
-} from "../generated/flowcraft/v1/core/service_pb";
-import { useFlowStore } from "../store/flowStore";
-import { useUiStore } from "../store/uiStore";
-import { toProtoNode } from "../utils/protoAdapter";
+} from "@/generated/flowcraft/v1/core/service_pb";
+import { useFlowStore } from "@/store/flowStore";
+import { useUiStore } from "@/store/uiStore";
+import { toProtoNode } from "@/utils/protoAdapter";
 
 /**
  * Hook to manage clipboard operations (copy, paste, duplicate).

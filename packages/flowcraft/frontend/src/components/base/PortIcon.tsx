@@ -1,6 +1,6 @@
 import React from "react";
 
-import { PortStyle } from "../../generated/flowcraft/v1/core/node_pb";
+import { PortStyle } from "@/generated/flowcraft/v1/core/node_pb";
 
 export const PortIcon: React.FC<{
   color: string;

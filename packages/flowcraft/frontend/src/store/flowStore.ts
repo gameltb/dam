@@ -1,99 +1,27 @@
 import { create as createProto } from "@bufbuild/protobuf";
-import {
-  applyEdgeChanges,
-  applyNodeChanges,
-  type Connection,
-  type Edge,
-  type EdgeChange,
-  type NodeChange,
-} from "@xyflow/react";
+import { applyEdgeChanges, applyNodeChanges } from "@xyflow/react";
 import * as Y from "yjs";
 import { temporal, type TemporalState } from "zundo";
 import { create } from "zustand";
 
-import { MutationSource as ProtoSource } from "../generated/flowcraft/v1/core/base_pb";
-import { PresentationSchema } from "../generated/flowcraft/v1/core/base_pb";
-import {
-  type MediaType,
-  type PortType,
-} from "../generated/flowcraft/v1/core/node_pb";
+import { MutationSource as ProtoSource } from "@/generated/flowcraft/v1/core/base_pb";
+import { PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
+import { type PortType } from "@/generated/flowcraft/v1/core/node_pb";
 import {
   type GraphMutation,
   GraphMutationSchema,
-} from "../generated/flowcraft/v1/core/service_pb";
-import { type WidgetSignal } from "../generated/flowcraft/v1/core/signals_pb";
-import { type AppNode, FlowEvent, MutationSource } from "../types";
-import { type DynamicNodeData } from "../types";
-import { dehydrateNode, findPort } from "../utils/nodeUtils";
-import { getValidator } from "../utils/portValidators";
-import { toProtoNode, toProtoNodeData } from "../utils/protoAdapter";
+} from "@/generated/flowcraft/v1/core/service_pb";
+import { type AppNode, type DynamicNodeData, MutationSource } from "@/types";
+import { dehydrateNode, findPort } from "@/utils/nodeUtils";
+import { getValidator } from "@/utils/portValidators";
+import { toProtoNode, toProtoNodeData } from "@/utils/protoAdapter";
 import { pipeline } from "./middleware/pipeline";
 import { MutationDirection } from "./middleware/types";
 import { handleGraphMutation } from "./mutationHandlers";
 import { getWidgetSignalListener } from "./signalHandlers";
+import { type RFState } from "@/store/types";
+import { syncFromYjs } from "./utils";
 import { ydoc, yEdges, yNodes } from "./yjsInstance";
-
-export interface MutationContext {
-  description?: string;
-  source?: MutationSource;
-  taskId?: string;
-}
-
-export interface NodeHandlers {
-  onChange: (id: string, data: Record<string, unknown>) => void;
-  onGalleryItemContext?: (
-    nodeId: string,
-    url: string,
-    mediaType: MediaType,
-    x: number,
-    y: number,
-  ) => void;
-  onWidgetClick?: (nodeId: string, widgetId: string) => void;
-}
-
-export interface RFState {
-  addNode: (node: AppNode) => void;
-  applyMutations: (
-    mutations: GraphMutation[],
-    context?: MutationContext,
-  ) => void;
-  applyYjsUpdate: (update: Uint8Array) => void;
-  dispatchNodeEvent: (
-    type: FlowEvent,
-    payload: Record<string, unknown>,
-  ) => void;
-
-  edges: Edge[];
-  handleIncomingWidgetSignal: (signal: WidgetSignal) => void;
-  isLayoutDirty: boolean; // Flag to indicate if topological sort is needed
-
-  lastNodeEvent: null | {
-    payload: Record<string, unknown>;
-    timestamp: number;
-    type: FlowEvent;
-  };
-  nodes: AppNode[];
-
-  onConnect: (connection: Connection) => void;
-  onEdgesChange: (changes: EdgeChange[]) => void;
-  onNodesChange: (changes: NodeChange[]) => void;
-
-  resetStore: () => void;
-  // --- Widget Interaction Signals ---
-  sendWidgetSignal: (signal: WidgetSignal) => void;
-  setGraph: (
-    graph: { edges: Edge[]; nodes: AppNode[] },
-    version: number,
-  ) => void;
-
-  syncFromYjs: () => void;
-  updateNodeData: (id: string, data: Partial<DynamicNodeData>) => void;
-  version: number;
-  ydoc: Y.Doc;
-
-  yEdges: Y.Map<unknown>;
-  yNodes: Y.Map<unknown>;
-}
 
 const useStore = create(
   temporal<RFState>(
@@ -314,12 +242,17 @@ const useStore = create(
               operation: { case: "clearGraph", value: {} },
             }),
           ]);
-          lastPastLength = 0;
-          lastFutureLength = 0;
           set({ edges: [], isLayoutDirty: false, nodes: [], version: 0 });
         },
+        sendNodeSignal: (signal) => {
+          void import("@/utils/SocketClient").then(({ socketClient }) => {
+            void socketClient.send({
+              payload: { case: "nodeSignal", value: signal },
+            });
+          });
+        },
         sendWidgetSignal: (signal) => {
-          void import("../utils/SocketClient").then(({ socketClient }) => {
+          void import("@/utils/SocketClient").then(({ socketClient }) => {
             void socketClient.send({
               payload: { case: "widgetSignal", value: signal },
             });
@@ -337,44 +270,8 @@ const useStore = create(
           get().syncFromYjs();
         },
         syncFromYjs: () => {
-          const state = get();
-          const rawNodes: AppNode[] = [];
-          yNodes.forEach((v) => rawNodes.push(v as AppNode));
-
-          const edges: Edge[] = [];
-          yEdges.forEach((v) => edges.push(v as Edge));
-
-          // If layout is not dirty, we can just update nodes without sorting
-          if (!state.isLayoutDirty) {
-            set({ edges, nodes: rawNodes, version: state.version + 1 });
-            return;
-          }
-
-          const nodes: AppNode[] = [];
-          const visited = new Set<string>();
-
-          const visit = (node: AppNode) => {
-            if (visited.has(node.id)) return;
-
-            if (node.parentId && !visited.has(node.parentId)) {
-              const parent = rawNodes.find((n) => n.id === node.parentId);
-              if (parent) visit(parent);
-            }
-
-            visited.add(node.id);
-            nodes.push(node);
-          };
-
-          rawNodes.forEach((n) => {
-            visit(n);
-          });
-
-          set({
-            edges,
-            isLayoutDirty: false,
-            nodes,
-            version: state.version + 1,
-          });
+          const newState = syncFromYjs(get());
+          set(newState);
         },
         updateNodeData: (id, data) => {
           const node = get().nodes.find((n) => n.id === id);
@@ -420,50 +317,18 @@ const useStore = create(
   ),
 );
 
-// Subscribe to temporal store to sync back to Yjs on undo/redo
-let isSyncingFromTemporal = false;
-let lastPastLength = 0;
-let lastFutureLength = 0;
-
-useStore.temporal.subscribe((state) => {
-  // Only sync back to Yjs if an actual undo or redo happened.
-  // We can detect this by checking if the lengths changed and the present state is different.
-  const isUndo = state.pastStates.length < lastPastLength;
-  const isRedo = state.futureStates.length < lastFutureLength;
-
-  lastPastLength = state.pastStates.length;
-  lastFutureLength = state.futureStates.length;
-
-  if (isUndo || isRedo) {
-    if (isSyncingFromTemporal) return;
-    isSyncingFromTemporal = true;
-    try {
-      const current = useStore.getState();
-      useStore.setState({ isLayoutDirty: true });
-      ydoc.transact(() => {
-        yNodes.clear();
-        yEdges.clear();
-        // We dehydrate nodes before putting them back into Yjs
-        current.nodes.forEach((n) => yNodes.set(n.id, dehydrateNode(n)));
-        current.edges.forEach((e) => yEdges.set(e.id, e));
-      }, "undo-redo");
-    } finally {
-      isSyncingFromTemporal = false;
-    }
-  }
-});
-
-import { useStoreWithEqualityFn } from "zustand/traditional";
+import {
+  setupTemporalSync,
+  useTemporalStore as useTemporalStoreInternal,
+} from "./temporalSync";
 
 export const useFlowStore = useStore;
+
+setupTemporalSync(useStore);
 
 export function useTemporalStore<T>(
   selector: (state: TemporalState<RFState>) => T,
   equality?: (a: T, b: T) => boolean,
 ): T {
-  return useStoreWithEqualityFn(
-    useStore.temporal,
-    (state) => selector(state),
-    equality,
-  );
+  return useTemporalStoreInternal(useStore, selector, equality);
 }

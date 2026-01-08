@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package flowcraft_proto.v1;
+
+message ChatNodeState {
+  string tree_id = 1;
+  string conversation_head_id = 2;
+  bool is_history_cleared = 3;
+}

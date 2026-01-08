@@ -2,20 +2,24 @@ import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { toast } from "react-hot-toast";
 
-import { type ActionTemplate } from "../generated/flowcraft/v1/core/action_pb";
-import { type TaskUpdate } from "../generated/flowcraft/v1/core/node_pb";
+import { type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
+import { type TaskUpdate } from "@/generated/flowcraft/v1/core/node_pb";
 import {
   type FlowMessage,
   FlowService,
   type GraphMutation,
   type GraphSnapshot,
+  type InferenceConfigDiscoveryResponse,
   type NodeEvent,
   type SyncRequest,
   type TemplateDiscoveryResponse,
   type WidgetStreamEvent,
-} from "../generated/flowcraft/v1/core/service_pb";
-import { type WidgetSignal } from "../generated/flowcraft/v1/core/signals_pb";
-import { MutationSource, type TaskDefinition } from "../types";
+} from "@/generated/flowcraft/v1/core/service_pb";
+import {
+  type NodeSignal,
+  type WidgetSignal,
+} from "@/generated/flowcraft/v1/core/signals_pb";
+import { MutationSource, type TaskDefinition, TaskType } from "@/types";
 
 export enum SocketStatus {
   CONNECTED = "connected",
@@ -32,12 +36,14 @@ type Handler<K extends keyof SocketEventMap> = (
 interface SocketEventMap {
   actions: ActionTemplate[];
   error: unknown;
+  inferenceConfig: InferenceConfigDiscoveryResponse;
   mutations: GraphMutation[];
   nodeEvent: NodeEvent;
   "nodeEvent:widgetStream": {
     event: WidgetStreamEvent;
     nodeId: string;
   };
+  nodeSignal: NodeSignal;
   snapshot: GraphSnapshot;
   statusChange: SocketStatus;
   taskUpdate: TaskDefinition;
@@ -107,7 +113,9 @@ class SocketClientImpl {
           break;
 
         case "actions":
+        case "chatClear":
         case "error":
+        case "inferenceConfig":
         case "nodeEvent":
         case "snapshot":
         case "taskUpdate":
@@ -116,11 +124,20 @@ class SocketClientImpl {
             `[SocketClient] Client tried to send server-only message type: ${payload.case}`,
           );
           break;
+        case "inferenceDiscovery": {
+          const res = await this.client.discoverInferenceConfig(payload.value);
+          this.emit("inferenceConfig", res);
+          break;
+        }
 
         case "mutations": {
           await this.client.applyMutations(payload.value);
           break;
         }
+
+        case "nodeSignal":
+          await this.client.sendNodeSignal(payload.value);
+          break;
 
         case "nodeUpdate":
           await this.client.updateNode(payload.value);
@@ -223,6 +240,9 @@ class SocketClientImpl {
       case "actions":
         this.emit("actions", payload.value.actions);
         break;
+      case "inferenceConfig":
+        this.emit("inferenceConfig", payload.value);
+        break;
       case "mutations":
         this.emit("mutations", payload.value.mutations);
         break;
@@ -239,6 +259,9 @@ class SocketClientImpl {
         }
         break;
       }
+      case "nodeSignal":
+        this.emit("nodeSignal", payload.value);
+        break;
       case "snapshot":
         this.emit("snapshot", payload.value);
         break;
@@ -250,7 +273,7 @@ class SocketClientImpl {
         break;
       case "widgetSignal": {
         const signal = payload.value;
-        void import("../store/flowStore").then(({ useFlowStore }) => {
+        void import("@/store/flowStore").then(({ useFlowStore }) => {
           useFlowStore.getState().handleIncomingWidgetSignal(signal);
         });
         this.emit("widgetSignal", signal);
@@ -343,7 +366,7 @@ function mapTaskUpdateToDefinition(update: TaskUpdate): TaskDefinition {
     source: MutationSource.SOURCE_REMOTE_TASK,
     status: update.status,
     taskId: update.taskId,
-    type: "remote-task",
+    type: TaskType.REMOTE,
     updatedAt: Date.now(),
   };
 }

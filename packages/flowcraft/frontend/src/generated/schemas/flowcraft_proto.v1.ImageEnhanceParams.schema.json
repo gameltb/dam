@@ -2,7 +2,6 @@
   "$id": "flowcraft_proto.v1.ImageEnhanceParams.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "*\n 图片增强参数",
   "patternProperties": {
     "^(modelName)$": {
       "default": "",

@@ -1,10 +1,9 @@
 import { type Node as RFNode } from "@xyflow/react";
 import React, { useState } from "react";
 
-import type { DynamicNodeData } from "../../types";
-
-import { RenderMode } from "../../generated/flowcraft/v1/core/node_pb";
-import { cn } from "../../lib/utils";
+import { RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
+import { cn } from "@/lib/utils";
+import { type DynamicNodeData, OverflowMode } from "@/types";
 import { NodeInfoPanel } from "./NodeInfoPanel";
 
 export interface BaseNodeProps<T extends RFNode> {
@@ -14,7 +13,7 @@ export interface BaseNodeProps<T extends RFNode> {
   id: string;
   initialMode?: RenderMode;
   measured?: { height?: number; width?: number };
-  onOverflowChange?: (overflow: "hidden" | "visible") => void;
+  onOverflowChange?: (overflow: OverflowMode) => void;
   renderChat?: React.ComponentType<{
     data: T["data"];
     id: string;
@@ -23,7 +22,7 @@ export interface BaseNodeProps<T extends RFNode> {
   renderMedia?: React.ComponentType<{
     data: T["data"];
     id: string;
-    onOverflowChange: (overflow: "hidden" | "visible") => void;
+    onOverflowChange: (overflow: OverflowMode) => void;
   }>;
   renderWidgets?: React.ComponentType<{
     data: T["data"];
@@ -62,7 +61,7 @@ export function BaseNode<T extends RFNode>({
 }: BaseNodeProps<T>) {
   const [internalMode, setInternalMode] = useState<RenderMode>(initialMode);
   // Default to visible so handles are never cut off
-  const [overflow, setOverflow] = useState<"hidden" | "visible">("visible");
+  const [overflow, setOverflow] = useState<OverflowMode>(OverflowMode.VISIBLE);
 
   const mode = (data as DynamicNodeData).activeMode ?? internalMode;
   const isMedia = mode === RenderMode.MODE_MEDIA;
@@ -89,7 +88,7 @@ export function BaseNode<T extends RFNode>({
     }
   };
 
-  const handleOverflowChange = (newOverflow: "hidden" | "visible") => {
+  const handleOverflowChange = (newOverflow: OverflowMode) => {
     setOverflow(newOverflow);
     onOverflowChange?.(newOverflow);
   };

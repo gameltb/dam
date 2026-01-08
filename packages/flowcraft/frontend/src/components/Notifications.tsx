@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import { useTheme } from "../hooks/useTheme";
-import { useNotificationStore } from "../store/notificationStore";
+import { useTheme } from "@/hooks/useTheme";
+import { useNotificationStore } from "@/store/notificationStore";
 
 export function Notifications() {
   const { clearNotifications, notifications } = useNotificationStore();

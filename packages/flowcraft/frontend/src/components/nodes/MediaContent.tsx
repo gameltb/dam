@@ -1,14 +1,14 @@
 import { create as createProto } from "@bufbuild/protobuf";
 import React, { memo } from "react";
 
-import { PresentationSchema } from "../../generated/flowcraft/v1/core/base_pb";
-import { MediaType } from "../../generated/flowcraft/v1/core/node_pb";
-import { GraphMutationSchema } from "../../generated/flowcraft/v1/core/service_pb";
-import { useNodeHandlers } from "../../hooks/useNodeHandlers";
-import { useFlowStore } from "../../store/flowStore";
-import { type DynamicNodeData, FlowEvent } from "../../types";
-import { getMediaTypeFromMime } from "../../utils/nodeUtils";
-import { getPortColor, getPortShape } from "../../utils/themeUtils";
+import { PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
+import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
+import { GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
+import { useNodeHandlers } from "@/hooks/useNodeHandlers";
+import { useFlowStore } from "@/store/flowStore";
+import { type DynamicNodeData, FlowEvent, OverflowMode } from "@/types";
+import { getMediaTypeFromMime } from "@/utils/nodeUtils";
+import { getPortColor, getPortShape } from "@/utils/themeUtils";
 import { PortHandle } from "../base/PortHandle";
 import { GalleryWrapper } from "../media/GalleryWrapper";
 import { MEDIA_RENDERERS } from "../media/mediaRenderRegistry";
@@ -17,7 +17,7 @@ interface MediaContentProps {
   data: DynamicNodeData;
   height?: number;
   id: string;
-  onOverflowChange?: (o: "hidden" | "visible") => void;
+  onOverflowChange?: (o: OverflowMode) => void;
   width?: number;
 }
 
@@ -174,7 +174,9 @@ export const MediaContent: React.FC<MediaContentProps> = memo(
               nodeWidth={nodeWidth}
               onExpand={
                 (expanded) =>
-                  onOverflowChange?.(expanded ? "visible" : "visible") // Force parent to stay visible
+                  onOverflowChange?.(
+                    expanded ? OverflowMode.VISIBLE : OverflowMode.VISIBLE,
+                  ) // Force parent to stay visible
               }
               onGalleryItemContext={(nodeId, url, mType, x, y) => {
                 onGalleryItemContext(nodeId, url, mType, x, y);

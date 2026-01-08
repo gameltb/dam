@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 
-import { buildActionTree } from "../../utils/menuUtils";
+import { buildActionTree } from "@/utils/menuUtils";
 import { GenericSubMenu } from "../base/SubMenu";
 import { MenuContainer } from "./MenuContainer";
 

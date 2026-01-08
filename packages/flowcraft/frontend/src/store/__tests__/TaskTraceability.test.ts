@@ -2,8 +2,8 @@ import { create } from "@bufbuild/protobuf";
 import { beforeEach, describe, expect, it } from "vitest";
 import { beforeAll } from "vitest";
 
-import { GraphMutationSchema } from "../../generated/flowcraft/v1/core/service_pb";
-import { MutationSource, TaskStatus } from "../../types";
+import { GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
+import { MutationSource, TaskStatus } from "@/types";
 import { useFlowStore } from "../flowStore";
 import { initStoreOrchestrator } from "../orchestrator";
 import { useTaskStore } from "../taskStore";

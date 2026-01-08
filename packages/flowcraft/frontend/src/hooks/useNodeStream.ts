@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
-import { type NodeEvent } from "../generated/flowcraft/v1/core/service_pb";
-import { socketClient } from "../utils/SocketClient";
+import { type NodeEvent } from "@/generated/flowcraft/v1/core/service_pb";
+import { socketClient } from "@/utils/SocketClient";
 
 export function useNodeStream(
   nodeId: string,

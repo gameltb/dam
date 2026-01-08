@@ -7,10 +7,10 @@ import {
   type GraphMutation,
   GraphMutationSchema,
   PathUpdate_UpdateType,
-} from "../generated/flowcraft/v1/core/service_pb";
-import { type AppNode } from "../types";
-import { dehydrateNode } from "../utils/nodeUtils";
-import { fromProtoNode, fromProtoNodeData } from "../utils/protoAdapter";
+} from "@/generated/flowcraft/v1/core/service_pb";
+import { type AppNode } from "@/types";
+import { dehydrateNode } from "@/utils/nodeUtils";
+import { fromProtoNode, fromProtoNodeData } from "@/utils/protoAdapter";
 
 /**
  * 极简的路径设置工具，支持 a.b.c 格式
@@ -98,25 +98,6 @@ export const handleGraphMutation = (
           }
         }
       }
-      break;
-
-    case "addSubgraph":
-      op.value.nodes.forEach((n) => {
-        const node = fromProtoNode(n);
-        if (node.id) yNodes.set(node.id, dehydrateNode(node));
-      });
-
-      op.value.edges.forEach((e) => {
-        const rfEdge: Edge = {
-          data: e.metadata,
-          id: e.edgeId,
-          source: e.sourceNodeId,
-          sourceHandle: e.sourceHandle || undefined,
-          target: e.targetNodeId,
-          targetHandle: e.targetHandle || undefined,
-        };
-        if (rfEdge.id) yEdges.set(rfEdge.id, rfEdge);
-      });
       break;
 
     case "clearGraph":

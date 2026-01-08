@@ -6,8 +6,6 @@ import { Toaster } from "react-hot-toast";
 import { useShallow } from "zustand/react/shallow";
 
 import { FlowCanvas } from "./components/canvas/FlowCanvas";
-import "@xyflow/react/dist/style.css";
-
 import { ChatBot } from "./components/media/ChatBot";
 import { ContextMenuOverlay } from "./components/menus/ContextMenuOverlay";
 import { Sidebar } from "./components/Sidebar";
@@ -16,25 +14,31 @@ import { Button } from "./components/ui/button";
 import {
   ActionExecutionRequestSchema,
   type ActionTemplate,
-} from "./generated/flowcraft/v1/core/action_pb";
-import { useAppHotkeys } from "./hooks/useAppHotkeys";
-import { useContextMenu } from "./hooks/useContextMenu";
-import { useFlowHandlers } from "./hooks/useFlowHandlers";
-import { useFlowSocket } from "./hooks/useFlowSocket";
-import { useGraphOperations } from "./hooks/useGraphOperations";
-import { useHelperLines } from "./hooks/useHelperLines";
+} from "@/generated/flowcraft/v1/core/action_pb";
+import { useAppHotkeys } from "@/hooks/useAppHotkeys";
+import { useContextMenu } from "@/hooks/useContextMenu";
+import { useFlowHandlers } from "@/hooks/useFlowHandlers";
+import { useFlowSocket } from "@/hooks/useFlowSocket";
+import { useGraphOperations } from "@/hooks/useGraphOperations";
+import { useHelperLines } from "@/hooks/useHelperLines";
 import {
   type PreviewData,
   useNodeEventListener,
-} from "./hooks/useNodeEventListener";
-import { useTheme } from "./hooks/useTheme";
-import { cn } from "./lib/utils";
-import { type RFState, useFlowStore } from "./store/flowStore";
-import { useTaskStore } from "./store/taskStore";
-import { useUiStore } from "./store/uiStore";
-import { type AppNode, MutationSource, type NodeTemplate } from "./types";
-import { fromProtoNodeData } from "./utils/protoAdapter";
-import { socketClient, SocketStatus } from "./utils/SocketClient";
+} from "@/hooks/useNodeEventListener";
+import { useTheme } from "@/hooks/useTheme";
+import { cn } from "@/lib/utils";
+import { useFlowStore } from "@/store/flowStore";
+import { useTaskStore } from "@/store/taskStore";
+import { type RFState } from "@/store/types";
+import { useUiStore } from "@/store/uiStore";
+import {
+  type AppNode,
+  ChatViewMode,
+  MutationSource,
+  type NodeTemplate,
+} from "@/types";
+import { fromProtoNodeData } from "@/utils/protoAdapter";
+import { socketClient, SocketStatus } from "@/utils/SocketClient";
 
 function App() {
   const {
@@ -178,7 +182,7 @@ function App() {
               .map((n: AppNode) => n.id),
             params: {
               case: "paramsStruct",
-              value: { ...params, taskId } as unknown as JsonObject,
+              value: { ...params, taskId } as JsonObject,
             },
             sourceNodeId: effectiveNodeId,
           }),
@@ -197,7 +201,12 @@ function App() {
       addNode(
         template.templateId,
         pos,
-        {},
+        {
+          ...(template.defaultState
+            ? fromProtoNodeData(template.defaultState)
+            : {}),
+          label: template.displayName,
+        },
         template.defaultWidth,
         template.defaultHeight,
       );
@@ -235,7 +244,9 @@ function App() {
             ...(template?.defaultState
               ? fromProtoNodeData(template.defaultState)
               : {}),
-            label: asset.name,
+            label: asset.name
+              ? asset.name
+              : (template?.displayName ?? "New Asset"),
             widgetsValues: { mimeType: asset.mimeType, url: asset.url },
           });
         }
@@ -272,7 +283,7 @@ function App() {
           "flex-1 relative h-full min-w-0 fc-canvas-area",
           isChatFullscreen && "pointer-events-none opacity-50 grayscale-[0.5]",
         )}
-        inert={isChatFullscreen || undefined}
+        inert={isChatFullscreen ? true : undefined}
       >
         <FlowCanvas
           dragMode={dragMode}
@@ -308,7 +319,7 @@ function App() {
       </div>
       <div
         className={cn(isChatFullscreen && "pointer-events-none")}
-        inert={isChatFullscreen || undefined}
+        inert={isChatFullscreen ? true : undefined}
       >
         <Sidebar />
       </div>
@@ -322,7 +333,7 @@ function App() {
             <div className="flex gap-2">
               <Button
                 onClick={() => {
-                  setActiveChat(activeChatNodeId, "inline");
+                  setActiveChat(activeChatNodeId, ChatViewMode.INLINE);
                 }}
                 size="sm"
                 variant="outline"

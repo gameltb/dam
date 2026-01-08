@@ -4,9 +4,9 @@ package flowcraft_proto.v1;
 
 import "google/protobuf/struct.proto";
 import "flowcraft/v1/core/base.proto";
-import "flowcraft/v1/nodes/chat.proto";
-import "flowcraft/v1/nodes/ai_gen.proto";
-import "flowcraft/v1/nodes/media.proto";
+import "flowcraft/v1/nodes/chat_node.proto";
+import "flowcraft/v1/nodes/ai_gen_node.proto";
+import "flowcraft/v1/nodes/media_node.proto";
 
 message Node {
   string node_id = 1;           // UUID Instance ID
@@ -61,22 +61,6 @@ enum RenderMode {
   MODE_WIDGETS = 2;
   MODE_MARKDOWN = 3;
   MODE_CHAT = 4;
-}
-
-message MediaContent {
-  MediaType type = 1;
-  string url = 2;
-  string content = 3;
-  double aspect_ratio = 4;
-  repeated string gallery_urls = 5;
-}
-
-enum MediaType {
-  MEDIA_UNSPECIFIED = 0;
-  MEDIA_IMAGE = 1;
-  MEDIA_VIDEO = 2;
-  MEDIA_AUDIO = 3;
-  MEDIA_MARKDOWN = 4;
 }
 
 message Port {
@@ -152,6 +136,7 @@ enum TaskStatus {
   TASK_COMPLETED = 2;
   TASK_FAILED = 3;
   TASK_CANCELLED = 4;
+  TASK_RESTARTING = 5;
 }
 
 message TaskUpdate {
@@ -160,4 +145,7 @@ message TaskUpdate {
   double progress = 3;
   string message = 4;
   google.protobuf.Value result = 5;
+  string node_id = 6;
+  string display_label = 7;
+  string type = 8;
 }

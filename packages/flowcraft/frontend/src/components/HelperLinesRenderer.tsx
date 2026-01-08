@@ -1,7 +1,7 @@
 import { useStore } from "@xyflow/react";
 import React from "react";
 
-import { type HelperLines } from "../hooks/useHelperLines";
+import { type HelperLines } from "@/hooks/useHelperLines";
 
 interface HelperLinesRendererProps {
   lines: HelperLines;

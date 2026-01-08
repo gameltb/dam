@@ -2,7 +2,6 @@
   "$id": "flowcraft_proto.v1.PromptGenParams.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "*\n AI 提示词生成动作的参数",
   "patternProperties": {
     "^(cfgScale)$": {
       "anyOf": [

@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   NodeTemplateSchema,
   RenderMode,
-} from "../../generated/flowcraft/v1/core/node_pb";
-import { toProtoNodeData } from "../../utils/protoAdapter";
+} from "@/generated/flowcraft/v1/core/node_pb";
+import { toProtoNodeData } from "@/utils/protoAdapter";
 import { PaneContextMenu } from "./PaneContextMenu";
 
 describe("PaneContextMenu", () => {

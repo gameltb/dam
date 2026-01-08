@@ -6,11 +6,8 @@ import { renderHook } from "@testing-library/react";
  */
 import { describe, expect, it } from "vitest";
 
-import {
-  MediaType,
-  RenderMode,
-} from "../../generated/flowcraft/v1/core/node_pb";
-import { type DynamicNodeData } from "../../types";
+import { MediaType, RenderMode } from "@/types";
+import { type DynamicNodeData } from "@/types";
 import { useNodeHandlers } from "../useNodeHandlers";
 
 describe("useNodeHandlers", () => {
