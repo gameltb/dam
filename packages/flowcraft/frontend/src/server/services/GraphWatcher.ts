@@ -15,6 +15,7 @@ import {
   type WidgetSignal,
 } from "@/generated/flowcraft/v1/core/signals_pb";
 import { toProtoEdge, toProtoNode } from "@/utils/protoAdapter";
+
 import { eventBus, serverGraph, serverVersion } from "./PersistenceService";
 
 export async function* watchGraph(_req: unknown, ctx: { signal: AbortSignal }) {

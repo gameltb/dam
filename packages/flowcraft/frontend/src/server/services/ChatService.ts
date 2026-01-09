@@ -1,6 +1,7 @@
 import crypto from "crypto";
 
 import { type ChatMessagePart } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
+
 import { db } from "./Database";
 
 export interface ChatMessage {
@@ -47,6 +48,63 @@ export function addChatMessage(params: {
     Date.now(),
     params.nodeId ?? null,
   );
+}
+
+export function branchAndEditMessage(params: {
+  messageId: string;
+  newParts: ChatMessagePart[];
+  nodeId?: string;
+  treeId: string;
+}): string {
+  const original = getMessage(params.messageId);
+  if (!original) throw new Error("Message not found");
+
+  // 1. Create the new edited message at the same level
+  const newId = crypto.randomUUID();
+  addChatMessage({
+    id: newId,
+    metadata: original.metadata,
+    nodeId: params.nodeId,
+    parentId: original.parentId,
+    parts: params.newParts,
+    role: original.role,
+    treeId: params.treeId,
+  });
+
+  // 2. Recursively copy the current "main" branch descendants
+  let currentSourceId: null | string =
+    (
+      db
+        .prepare("SELECT id FROM conversations WHERE parent_id = ? LIMIT 1")
+        .get(params.messageId) as undefined | { id: string }
+    )?.id ?? null;
+
+  let lastNewId: string = newId;
+
+  while (currentSourceId) {
+    const childOriginal = getMessage(currentSourceId);
+    if (!childOriginal) break;
+
+    const childNewId = crypto.randomUUID();
+    addChatMessage({
+      id: childNewId,
+      metadata: childOriginal.metadata,
+      nodeId: params.nodeId,
+      parentId: lastNewId,
+      parts: childOriginal.parts,
+      role: childOriginal.role,
+      treeId: params.treeId,
+    });
+
+    lastNewId = childNewId;
+
+    const nextChild = db
+      .prepare("SELECT id FROM conversations WHERE parent_id = ? LIMIT 1")
+      .get(currentSourceId) as undefined | { id: string };
+    currentSourceId = nextChild?.id ?? null;
+  }
+
+  return lastNewId; // Return the new head
 }
 
 export function clearChatHistory(nodeId: string) {

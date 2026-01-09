@@ -11,15 +11,16 @@ import {
   type GraphMutation,
   GraphMutationSchema,
 } from "@/generated/flowcraft/v1/core/service_pb";
+import { type RFState } from "@/store/types";
 import { type AppNode, type DynamicNodeData, MutationSource } from "@/types";
 import { dehydrateNode, findPort } from "@/utils/nodeUtils";
 import { getValidator } from "@/utils/portValidators";
 import { toProtoNode, toProtoNodeData } from "@/utils/protoAdapter";
+
 import { pipeline } from "./middleware/pipeline";
 import { MutationDirection } from "./middleware/types";
 import { handleGraphMutation } from "./mutationHandlers";
 import { getWidgetSignalListener } from "./signalHandlers";
-import { type RFState } from "@/store/types";
 import { syncFromYjs } from "./utils";
 import { ydoc, yEdges, yNodes } from "./yjsInstance";
 

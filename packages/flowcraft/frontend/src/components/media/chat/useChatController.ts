@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { type ChatMessagePart } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
-
 import { socketClient } from "@/utils/SocketClient";
+
 import { type ChatMessage } from "./types";
 
 interface ChatState {

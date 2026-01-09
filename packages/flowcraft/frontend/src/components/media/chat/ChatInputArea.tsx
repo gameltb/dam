@@ -2,6 +2,8 @@ import { CheckIcon, GlobeIcon } from "lucide-react";
 import React, { useState } from "react";
 
 import { type InferenceConfigDiscoveryResponse } from "@/generated/flowcraft/v1/core/service_pb";
+import { useUiStore } from "@/store/uiStore";
+
 import {
   ModelSelector,
   ModelSelectorContent,
@@ -47,6 +49,7 @@ interface Props {
     search: boolean,
   ) => void;
   onWebSearchChange: (v: boolean) => void;
+  selectedEndpoint: string;
   selectedModel: string;
   setDroppedNodes: (n: ContextNode[]) => void;
   status: ChatStatus;
@@ -59,6 +62,7 @@ export const ChatInputArea: React.FC<Props> = ({
   onModelChange,
   onSubmit,
   onWebSearchChange,
+  selectedEndpoint,
   selectedModel,
   setDroppedNodes,
   status,
@@ -66,25 +70,53 @@ export const ChatInputArea: React.FC<Props> = ({
 }) => {
   const [inputText, setInputText] = useState("");
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
+  const localClients = useUiStore((s) => s.settings.localClients);
 
   const allModels = React.useMemo(() => {
-    if (!inferenceConfig) return [];
-    return inferenceConfig.endpoints.flatMap((e) =>
-      e.models.map((m) => ({
-        endpointId: e.id,
-        endpointName: e.name,
-        id: m,
-        name: m,
-      })),
-    );
-  }, [inferenceConfig]);
+    const models: {
+      endpointId: string;
+      endpointName: string;
+      id: string;
+      isLocal?: boolean;
+      name: string;
+    }[] = [];
 
-  const currentModel = allModels.find((m) => m.id === selectedModel);
+    // Add Server Models
+    if (inferenceConfig) {
+      inferenceConfig.endpoints.forEach((e) => {
+        e.models.forEach((m) => {
+          models.push({
+            endpointId: e.id,
+            endpointName: e.name,
+            id: m,
+            name: m,
+          });
+        });
+      });
+    }
+
+    // Add Local Models
+    localClients.forEach((c) => {
+      models.push({
+        endpointId: c.id,
+        endpointName: `${c.name} (Local)`,
+        id: c.model,
+        isLocal: true,
+        name: c.model,
+      });
+    });
+
+    return models;
+  }, [inferenceConfig, localClients]);
+
+  const currentModel = allModels.find(
+    (m) => m.id === selectedModel && m.endpointId === selectedEndpoint,
+  );
   const currentModelName = currentModel?.name ?? selectedModel;
 
   const handleSubmit = (msg: PromptInputMessage) => {
     if (status !== "ready") return;
-    onSubmit(msg, selectedModel, currentModel?.endpointId ?? "", useWebSearch);
+    onSubmit(msg, selectedModel, selectedEndpoint, useWebSearch);
     setInputText("");
   };
 
@@ -121,7 +153,7 @@ export const ChatInputArea: React.FC<Props> = ({
                 onSubmit(
                   { files: [], text: s },
                   selectedModel,
-                  currentModel?.endpointId ?? "",
+                  selectedEndpoint,
                   useWebSearch,
                 );
               }}
@@ -175,6 +207,7 @@ export const ChatInputArea: React.FC<Props> = ({
                   </ModelSelectorTrigger>
                   <ModelSelectorContent>
                     <ModelSelectorList>
+                      {/* Server Endpoints */}
                       {inferenceConfig?.endpoints.map((e) => (
                         <ModelSelectorGroup heading={e.name} key={e.id}>
                           {e.models.map((m) => (
@@ -187,13 +220,37 @@ export const ChatInputArea: React.FC<Props> = ({
                               value={m}
                             >
                               <ModelSelectorName>{m}</ModelSelectorName>
-                              {selectedModel === m && (
+                              {selectedModel === m &&
+                                selectedEndpoint === e.id && (
+                                  <CheckIcon className="ml-auto size-3" />
+                                )}
+                            </ModelSelectorItem>
+                          ))}
+                        </ModelSelectorGroup>
+                      ))}
+
+                      {/* Local Clients */}
+                      {localClients.length > 0 && (
+                        <ModelSelectorGroup heading="Local Clients">
+                          {localClients.map((c) => (
+                            <ModelSelectorItem
+                              key={c.id}
+                              onSelect={() => {
+                                onModelChange(c.model, c.id);
+                                setModelSelectorOpen(false);
+                              }}
+                              value={c.id}
+                            >
+                              <ModelSelectorName>
+                                {c.name} ({c.model})
+                              </ModelSelectorName>
+                              {selectedEndpoint === c.id && (
                                 <CheckIcon className="ml-auto size-3" />
                               )}
                             </ModelSelectorItem>
                           ))}
                         </ModelSelectorGroup>
-                      ))}
+                      )}
                     </ModelSelectorList>
                   </ModelSelectorContent>
                 </ModelSelector>

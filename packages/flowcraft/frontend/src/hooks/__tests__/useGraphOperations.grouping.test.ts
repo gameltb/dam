@@ -5,6 +5,7 @@ import { NodeKind } from "@/generated/flowcraft/v1/core/base_pb";
 import { type GraphMutation } from "@/generated/flowcraft/v1/core/service_pb";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
+
 import { useGraphOperations } from "../useGraphOperations";
 
 vi.mock("@/store/flowStore", () => ({

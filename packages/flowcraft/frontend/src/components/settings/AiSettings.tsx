@@ -3,6 +3,7 @@ import React, { useState } from "react";
 
 import { useUiStore } from "@/store/uiStore";
 import { type LocalLLMClientConfig } from "@/types";
+
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 

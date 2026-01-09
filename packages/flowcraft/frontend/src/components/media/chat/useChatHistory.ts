@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { ChatMessagePartSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 import { socketClient } from "@/utils/SocketClient";
+
 import { type ChatMessage } from "./types";
 import { partsToText } from "./utils";
 

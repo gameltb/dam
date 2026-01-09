@@ -5,6 +5,7 @@ import {
   type Port,
   type PortType,
 } from "@/generated/flowcraft/v1/core/node_pb";
+
 import { PORT_MAIN_TYPE_FROM_PROTO } from "./protoAdapter";
 
 export interface ConnectionResult {

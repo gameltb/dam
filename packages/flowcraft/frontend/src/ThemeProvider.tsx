@@ -1,8 +1,9 @@
 import { type ReactNode, useEffect } from "react";
 
-import { ThemeContext } from "./contexts/ThemeContext";
 import { useUiStore } from "@/store/uiStore";
 import { Theme } from "@/types";
+
+import { ThemeContext } from "./contexts/ThemeContext";
 
 const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const theme = useUiStore((s) => s.settings.theme);

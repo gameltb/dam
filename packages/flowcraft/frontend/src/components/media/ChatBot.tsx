@@ -5,11 +5,13 @@ import React, { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 
 import { ChatMessagePartSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
+import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
 import { useFlowSocket } from "@/hooks/useFlowSocket";
 import { useNodeStream } from "@/hooks/useNodeStream";
 import { useFlowStore } from "@/store/flowStore";
 import { useTaskStore } from "@/store/taskStore";
 import { type DynamicNodeData, TaskStatus } from "@/types";
+
 import { Button } from "../ui/button";
 import { ChatConversationArea } from "./chat/ChatConversationArea";
 import { ChatInputArea } from "./chat/ChatInputArea";
@@ -87,6 +89,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
   // Pass a dummy setHistory to useChatActions because we manage it via controller now.
   // We will intercept 'sendMessage' to update controller.
   const {
+    continueChat,
     editMessage,
     sendMessage: rawSendMessage,
     switchBranch,
@@ -127,32 +130,46 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
 
   const handleRegenerate = (index: number) => {
     const targetMsg = messages[index];
-    if (targetMsg?.role !== "assistant") return;
+    if (!targetMsg) return;
 
-    const userMsg = index > 0 ? messages[index - 1] : null;
+    if (targetMsg.role === "assistant") {
+      const userMsg = index > 0 ? messages[index - 1] : null;
 
-    if (userMsg?.role === "user") {
-      sliceHistory(index - 1);
-      switchBranch(userMsg.parentId ?? "");
+      if (userMsg?.role === "user") {
+        sliceHistory(index - 1);
+        switchBranch(userMsg.parentId ?? "");
 
-      // Extract text content for resending
-      const text = (
-        userMsg.parts?.map((p) =>
-          p.part.case === "text" ? p.part.value : "",
-        ) ?? []
-      ).join("\n");
+        // Extract text content for resending
+        const text = (
+          userMsg.parts?.map((p) =>
+            p.part.case === "text" ? p.part.value : "",
+          ) ?? []
+        ).join("\n");
 
-      void sendMessageWrapper(
-        text,
-        selectedModel,
-        selectedEndpoint,
-        useWebSearch,
-        userMsg.attachments ?? [],
-        userMsg.contextNodes ?? [],
-      );
-      toast.success("Regenerating...");
-    } else {
-      toast.error("Could not find original user message to regenerate.");
+        void sendMessageWrapper(
+          text,
+          selectedModel,
+          selectedEndpoint,
+          useWebSearch,
+          userMsg.attachments ?? [],
+          userMsg.contextNodes ?? [],
+        );
+        toast.success("Regenerating...");
+      } else {
+        toast.error("Could not find original user message to regenerate.");
+      }
+    } else if (targetMsg.role === "user") {
+      // If it's the last message, just continue
+      if (index === messages.length - 1) {
+        continueChat(selectedModel, selectedEndpoint);
+        toast.success("Generating response...");
+      } else {
+        // If it's in the middle, slice and branch
+        sliceHistory(index);
+        switchBranch(targetMsg.id);
+        continueChat(selectedModel, selectedEndpoint);
+        toast.success("Branching and generating...");
+      }
     }
   };
 
@@ -184,14 +201,33 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
   const handleEdit = (
     id: string,
     newContent: string,
-    _attachments: string[] = [],
+    attachments: string[] = [],
   ) => {
     const newParts = [
       create(ChatMessagePartSchema, {
         part: { case: "text", value: newContent },
       }),
     ];
-    // If we have attachments, we'd add them here too.
+
+    attachments.forEach((url) => {
+      newParts.push(
+        create(ChatMessagePartSchema, {
+          part: {
+            case: "media",
+            value: {
+              aspectRatio: 0,
+              content: "",
+              galleryUrls: [],
+              type: url.includes("image")
+                ? MediaType.MEDIA_IMAGE
+                : MediaType.MEDIA_UNSPECIFIED,
+              url,
+            },
+          },
+        }),
+      );
+    });
+
     editMessage(id, newParts);
     toast.success("Message branched. You can now generate a new response.");
   };
@@ -276,6 +312,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
           );
         }}
         onWebSearchChange={setUseWebSearch}
+        selectedEndpoint={selectedEndpoint}
         selectedModel={selectedModel}
         setDroppedNodes={setDroppedNodes}
         status={status}

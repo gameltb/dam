@@ -1,6 +1,7 @@
 import { EventEmitter } from "events";
 
 import { type AppNode, type Edge } from "@/types";
+
 import { db } from "./Database";
 import { generateGallery } from "./Generators";
 
@@ -187,6 +188,7 @@ export function syncToDB() {
 
 export {
   addChatMessage,
+  branchAndEditMessage,
   clearChatHistory,
   duplicateBranch,
   getChatHistory,

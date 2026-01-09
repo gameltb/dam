@@ -20,14 +20,15 @@ import {
 } from "@xyflow/react";
 import React from "react";
 
+import { type HelperLines } from "@/hooks/useHelperLines";
+import { type AppNode } from "@/types";
+
 import {
   defaultEdgeOptions,
   edgeTypes,
   nodeTypes,
   snapGrid,
 } from "../../flowConfig";
-import { type HelperLines } from "@/hooks/useHelperLines";
-import { type AppNode } from "@/types";
 import { HelperLinesRenderer } from "../HelperLinesRenderer";
 import { Notifications } from "../Notifications";
 

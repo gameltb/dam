@@ -1,5 +1,3 @@
-import type OpenAI from "openai";
-
 import { create } from "@bufbuild/protobuf";
 import { v4 as uuidv4 } from "uuid";
 
@@ -15,10 +13,17 @@ import {
 } from "@/generated/flowcraft/v1/core/service_pb";
 import { type NodeSignal } from "@/generated/flowcraft/v1/core/signals_pb";
 import { isChatNode } from "@/types";
+import { mapHistoryToOpenAI } from "@/utils/chatUtils";
+
 import { inferenceService } from "../services/InferenceService";
 import { NodeInstance } from "../services/NodeInstance";
-import { eventBus, serverGraph } from "../services/PersistenceService";
-import { addChatMessage, getChatHistory } from "../services/PersistenceService";
+import {
+  addChatMessage,
+  branchAndEditMessage,
+  eventBus,
+  getChatHistory,
+  serverGraph,
+} from "../services/PersistenceService";
 
 export class ChatNodeInstance extends NodeInstance {
   private treeId = "";
@@ -31,6 +36,7 @@ export class ChatNodeInstance extends NodeInstance {
 
     if (signal.case === "chatSync") {
       const { anchorMessageId, newMessages, treeId } = signal.value;
+
       let lastId = anchorMessageId;
       for (const msg of newMessages) {
         addChatMessage({
@@ -46,8 +52,24 @@ export class ChatNodeInstance extends NodeInstance {
       }
       this.updateNodeHead(treeId || this.treeId, lastId);
     } else if (signal.case === "chatGenerate") {
-      const { endpointId, modelId, userContent } = signal.value;
+      const chatGenValue = signal.value;
+      const { endpointId, modelId, userContent } = chatGenValue;
+
       const chatData = node.data.extension.value;
+
+      if (!userContent.trim() && chatData.conversationHeadId) {
+        // If content is empty, check if the current head is a user message
+        const headMsg = getChatHistory(chatData.conversationHeadId).pop();
+        if (headMsg?.role === "user") {
+          await this.generateResponse(
+            chatData.conversationHeadId,
+            modelId,
+            endpointId,
+          );
+          return;
+        }
+      }
+
       const userMsgId = uuidv4();
 
       addChatMessage({
@@ -64,6 +86,20 @@ export class ChatNodeInstance extends NodeInstance {
       });
 
       await this.generateResponse(userMsgId, modelId, endpointId);
+    } else if (signal.case === "chatEdit") {
+      const { messageId, newParts } = signal.value;
+
+      const newHeadId = branchAndEditMessage({
+        messageId,
+        newParts,
+        nodeId: node.id,
+        treeId: this.treeId,
+      });
+      this.updateNodeHead(this.treeId, newHeadId);
+    } else if (signal.case === "chatSwitch") {
+      const { targetMessageId } = signal.value;
+
+      this.updateNodeHead(this.treeId, targetMessageId);
     }
   }
 
@@ -93,16 +129,7 @@ export class ChatNodeInstance extends NodeInstance {
     const history = getChatHistory(headId);
 
     try {
-      const messages: OpenAI.Chat.ChatCompletionMessageParam[] = history.map(
-        (m) => ({
-          content: m.parts
-            .map((p) => (p.part.case === "text" ? p.part.value : ""))
-            .join("\n"),
-          role: (["assistant", "system", "user"].includes(m.role)
-            ? m.role
-            : "user") as "assistant" | "system" | "user",
-        }),
-      );
+      const messages = mapHistoryToOpenAI(history);
 
       const stream = await inferenceService.chatCompletion({
         endpointId,

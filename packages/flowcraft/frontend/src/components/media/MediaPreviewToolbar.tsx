@@ -10,6 +10,7 @@ import {
 import React from "react";
 
 import { VideoMode } from "@/types";
+
 import { IconButton } from "../base/IconButton";
 
 interface MediaPreviewToolbarProps {

@@ -10,6 +10,7 @@ import {
 } from "@/generated/flowcraft/v1/core/service_pb";
 import { type NodeSignal } from "@/generated/flowcraft/v1/core/signals_pb";
 import { isDynamicNode } from "@/types";
+
 import { ActionInstance } from "./ActionInstance";
 import { instanceHost } from "./InstanceHost";
 import { executeMutation } from "./MutationExecutor";

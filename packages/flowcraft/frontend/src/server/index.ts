@@ -5,6 +5,7 @@ import fastifyStatic from "@fastify/static";
 import { fastify } from "fastify";
 
 import { FlowService } from "@/generated/flowcraft/v1/core/service_pb";
+
 import { SERVER_CONFIG } from "./config";
 import { AssetService } from "./services/AssetService";
 import { FlowServiceImpl } from "./services/FlowService";

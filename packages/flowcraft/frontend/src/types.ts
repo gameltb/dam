@@ -1,7 +1,5 @@
 import type { Edge, Node, Viewport } from "@xyflow/react";
 
-import type { GroupNodeType } from "./components/GroupNode";
-
 import { ActionExecutionStrategy } from "@/generated/flowcraft/v1/core/action_pb";
 import {
   MediaType,
@@ -24,6 +22,8 @@ import {
   type DocumentNodeState,
   type VisualNodeState,
 } from "@/generated/flowcraft/v1/nodes/media_node_pb";
+
+import type { GroupNodeType } from "./components/GroupNode";
 
 /**
  * SECTION 1: PROTOCOL & CRDT

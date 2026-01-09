@@ -6,6 +6,7 @@ import {
   PresentationSchema,
 } from "@/generated/flowcraft/v1/core/base_pb";
 import { NodeSchema } from "@/generated/flowcraft/v1/core/node_pb";
+
 import { fromProtoNode } from "../protoAdapter";
 
 /**

@@ -1,7 +1,4 @@
-import {
-  MediaType,
-  PortMainType,
-} from "@/generated/flowcraft/v1/core/base_pb";
+import { MediaType, PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
 import { PortStyle } from "@/generated/flowcraft/v1/core/node_pb";
 import { type AppNode, type ClientPort, isDynamicNode } from "@/types";
 

@@ -1,7 +1,8 @@
 import { type Edge } from "@xyflow/react";
 
-import { type AppNode } from "@/types";
 import { type RFState } from "@/store/types";
+import { type AppNode } from "@/types";
+
 import { yEdges, yNodes } from "./yjsInstance";
 
 export function syncFromYjs(state: RFState): Partial<RFState> {

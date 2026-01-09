@@ -8,13 +8,10 @@ import { useFlowSocket } from "@/hooks/useFlowSocket";
 import { useNodeHandlers } from "@/hooks/useNodeHandlers";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/store/uiStore";
-import {
-  ChatViewMode,
-  type DynamicNodeData,
-  type WidgetDef,
-} from "@/types";
+import { ChatViewMode, type DynamicNodeData, type WidgetDef } from "@/types";
 import { getSchemaForTemplate } from "@/utils/schemaRegistry";
 import { getPortColor } from "@/utils/themeUtils";
+
 import { PortHandle } from "../base/PortHandle";
 import { ChatBot } from "../media/ChatBot";
 import { Button } from "../ui/button";

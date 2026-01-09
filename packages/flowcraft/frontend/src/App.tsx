@@ -5,12 +5,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 import { useShallow } from "zustand/react/shallow";
 
-import { FlowCanvas } from "./components/canvas/FlowCanvas";
-import { ChatBot } from "./components/media/ChatBot";
-import { ContextMenuOverlay } from "./components/menus/ContextMenuOverlay";
-import { Sidebar } from "./components/Sidebar";
-import { AppOverlays } from "./components/ui/AppOverlays";
-import { Button } from "./components/ui/button";
 import {
   ActionExecutionRequestSchema,
   type ActionTemplate,
@@ -39,6 +33,13 @@ import {
 } from "@/types";
 import { fromProtoNodeData } from "@/utils/protoAdapter";
 import { socketClient, SocketStatus } from "@/utils/SocketClient";
+
+import { FlowCanvas } from "./components/canvas/FlowCanvas";
+import { ChatBot } from "./components/media/ChatBot";
+import { ContextMenuOverlay } from "./components/menus/ContextMenuOverlay";
+import { Sidebar } from "./components/Sidebar";
+import { AppOverlays } from "./components/ui/AppOverlays";
+import { Button } from "./components/ui/button";
 
 function App() {
   const {

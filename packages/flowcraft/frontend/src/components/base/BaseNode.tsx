@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
 import { cn } from "@/lib/utils";
 import { type DynamicNodeData, OverflowMode } from "@/types";
+
 import { NodeInfoPanel } from "./NodeInfoPanel";
 
 export interface BaseNodeProps<T extends RFNode> {

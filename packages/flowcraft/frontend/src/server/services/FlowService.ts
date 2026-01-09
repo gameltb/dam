@@ -11,6 +11,7 @@ import {
 } from "@/generated/flowcraft/v1/core/service_pb";
 import { isDynamicNode } from "@/types";
 import { toProtoEdge, toProtoNode } from "@/utils/protoAdapter";
+
 import { watchGraph } from "./GraphWatcher";
 import { inferenceService } from "./InferenceService";
 import { executeMutation } from "./MutationExecutor";

@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { useUiStore } from "@/store/uiStore";
+
 import { AiSettings } from "./settings/AiSettings";
 import { GeneralSettings } from "./settings/GeneralSettings";
 import { ShortcutSettings } from "./settings/ShortcutSettings";

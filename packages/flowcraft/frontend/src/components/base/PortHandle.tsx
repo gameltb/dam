@@ -11,6 +11,7 @@ import {
 import { useUiStore } from "@/store/uiStore";
 import { getValidator, validateConnection } from "@/utils/portValidators";
 import { PORT_MAIN_TYPE_FROM_PROTO } from "@/utils/protoAdapter";
+
 import { PortIcon } from "./PortIcon";
 
 interface PortHandleProps {

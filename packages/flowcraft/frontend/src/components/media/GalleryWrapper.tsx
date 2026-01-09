@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 
 import { useFlowStore } from "@/store/flowStore";
 import { FlowEvent, type MediaType } from "@/types";
+
 import { IconButton } from "../base/IconButton";
 
 interface GalleryWrapperProps {

@@ -1,6 +1,7 @@
 import {
   Check,
   Edit2,
+  ImagePlus,
   MessageSquare,
   RotateCcw,
   Trash2,
@@ -51,6 +52,7 @@ export const ChatConversationMessage: React.FC<
   const [editingId, setEditingId] = useState<null | string>(null);
   const [editContent, setEditContent] = useState("");
   const [editAttachments, setEditAttachments] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Simple parts extraction for now
   const { content, images, reasoning } = useMemo(() => {
@@ -95,7 +97,11 @@ export const ChatConversationMessage: React.FC<
       m.content ??
       "";
     setEditContent(rawText);
-    setEditAttachments(m.attachments?.map((a) => a.url) ?? []);
+    setEditAttachments(
+      m.parts
+        ?.filter((p) => p.part.case === "media")
+        .map((p) => (p.part.case === "media" ? p.part.value.url : "")) ?? [],
+    );
   };
 
   const handleCancelEdit = () => {
@@ -111,6 +117,35 @@ export const ChatConversationMessage: React.FC<
       setEditContent("");
       setEditAttachments([]);
     }
+  };
+
+  const handleAddImage = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append("file", file);
+        try {
+          const response = await fetch("/api/upload", {
+            body: formData,
+            method: "POST",
+          });
+          const asset = (await response.json()) as { url: string };
+          if (asset.url) {
+            setEditAttachments((prev) => [...prev, asset.url]);
+          }
+        } catch (err) {
+          console.error("Upload failed:", err);
+        } finally {
+          setIsUploading(false);
+        }
+      }
+    };
+    input.click();
   };
 
   return (
@@ -172,22 +207,34 @@ export const ChatConversationMessage: React.FC<
                   placeholder="Edit message..."
                   value={editContent}
                 />
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-between items-center gap-2">
                   <Button
                     className="h-7 px-2"
-                    onClick={handleCancelEdit}
+                    disabled={isUploading}
+                    onClick={handleAddImage}
                     size="sm"
                     variant="ghost"
                   >
-                    <X className="mr-1" size={14} /> Cancel
+                    <ImagePlus className="mr-1" size={14} />{" "}
+                    {isUploading ? "Uploading..." : "Add Image"}
                   </Button>
-                  <Button
-                    className="h-7 px-2"
-                    onClick={handleSaveEdit}
-                    size="sm"
-                  >
-                    <Check className="mr-1" size={14} /> Branch & Save
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      className="h-7 px-2"
+                      onClick={handleCancelEdit}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      <X className="mr-1" size={14} /> Cancel
+                    </Button>
+                    <Button
+                      className="h-7 px-2"
+                      onClick={handleSaveEdit}
+                      size="sm"
+                    >
+                      <Check className="mr-1" size={14} /> Branch & Save
+                    </Button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -225,16 +272,18 @@ export const ChatConversationMessage: React.FC<
                   >
                     <Edit2 size={12} />
                   </MessageAction>
-                  {m.role === "assistant" && (
-                    <MessageAction
-                      onClick={() => {
-                        onRegenerate(index);
-                      }}
-                      tooltip="Regenerate Branch"
-                    >
-                      <RotateCcw size={12} />
-                    </MessageAction>
-                  )}
+                  <MessageAction
+                    onClick={() => {
+                      onRegenerate(index);
+                    }}
+                    tooltip={
+                      m.role === "assistant"
+                        ? "Regenerate Branch"
+                        : "Generate Response"
+                    }
+                  >
+                    <RotateCcw size={12} />
+                  </MessageAction>
                   <MessageAction
                     className="hover:text-destructive"
                     onClick={() => {

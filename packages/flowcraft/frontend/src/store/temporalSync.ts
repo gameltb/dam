@@ -2,8 +2,9 @@ import { type TemporalState } from "zundo";
 import { type StoreApi, type UseBoundStore } from "zustand";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 
-import { dehydrateNode } from "@/utils/nodeUtils";
 import { type RFState } from "@/store/types";
+import { dehydrateNode } from "@/utils/nodeUtils";
+
 import { ydoc, yEdges, yNodes } from "./yjsInstance";
 
 let isSyncingFromTemporal = false;

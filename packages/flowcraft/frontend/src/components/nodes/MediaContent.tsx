@@ -9,6 +9,7 @@ import { useFlowStore } from "@/store/flowStore";
 import { type DynamicNodeData, FlowEvent, OverflowMode } from "@/types";
 import { getMediaTypeFromMime } from "@/utils/nodeUtils";
 import { getPortColor, getPortShape } from "@/utils/themeUtils";
+
 import { PortHandle } from "../base/PortHandle";
 import { GalleryWrapper } from "../media/GalleryWrapper";
 import { MEDIA_RENDERERS } from "../media/mediaRenderRegistry";
