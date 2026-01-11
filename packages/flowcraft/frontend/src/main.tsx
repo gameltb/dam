@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import "./index.css";
 import { createRoot } from "react-dom/client";
 
+import { SpacetimeConnector } from "@/components/SpacetimeConnector";
 import { useFlowStore } from "@/store/flowStore";
 import { initStoreOrchestrator } from "@/store/orchestrator";
 
@@ -35,7 +36,9 @@ void enableMocking().then(() => {
     <StrictMode>
       <ThemeProvider>
         <ReactFlowProvider>
-          <App />
+          <SpacetimeConnector>
+            <App />
+          </SpacetimeConnector>
         </ReactFlowProvider>
       </ThemeProvider>
     </StrictMode>,

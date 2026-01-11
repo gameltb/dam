@@ -1,4 +1,3 @@
-import { create, type JsonObject } from "@bufbuild/protobuf";
 import { type Node as RFNode, useReactFlow } from "@xyflow/react";
 import { Bot, Minimize2, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -6,7 +5,6 @@ import { Toaster } from "react-hot-toast";
 import { useShallow } from "zustand/react/shallow";
 
 import {
-  ActionExecutionRequestSchema,
   type ActionTemplate,
 } from "@/generated/flowcraft/v1/core/action_pb";
 import { useAppHotkeys } from "@/hooks/useAppHotkeys";
@@ -19,6 +17,7 @@ import {
   type PreviewData,
   useNodeEventListener,
 } from "@/hooks/useNodeEventListener";
+import { useSpacetimeSync } from "@/hooks/useSpacetimeSync";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { useFlowStore } from "@/store/flowStore";
@@ -30,6 +29,7 @@ import {
   ChatViewMode,
   MutationSource,
   type NodeTemplate,
+  TaskStatus,
 } from "@/types";
 import { fromProtoNodeData } from "@/utils/protoAdapter";
 import { socketClient, SocketStatus } from "@/utils/SocketClient";
@@ -42,6 +42,7 @@ import { AppOverlays } from "./components/ui/AppOverlays";
 import { Button } from "./components/ui/button";
 
 function App() {
+  useSpacetimeSync();
   const {
     addNode: addNodeToStore,
     edges,
@@ -49,7 +50,6 @@ function App() {
     onConnect,
     onEdgesChange,
     onNodesChange,
-    version: clientVersion,
   } = useFlowStore(
     useShallow((s: RFState) => ({
       addNode: s.addNode,
@@ -58,7 +58,6 @@ function App() {
       onConnect: s.onConnect,
       onEdgesChange: s.onEdgesChange,
       onNodesChange: s.onNodesChange,
-      version: s.version,
     })),
   );
   const {
@@ -106,7 +105,7 @@ function App() {
     duplicateSelected,
     groupSelected,
     paste,
-  } = useGraphOperations({ clientVersion });
+  } = useGraphOperations();
 
   const {
     handleMoveEnd,
@@ -173,22 +172,32 @@ function App() {
         taskId,
       });
 
-      void socketClient.send({
-        payload: {
-          case: "actionExecute",
-          value: create(ActionExecutionRequestSchema, {
+      const { spacetimeConn } = useFlowStore.getState();
+      if (spacetimeConn) {
+        try {
+          spacetimeConn.reducers.executeAction({
             actionId: action.id,
-            contextNodeIds: nodes
-              .filter((n: AppNode) => n.selected)
-              .map((n: AppNode) => n.id),
-            params: {
-              case: "paramsStruct",
-              value: { ...params, taskId } as JsonObject,
-            },
-            sourceNodeId: effectiveNodeId,
-          }),
-        },
-      });
+            id: taskId,
+            nodeId: effectiveNodeId,
+            paramsJson: JSON.stringify({
+              ...params,
+              contextNodeIds: nodes
+                .filter((n: AppNode) => n.selected)
+                .map((n: AppNode) => n.id),
+            }),
+          });
+        } catch (err) {
+          console.error("[SpacetimeDB] Failed to execute action:", err);
+          useTaskStore.getState().updateTask(taskId, {
+            message: String(err),
+            status: TaskStatus.TASK_FAILED,
+          });
+        }
+      } else {
+        // Fallback or warning
+        console.warn("[App] Cannot execute action: No SpacetimeDB connection");
+      }
+
       setPendingAction(null);
       closeContextMenuAndClear();
     },

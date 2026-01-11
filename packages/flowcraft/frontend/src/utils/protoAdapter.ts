@@ -9,6 +9,7 @@ import {
 import { ValueSchema } from "@bufbuild/protobuf/wkt";
 
 import {
+  MediaType,
   NodeKind,
   PortMainType,
   PresentationSchema,
@@ -89,133 +90,24 @@ export function fromProtoGraph(protoGraph: GraphSnapshot): {
   return { edges, nodes };
 }
 
-/**
- * Adapter functions to convert between Protobuf generated types and internal React Flow types.
- */
+// --- Utils ---
 
-// --- To Proto ---
-
-export function fromProtoNode(n: Node): AppNode {
-  const reactFlowType = KIND_TO_NODE_TYPE[n.nodeKind] ?? AppNodeType.DYNAMIC;
-
-  const protoData = n.state;
-  let appData: Partial<DynamicNodeData>;
-
-  if (protoData) {
-    appData = fromProtoNodeData(protoData);
-  } else {
-    appData = {};
-  }
-
-  // Ensure mandatory fields for AppNode
-  appData.label ??= "Unknown";
-  appData.modes ??= [];
-  appData.widgets ??= [];
-
-  appData.typeId = n.templateId;
-
-  const pres = n.presentation;
-  let parentId: string | undefined = pres?.parentId;
-  if (parentId === "") parentId = undefined;
-
-  const node: AppNode = {
-    data: appData,
-    extent: parentId ? "parent" : undefined,
-    id: n.nodeId,
-    parentId,
-    position: { x: pres?.position?.x ?? 0, y: pres?.position?.y ?? 0 },
-    selected: n.isSelected,
-    type: reactFlowType,
-  } as AppNode;
-
-  if (pres && pres.width && pres.height) {
-    node.measured = { height: pres.height, width: pres.width };
-    node.style = { height: pres.height, width: pres.width };
-  }
-
-  if (n.visualHint && !pres?.isInitialized) {
-    (node.data as Record<string, unknown>)._visualHint = n.visualHint;
-  }
-
-  return node;
+function mapToMediaType(val?: number | string): MediaType {
+  if (val === undefined) return MediaType.MEDIA_UNSPECIFIED;
+  if (typeof val === "number") return val as MediaType;
+  return (MediaType as any)[val] ?? MediaType.MEDIA_UNSPECIFIED;
 }
 
-export function fromProtoNodeData(
-  protoData: NodeData,
-): Partial<DynamicNodeData> {
-  const appData: Partial<DynamicNodeData> = {};
+function mapToRenderMode(val?: number | string): RenderMode {
+  if (val === undefined) return RenderMode.MODE_UNSPECIFIED;
+  if (typeof val === "number") return val as RenderMode;
+  return (RenderMode as any)[val] ?? RenderMode.MODE_UNSPECIFIED;
+}
 
-  if (protoData.displayName !== "") {
-    appData.label = protoData.displayName;
-  }
-
-  if (protoData.availableModes.length > 0) {
-    appData.modes = protoData.availableModes;
-  }
-
-  if (protoData.activeMode !== RenderMode.MODE_UNSPECIFIED) {
-    appData.activeMode = protoData.activeMode;
-  }
-
-  if (protoData.media) {
-    appData.media = {
-      aspectRatio: protoData.media.aspectRatio,
-      content: protoData.media.content,
-      galleryUrls: protoData.media.galleryUrls,
-      type: protoData.media.type,
-      url: protoData.media.url,
-    };
-  }
-
-  if (protoData.widgets.length > 0) {
-    appData.widgets = protoData.widgets.map((w) => {
-      const value = w.value as unknown;
-      return {
-        config: w.config as unknown as Record<string, unknown>,
-        id: w.id,
-        inputPortId: w.inputPortId,
-        label: w.label,
-        options: w.options.map((o) => ({
-          label: o.label,
-          value: o.value,
-        })),
-        type: w.type,
-        value,
-      };
-    });
-  }
-
-  if (protoData.inputPorts.length > 0) {
-    appData.inputPorts = protoData.inputPorts.map(protoPortToClient);
-  }
-
-  if (protoData.outputPorts.length > 0) {
-    appData.outputPorts = protoData.outputPorts.map(protoPortToClient);
-  }
-
-  if (protoData.taskId !== "") {
-    appData.taskId = protoData.taskId;
-  }
-
-  if (
-    protoData.widgetsSchema &&
-    Object.keys(protoData.widgetsSchema).length > 0
-  ) {
-    appData.widgetsSchema = protoData.widgetsSchema as Record<string, unknown>;
-  }
-
-  if (
-    protoData.widgetsValues &&
-    Object.keys(protoData.widgetsValues).length > 0
-  ) {
-    appData.widgetsValues = protoData.widgetsValues as Record<string, unknown>;
-  }
-
-  if (protoData.extension.case !== undefined) {
-    appData.extension = protoData.extension;
-  }
-
-  return appData;
+function mapToProtoPortMainType(val?: number | string): PortMainType {
+  if (val === undefined) return PortMainType.ANY;
+  if (typeof val === "number") return val as PortMainType;
+  return PORT_MAIN_TYPE_TO_PROTO[val.toLowerCase()] ?? PortMainType.ANY;
 }
 
 export function toProtoEdge(edge: Edge): ProtoEdge {
@@ -238,9 +130,92 @@ export function toProtoEdge(edge: Edge): ProtoEdge {
 
 // --- From Proto ---
 
+export function fromProtoNode(n: Node): AppNode {
+  const reactFlowType = KIND_TO_NODE_TYPE[n.nodeKind] ?? AppNodeType.DYNAMIC;
+  const protoData = n.state;
+  const appData = protoData ? fromProtoNodeData(protoData) : {};
+
+  appData.label ??= "Unknown";
+  appData.modes ??= [];
+  appData.widgets ??= [];
+  appData.typeId = n.templateId;
+
+  const pres = n.presentation;
+  let parentId: string | undefined = pres?.parentId;
+  if (parentId === "") parentId = undefined;
+
+  const node: AppNode = {
+    data: appData as DynamicNodeData,
+    extent: parentId ? "parent" : undefined,
+    id: n.nodeId,
+    parentId,
+    position: { x: pres?.position?.x ?? 0, y: pres?.position?.y ?? 0 },
+    selected: n.isSelected,
+    type: reactFlowType,
+  } as AppNode;
+
+  if (pres && pres.width && pres.height) {
+    node.measured = { height: pres.height, width: pres.width };
+    node.style = { height: pres.height, width: pres.width };
+  }
+
+  return node;
+}
+
+export function fromProtoNodeData(
+  protoData: NodeData,
+): Partial<DynamicNodeData> {
+  const appData: Partial<DynamicNodeData> = {};
+
+  if (protoData.displayName !== "") appData.label = protoData.displayName;
+  if (protoData.availableModes.length > 0)
+    appData.modes = protoData.availableModes;
+  if (protoData.activeMode !== RenderMode.MODE_UNSPECIFIED)
+    appData.activeMode = protoData.activeMode;
+
+  if (protoData.media) {
+    appData.media = {
+      aspectRatio: protoData.media.aspectRatio,
+      content: protoData.media.content,
+      galleryUrls: protoData.media.galleryUrls,
+      type: protoData.media.type,
+      url: protoData.media.url,
+    };
+  }
+
+  if (protoData.widgets.length > 0) {
+    appData.widgets = protoData.widgets.map((w) => ({
+      config: w.config as unknown as Record<string, unknown>,
+      id: w.id,
+      inputPortId: w.inputPortId,
+      label: w.label,
+      options: w.options.map((o) => ({ label: o.label, value: o.value })),
+      type: w.type,
+      value: w.value,
+    }));
+  }
+
+  if (protoData.inputPorts.length > 0)
+    appData.inputPorts = protoData.inputPorts.map(protoPortToClient);
+  if (protoData.outputPorts.length > 0)
+    appData.outputPorts = protoData.outputPorts.map(protoPortToClient);
+  if (protoData.taskId !== "") appData.taskId = protoData.taskId;
+
+  if (protoData.widgetsSchema)
+    appData.widgetsSchema = protoData.widgetsSchema as Record<string, unknown>;
+  if (protoData.widgetsValues)
+    appData.widgetsValues = protoData.widgetsValues as Record<string, unknown>;
+
+  if (protoData.extension.case !== undefined)
+    appData.extension = protoData.extension;
+
+  return appData;
+}
+
+// --- To Proto ---
+
 export function toProtoNode(node: AppNode): Node {
-  const data = node.data;
-  const dynData = data as DynamicNodeData;
+  const dynData = node.data as DynamicNodeData;
 
   const widgets: Widget[] = (dynData.widgets ?? []).map((w) =>
     create(WidgetSchema, {
@@ -257,15 +232,9 @@ export function toProtoNode(node: AppNode): Node {
     }),
   );
 
-  let taskId = "";
-  if (node.type === AppNodeType.PROCESSING) {
-    const dataObj = data as Record<string, unknown>;
-    taskId = typeof dataObj.taskId === "string" ? dataObj.taskId : "";
-  }
-
   const protoData = create(NodeDataSchema, {
-    activeMode: dynData.activeMode,
-    availableModes: dynData.modes,
+    activeMode: mapToRenderMode(dynData.activeMode),
+    availableModes: (dynData.modes ?? []).map(mapToRenderMode),
     displayName: dynData.label,
     extension: dynData.extension,
     inputPorts: (dynData.inputPorts ?? []).map(clientPortToProto),
@@ -273,11 +242,12 @@ export function toProtoNode(node: AppNode): Node {
       ? {
           ...dynData.media,
           aspectRatio: dynData.media.aspectRatio ?? 0,
+          type: mapToMediaType(dynData.media.type),
         }
       : undefined,
     metadata: {},
     outputPorts: (dynData.outputPorts ?? []).map(clientPortToProto),
-    taskId: taskId,
+    taskId: (node.type === AppNodeType.PROCESSING ? (node.data as any).taskId : "") || "",
     widgets,
     widgetsSchema: dynData.widgetsSchema as unknown as JsonObject,
     widgetsValues: dynData.widgetsValues as unknown as JsonObject,
@@ -301,19 +271,9 @@ export function toProtoNode(node: AppNode): Node {
   });
 }
 
-// Minimal compatibility shim
 export function toProtoNodeData(data?: DynamicNodeData): NodeData {
-  if (!data) {
-    return create(NodeDataSchema, {
-      availableModes: [],
-      displayName: "",
-      inputPorts: [],
-      metadata: {},
-      outputPorts: [],
-      taskId: "",
-      widgets: [],
-    });
-  }
+  if (!data) return create(NodeDataSchema, {});
+
   const widgets: Widget[] = (data.widgets ?? []).map((w) =>
     create(WidgetSchema, {
       config: (w.config ?? {}) as unknown as JsonObject,
@@ -329,11 +289,9 @@ export function toProtoNodeData(data?: DynamicNodeData): NodeData {
     }),
   );
 
-  const taskId = (data as Record<string, unknown>).taskId as string | undefined;
-
   return create(NodeDataSchema, {
-    activeMode: data.activeMode,
-    availableModes: data.modes,
+    activeMode: mapToRenderMode(data.activeMode),
+    availableModes: (data.modes ?? []).map(mapToRenderMode),
     displayName: data.label,
     extension: data.extension,
     inputPorts: (data.inputPorts ?? []).map(clientPortToProto),
@@ -341,11 +299,12 @@ export function toProtoNodeData(data?: DynamicNodeData): NodeData {
       ? {
           ...data.media,
           aspectRatio: data.media.aspectRatio ?? 0,
+          type: mapToMediaType(data.media.type),
         }
       : undefined,
     metadata: {},
     outputPorts: (data.outputPorts ?? []).map(clientPortToProto),
-    taskId: taskId ?? "",
+    taskId: (data as any).taskId || "",
     widgets,
     widgetsSchema: (data.widgetsSchema ?? {}) as unknown as JsonObject,
     widgetsValues: (data.widgetsValues ?? {}) as unknown as JsonObject,
@@ -377,12 +336,6 @@ function fromProtoEdge(e: ProtoEdge): Edge {
     target: e.targetNodeId,
     targetHandle: e.targetHandle || undefined,
   };
-}
-
-function mapToProtoPortMainType(val?: number | string): PortMainType {
-  if (val === undefined) return PortMainType.ANY;
-  if (typeof val === "number") return val as PortMainType;
-  return PORT_MAIN_TYPE_TO_PROTO[val.toLowerCase()] ?? PortMainType.ANY;
 }
 
 function protoPortToClient(p: ProtoPort): ClientPort {

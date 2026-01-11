@@ -56,15 +56,13 @@ describe("useGraphOperations - Auto Layout", () => {
   });
 
   it("should include dimensions in updateNode mutations during auto-layout", () => {
-    const { result } = renderHook(() =>
-      useGraphOperations({ clientVersion: 1 }),
-    );
+    const { result } = renderHook(() => useGraphOperations());
 
     result.current.autoLayout();
 
     expect(mockApplyMutations).toHaveBeenCalled();
     const calls = mockApplyMutations.mock.calls;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+     
     const mutations = (calls[0]?.[0] as GraphMutation[]) ?? [];
 
     const firstUpdate = mutations.find(
@@ -86,13 +84,11 @@ describe("useGraphOperations - Auto Layout", () => {
       nodes: [{ id: "1", position: { x: 0, y: 0 } }],
     });
 
-    const { result } = renderHook(() =>
-      useGraphOperations({ clientVersion: 1 }),
-    );
+    const { result } = renderHook(() => useGraphOperations());
     result.current.autoLayout();
 
     const calls = mockApplyMutations.mock.calls;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+     
     const mutations = (calls[0]?.[0] as GraphMutation[]) ?? [];
     const op = mutations[0]?.operation;
     if (op?.case === "updateNode") {

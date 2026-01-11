@@ -53,14 +53,14 @@ describe("useGraphOperations - Grouping", () => {
 
   it("should calculate correct relative positions and parentId when grouping", () => {
     const { result } = renderHook(() =>
-      useGraphOperations({ clientVersion: 1 }),
+      useGraphOperations(),
     );
 
     result.current.groupSelected();
 
     expect(mockApplyMutations).toHaveBeenCalled();
     const calls = mockApplyMutations.mock.calls;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+     
     const mutations = (calls[0]?.[0] as GraphMutation[]) ?? [];
 
     // 1. Check if group node is added

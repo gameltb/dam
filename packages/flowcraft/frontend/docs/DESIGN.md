@@ -59,9 +59,9 @@ The frontend communicates with the backend via a single unified "Envelope" proto
 
 ### State Management & Synchronization
 
-- **`flowStore` (Zustand + Yjs)**: The central store that manages both the UI state (React Flow nodes/edges) and the collaborative state (`Y.Doc`).
-  - It handles the synchronization between the local Zustand store and the shared Yjs document.
-  - It directly applies graph mutations to the Yjs document to ensure consistency.
+- **`flowStore` (Zustand + SpacetimeDB)**: The central store that manages the UI state (React Flow nodes/edges).
+  - **SpacetimeDB** serves as the Source of Truth for the graph and task status.
+  - The store uses `applyMutations` to push local changes to SpacetimeDB and handles differential updates from the database.
 - **Event Bus**: Centralized event bus in `flowStore` for signals like `open-preview` or `open-editor`. **All event names must be defined in a centralized Enum.** Uses a `timestamp` approach to prevent cascading renders in React 19.
 
 ### Task System & Optimistic UI

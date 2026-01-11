@@ -47,7 +47,7 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
       lastNodeEvent.type === FlowEvent.PANE_CLICK &&
       lastNodeEvent.timestamp > lastProcessedTimestamp.current
     ) {
-      setIsExpanded(false); // eslint-disable-line react-hooks/set-state-in-effect
+      setIsExpanded(false);
       onExpand?.(false);
       lastProcessedTimestamp.current = lastNodeEvent.timestamp;
     }

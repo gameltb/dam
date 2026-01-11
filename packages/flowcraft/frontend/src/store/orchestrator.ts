@@ -1,5 +1,4 @@
 import { pipeline } from "./middleware/pipeline";
-import { syncMiddleware } from "./middleware/syncMiddleware";
 import { taskMiddleware } from "./middleware/taskMiddleware";
 
 /**
@@ -10,7 +9,7 @@ import { taskMiddleware } from "./middleware/taskMiddleware";
  */
 export function initStoreOrchestrator() {
   // Initialize Mutation Pipeline
-  pipeline.clear().use(taskMiddleware).use(syncMiddleware);
+  pipeline.clear().use(taskMiddleware);
 
   // Currently, most cross-store sync is handled via Middlewares in flowStore.ts
   // You can add non-mutation related listeners here (e.g., UI specific triggers)

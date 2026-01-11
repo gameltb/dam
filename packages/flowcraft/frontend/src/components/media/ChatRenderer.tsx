@@ -1,5 +1,4 @@
-import { create } from "@bufbuild/protobuf";
-import { Bot, Eraser, Maximize2, PanelRight, RotateCcw } from "lucide-react";
+import { Bot, Maximize2, PanelRight, RotateCcw } from "lucide-react";
 import React from "react";
 
 import { useFlowStore } from "@/store/flowStore";
@@ -24,7 +23,7 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ id: nodeId }) => {
 
   const isSidebar = chatViewMode === ChatViewMode.SIDEBAR;
 
-  const forkToEmpty = () => {
+  const startNewBranch = () => {
     const dynData = node?.data as DynamicNodeData | undefined;
     const chatExtension =
       dynData?.extension?.case === "chat" ? dynData.extension.value : null;
@@ -40,29 +39,6 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ id: nodeId }) => {
     });
   };
 
-  const handleHardReset = () => {
-    if (
-      confirm(
-        "Are you sure you want to PERMANENTLY delete all messages for this node? This cannot be undone.",
-      )
-    ) {
-      void import("@/utils/SocketClient").then(({ socketClient }) => {
-        void import("@/generated/flowcraft/v1/core/service_pb").then(
-          ({ ClearChatHistoryRequestSchema }) => {
-            void socketClient.send({
-              payload: {
-                case: "chatClear",
-                value: create(ClearChatHistoryRequestSchema, {
-                  nodeId,
-                }),
-              },
-            });
-          },
-        );
-      });
-      forkToEmpty();
-    }
-  };
   return (
     <div className="ai-theme-container shadcn-lookup flex flex-col h-full bg-node-bg text-text-color rounded-lg overflow-hidden relative">
       {/* Header - Acts as drag handle except for buttons */}
@@ -75,21 +51,12 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ id: nodeId }) => {
         </div>
         <div className="flex items-center gap-1 nodrag">
           <Button
-            onClick={forkToEmpty}
+            onClick={startNewBranch}
             size="icon-sm"
-            title="Fork to Empty (COW)"
+            title="Start New Branch (CoW)"
             variant="ghost"
           >
             <RotateCcw size={14} />
-          </Button>
-          <Button
-            className="hover:text-destructive"
-            onClick={handleHardReset}
-            size="icon-sm"
-            title="Permanent Clear"
-            variant="ghost"
-          >
-            <Eraser size={14} />
           </Button>
           <Button
             onClick={() => {

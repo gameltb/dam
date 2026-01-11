@@ -11,11 +11,8 @@ import Form from "@rjsf/core";
 import validator from "@rjsf/validator-ajv8";
 import React, { useEffect, useState } from "react";
 
-import type { WidgetStreamEvent } from "@/generated/flowcraft/v1/core/service_pb";
-
 import { WidgetSignalSchema } from "@/generated/flowcraft/v1/core/signals_pb";
 import { useFlowStore } from "@/store/flowStore";
-import { socketClient } from "@/utils/SocketClient";
 
 /**
  * 自定义对象模板：移除 fieldset 和 legend
@@ -38,6 +35,9 @@ const PlainObjectFieldTemplate = (props: ObjectFieldTemplateProps) => {
   );
 };
 
+import { useTable } from "spacetimedb/react";
+import { tables } from "@/generated/spacetime";
+
 const StreamingTextWidget = (props: WidgetProps) => {
   const { id, label, onChange } = props;
   const registry = props.registry;
@@ -48,23 +48,27 @@ const StreamingTextWidget = (props: WidgetProps) => {
   const nodeId = formContext?.nodeId as string | undefined;
   const widgetId = id.split("_").pop();
 
-  const [streamedValue, setStreamedValue] = useState<string>(value ?? "");
-
-  useEffect(() => {
-    if (!nodeId || !widgetId) return;
-    const handler = (data: { event: WidgetStreamEvent; nodeId: string }) => {
-      if (data.nodeId === nodeId && data.event.widgetId === widgetId) {
-        setStreamedValue((prev: string) => prev + data.event.chunkData);
+  const [stWidgetValues] = useTable(tables.widgetValues);
+  
+  const streamedValue = React.useMemo(() => {
+    if (!nodeId || !widgetId) return value ?? "";
+    const entry = stWidgetValues.find(
+      (wv) => wv.nodeId === nodeId && wv.widgetId === widgetId
+    );
+    if (entry) {
+      try {
+        return JSON.parse(entry.valueJson) as string;
+      } catch {
+        return entry.valueJson;
       }
-    };
-    socketClient.on("nodeEvent:widgetStream", handler);
-    return () => {
-      socketClient.off("nodeEvent:widgetStream", handler);
-    };
-  }, [nodeId, widgetId]);
+    }
+    return value ?? "";
+  }, [stWidgetValues, nodeId, widgetId, value]);
 
   useEffect(() => {
-    if (streamedValue !== value) onChange(streamedValue);
+    if (streamedValue !== value) {
+      onChange(streamedValue);
+    }
   }, [streamedValue, value, onChange]);
 
   return (

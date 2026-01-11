@@ -14,7 +14,7 @@ message FlowMessage {
 
   oneof payload {
     SyncRequest sync_request = 10;
-    bytes yjs_update = 11;
+    // bytes yjs_update = 11; // Removed
     UpdateNodeRequest node_update = 12;
     UpdateWidgetRequest widget_update = 13;
     ActionExecutionRequest action_execute = 14;

@@ -1,4 +1,4 @@
-import { create } from "@bufbuild/protobuf";
+import { create, toJson } from "@bufbuild/protobuf";
 import { type FileUIPart } from "ai";
 import OpenAI from "openai";
 import { useCallback } from "react";
@@ -6,30 +6,27 @@ import { toast } from "react-hot-toast";
 import { v4 as uuidv4 } from "uuid";
 
 import {
-  ChatActionParamsSchema,
-  ChatEditParamsSchema,
   type ChatMessagePart,
   ChatMessagePartSchema,
-  ChatSwitchBranchParamsSchema,
-  ChatSyncBranchParamsSchema,
   type ChatSyncMessage,
   ChatSyncMessageSchema,
 } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
-import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
-import { ClearChatHistoryRequestSchema } from "@/generated/flowcraft/v1/core/service_pb";
+import { MediaType, MutationSource } from "@/generated/flowcraft/v1/core/base_pb";
 import { NodeSignalSchema } from "@/generated/flowcraft/v1/core/signals_pb";
 import { useFlowStore } from "@/store/flowStore";
 import { useTaskStore } from "@/store/taskStore";
 import { useUiStore } from "@/store/uiStore";
 import {
+  ActionId,
+  ChatStatus,
+  type DynamicNodeData,
   type LocalLLMClientConfig,
-  MutationSource,
   TaskStatus,
   TaskType,
 } from "@/types";
 import { mapHistoryToOpenAI } from "@/utils/chatUtils";
 
-import { type ChatMessage, type ChatStatus, type ContextNode } from "./types";
+import { type ChatMessage, type ContextNode } from "./types";
 
 export function useChatActions(
   nodeId: string,
@@ -38,6 +35,7 @@ export function useChatActions(
   handleStreamChunk: (chunk: string) => void,
   getHistory: () => ChatMessage[],
 ) {
+  const node = useFlowStore((s) => s.nodes.find((n) => n.id === nodeId));
   const sendNodeSignal = useFlowStore((s) => s.sendNodeSignal);
   const { localClients } = useUiStore((s) => s.settings);
   const { registerTask, updateTask } = useTaskStore();
@@ -70,10 +68,10 @@ export function useChatActions(
         registerTask({
           label: `Local Chat (${localClient.name})`,
           nodeId,
-          source: MutationSource.SOURCE_LOCAL_TASK,
+          source: MutationSource.SOURCE_USER,
           status: TaskStatus.TASK_PROCESSING,
           taskId,
-          type: TaskType.NODE_EXECUTION,
+          type: TaskType.REMOTE,
         });
 
         const client = new OpenAI({
@@ -85,7 +83,7 @@ export function useChatActions(
         const history = getHistory();
         const openaiMessages = mapHistoryToOpenAI(history);
 
-        setStatus("streaming");
+        setStatus(ChatStatus.STREAMING);
         updateTask(taskId, { message: "Connecting to local LLM..." });
 
         const stream = await client.chat.completions.create({
@@ -106,13 +104,13 @@ export function useChatActions(
         }
 
         const aiMsgId = uuidv4();
-        setStatus("ready");
+        setStatus(ChatStatus.READY);
         updateTask(taskId, {
           message: "Generation complete",
           status: TaskStatus.TASK_COMPLETED,
         });
 
-        const newMessagesToSync: ChatSyncMessage[] = [];
+        const newMessagesToSync: (ChatSyncMessage & { contentId?: string })[] = [];
         if (userMsgId && userParts) {
           newMessagesToSync.push(
             create(ChatSyncMessageSchema, {
@@ -120,7 +118,7 @@ export function useChatActions(
               parts: userParts,
               role: "user",
               timestamp: BigInt(Date.now()),
-            }),
+            }) as any,
           );
         }
 
@@ -135,27 +133,33 @@ export function useChatActions(
             ],
             role: "assistant",
             timestamp: BigInt(Date.now()),
-          }),
+          }) as any,
         );
 
-        sendNodeSignal(
-          create(NodeSignalSchema, {
-            nodeId,
-            payload: {
-              case: "chatSync",
-              value: create(ChatSyncBranchParamsSchema, {
-                anchorMessageId: history[history.length - 1]?.id ?? "",
-                newMessages: newMessagesToSync,
+        if (useFlowStore.getState().spacetimeConn) {
+           const conn = useFlowStore.getState().spacetimeConn!;
+           for (const msg of newMessagesToSync) {
+              const partsJson = JSON.stringify(
+                (msg.parts || []).map((p) => toJson(ChatMessagePartSchema, p)),
+              );
+              conn.reducers.addChatMessage({
+                contentId: crypto.randomUUID(),
+                id: msg.id,
+                modelId: (msg as any).modelId || "",
+                nodeId: nodeId,
+                parentId: history[history.length - 1]?.id ?? "",
+                partsJson,
+                role: msg.role,
+                timestamp: msg.timestamp,
                 treeId: history[0]?.treeId ?? "",
-              }),
-            },
-          }),
-        );
+              });
+           }
+        }
       } catch (err) {
         console.error("Local inference failed:", err);
         const errorMessage = err instanceof Error ? err.message : String(err);
         toast.error(`Local inference failed: ${errorMessage}`);
-        setStatus("ready");
+        setStatus(ChatStatus.READY);
         updateTask(taskId, {
           message: errorMessage,
           status: TaskStatus.TASK_FAILED,
@@ -167,7 +171,6 @@ export function useChatActions(
       setStatus,
       handleStreamChunk,
       getHistory,
-      sendNodeSignal,
       registerTask,
       updateTask,
     ],
@@ -182,7 +185,7 @@ export function useChatActions(
       files: FileUIPart[] = [],
       contextNodes: ContextNode[] = [],
     ) => {
-      setStatus("submitted");
+      setStatus(ChatStatus.SUBMITTED);
 
       const finalAttachments: FileUIPart[] = [];
       for (const file of files) {
@@ -237,9 +240,22 @@ export function useChatActions(
 
       appendUserMessage(userMsg);
 
-      // Check if selectedEndpoint matches a local client
-      const localClient = localClients.find((c) => c.id === selectedEndpoint);
+      const chatExtension = (node?.data as DynamicNodeData)?.extension;
+      const currentTreeId =
+        chatExtension?.case === "chat" ? chatExtension.value.treeId : "";
 
+      useFlowStore.getState().updateNodeData(nodeId, {
+        extension: {
+          case: "chat",
+          value: {
+            conversationHeadId: userMsgId,
+            isHistoryCleared: false,
+            treeId: currentTreeId || uuidv4(),
+          },
+        },
+      });
+
+      const localClient = localClients.find((c) => c.id === selectedEndpoint);
       if (localClient) {
         await performLocalInference(
           localClient,
@@ -250,24 +266,39 @@ export function useChatActions(
         return;
       }
 
+      if (useFlowStore.getState().spacetimeConn) {
+        useFlowStore.getState().spacetimeConn.reducers.executeAction({
+          actionId: ActionId.CHAT_GENERATE,
+          id: crypto.randomUUID(),
+          nodeId: nodeId,
+          paramsJson: JSON.stringify({
+            endpointId: selectedEndpoint,
+            modelId: selectedModel,
+            userContent: content.trim(),
+            useWebSearch: useWebSearch,
+          }),
+        });
+        return;
+      }
+
       try {
         sendNodeSignal(
           create(NodeSignalSchema, {
             nodeId,
             payload: {
               case: "chatGenerate",
-              value: create(ChatActionParamsSchema, {
+              value: {
                 endpointId: selectedEndpoint,
                 modelId: selectedModel,
                 userContent: content.trim(),
                 useWebSearch: useWebSearch,
-              }),
+              } as any,
             },
           }),
         );
       } catch (err) {
         console.error("Send failed:", err);
-        setStatus("ready");
+        setStatus(ChatStatus.READY);
         toast.error("Failed to send message");
       }
     },
@@ -278,20 +309,34 @@ export function useChatActions(
       performLocalInference,
       nodeId,
       sendNodeSignal,
+      node,
     ],
   );
 
   const editMessage = useCallback(
     (messageId: string, newParts: ChatMessagePart[]) => {
+      const conn = useFlowStore.getState().spacetimeConn;
+      if (conn) {
+        conn.reducers.executeAction({
+          actionId: ActionId.CHAT_EDIT,
+          id: crypto.randomUUID(),
+          nodeId: nodeId,
+          paramsJson: JSON.stringify({
+            messageId,
+            newParts: newParts.map((p) => toJson(ChatMessagePartSchema, p)),
+          }),
+        });
+        return;
+      }
       sendNodeSignal(
         create(NodeSignalSchema, {
           nodeId,
           payload: {
             case: "chatEdit",
-            value: create(ChatEditParamsSchema, {
+            value: {
               messageId,
               newParts,
-            }),
+            } as any,
           },
         }),
       );
@@ -301,38 +346,26 @@ export function useChatActions(
 
   const switchBranch = useCallback(
     (messageId: string) => {
-      sendNodeSignal(
-        create(NodeSignalSchema, {
-          nodeId,
-          payload: {
-            case: "chatSwitch",
-            value: create(ChatSwitchBranchParamsSchema, {
-              targetMessageId: messageId,
-            }),
+      const chatExtension = (node?.data as DynamicNodeData)?.extension;
+      if (chatExtension?.case === "chat") {
+        useFlowStore.getState().updateNodeData(nodeId, {
+          extension: {
+            case: "chat",
+            value: {
+              ...chatExtension.value,
+              conversationHeadId: messageId,
+            },
           },
-        }),
-      );
+        });
+      }
     },
-    [nodeId, sendNodeSignal],
+    [nodeId, node],
   );
-
-  const clearHistory = useCallback(async () => {
-    const { socketClient } = await import("@/utils/SocketClient");
-    await socketClient.send({
-      payload: {
-        case: "chatClear",
-        value: create(ClearChatHistoryRequestSchema, {
-          nodeId,
-        }),
-      },
-    });
-  }, [nodeId]);
 
   const continueChat = useCallback(
     async (selectedModel: string, selectedEndpoint: string) => {
-      setStatus("submitted");
+      setStatus(ChatStatus.SUBMITTED);
 
-      // Check local client
       const localClient = localClients.find((c) => c.id === selectedEndpoint);
       if (localClient) {
         await performLocalInference(localClient, selectedModel);
@@ -345,21 +378,21 @@ export function useChatActions(
             nodeId,
             payload: {
               case: "chatGenerate",
-              value: create(ChatActionParamsSchema, {
+              value: {
                 endpointId: selectedEndpoint,
                 modelId: selectedModel,
-                userContent: "", // Empty tells backend to use current head
-              }),
+                userContent: "", 
+              } as any,
             },
           }),
         );
       } catch (err) {
         console.error("Continue failed:", err);
-        setStatus("ready");
+        setStatus(ChatStatus.READY);
       }
     },
     [setStatus, localClients, performLocalInference, nodeId, sendNodeSignal],
   );
 
-  return { clearHistory, continueChat, editMessage, sendMessage, switchBranch };
+  return { continueChat, editMessage, sendMessage, switchBranch };
 }

@@ -30,13 +30,7 @@ interface FlowHandlersProps {
   onNodeContextMenuHook: (event: React.MouseEvent, node: AppNode) => void;
   onNodesChange: (changes: NodeChange[]) => void;
   setHelperLines: (lines: HelperLines) => void;
-  updateViewport: (
-    x: number,
-    y: number,
-    zoom: number,
-    width: number,
-    height: number,
-  ) => void;
+  updateViewport: (x: number, y: number, zoom: number) => void;
 }
 
 export function useFlowHandlers({
@@ -54,12 +48,8 @@ export function useFlowHandlers({
 
   const handleMoveEnd = useCallback(
     (_: unknown, viewport: { x: number; y: number; zoom: number }) => {
-      const { innerHeight, innerWidth } = window;
-      const x = -viewport.x / viewport.zoom;
-      const y = -viewport.y / viewport.zoom;
-      const width = innerWidth / viewport.zoom;
-      const height = innerHeight / viewport.zoom;
-      updateViewport(x, y, viewport.zoom, width, height);
+      // Pass raw viewport coordinates to match setViewport expectations
+      updateViewport(viewport.x, viewport.y, viewport.zoom);
     },
     [updateViewport],
   );

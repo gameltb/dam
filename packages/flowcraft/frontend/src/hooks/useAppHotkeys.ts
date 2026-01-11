@@ -15,9 +15,7 @@ export const useAppHotkeys = () => {
     deleteNode,
     duplicateSelected,
     paste,
-  } = useGraphOperations({
-    clientVersion: 0,
-  });
+  } = useGraphOperations();
 
   const { edges, nodes } = useFlowStore(
     useShallow((state) => ({

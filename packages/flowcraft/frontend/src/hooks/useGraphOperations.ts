@@ -6,11 +6,7 @@ import { useClipboard } from "./useClipboard";
 import { useLayoutOperations } from "./useLayoutOperations";
 import { useNodeOperations } from "./useNodeOperations";
 
-interface GraphOpsProps {
-  clientVersion: number;
-}
-
-export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
+export const useGraphOperations = () => {
   const { applyMutations, edges, nodes } = useFlowStore(
     useShallow((state) => ({
       applyMutations: state.applyMutations,
@@ -30,7 +26,6 @@ export const useGraphOperations = ({ clientVersion }: GraphOpsProps) => {
   return {
     addNode,
     autoLayout,
-    clientVersion,
     copySelected: copy,
     deleteEdge,
     deleteNode,

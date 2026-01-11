@@ -4,7 +4,6 @@ import {
   type EdgeChange,
   type NodeChange,
 } from "@xyflow/react";
-import * as Y from "yjs";
 
 import { type GraphMutation } from "@/generated/flowcraft/v1/core/service_pb";
 import {
@@ -43,7 +42,6 @@ export interface RFState {
     mutations: GraphMutation[],
     context?: MutationContext,
   ) => void;
-  applyYjsUpdate: (update: Uint8Array) => void;
   dispatchNodeEvent: (
     type: FlowEvent,
     payload: Record<string, unknown>,
@@ -73,11 +71,6 @@ export interface RFState {
     version: number,
   ) => void;
 
-  syncFromYjs: () => void;
+  spacetimeConn?: any;
   updateNodeData: (id: string, data: Partial<DynamicNodeData>) => void;
-  version: number;
-  ydoc: Y.Doc;
-
-  yEdges: Y.Map<unknown>;
-  yNodes: Y.Map<unknown>;
 }

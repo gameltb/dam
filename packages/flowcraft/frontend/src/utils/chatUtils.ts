@@ -9,14 +9,10 @@ import { type ChatMessagePart } from "@/generated/flowcraft/v1/actions/chat_acti
  */
 
 interface CommonChatMessage {
-
   parts?: ChatMessagePart[];
 
   role: string;
-
 }
-
-
 
 /**
 
@@ -25,31 +21,19 @@ interface CommonChatMessage {
  */
 
 export function mapHistoryToOpenAI(
-
   history: CommonChatMessage[],
-
 ): OpenAI.Chat.ChatCompletionMessageParam[] {
-
   return history.map((m) => {
-
-    const role = (["assistant", "system", "user"].includes(m.role)
-
-      ? m.role
-
-      : "user") as "assistant" | "system" | "user";
-
-
+    const role = (
+      ["assistant", "system", "user"].includes(m.role) ? m.role : "user"
+    ) as "assistant" | "system" | "user";
 
     return {
-
       content: mapPartsToOpenAI(m.parts ?? []),
 
       role,
-
     } as OpenAI.Chat.ChatCompletionMessageParam;
-
   });
-
 }
 
 /**

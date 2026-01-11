@@ -10,11 +10,17 @@ import { SERVER_CONFIG } from "./config";
 import { AssetService } from "./services/AssetService";
 import { FlowServiceImpl } from "./services/FlowService";
 import { loadFromDisk } from "./services/PersistenceService";
+import { initTaskWatcher } from "./services/TaskService";
+import { initSpacetime } from "./spacetimeClient";
 import "./templates"; // 触发所有节点和动作的注册
 
 const app = fastify();
 
-// 1. 注册核心插件
+// 1. Initialize SpacetimeDB
+initSpacetime();
+initTaskWatcher();
+
+// 2. 注册核心插件
 await app.register(multipart);
 await app.register(fastifyStatic, {
   prefix: "/uploads/",

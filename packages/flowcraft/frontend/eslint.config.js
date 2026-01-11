@@ -34,7 +34,11 @@ export default defineConfig([
       ecmaVersion: "latest",
       globals: globals.browser,
       parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
+        project: [
+          "./tsconfig.node.json",
+          "./tsconfig.app.json",
+          "./spacetime-module/tsconfig.json",
+        ],
         tsconfigRootDir: import.meta.dirname,
       },
     },

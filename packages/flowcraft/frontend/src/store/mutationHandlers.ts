@@ -1,7 +1,6 @@
 import { create as createProto, toJson } from "@bufbuild/protobuf";
 import { ValueSchema } from "@bufbuild/protobuf/wkt";
 import { type Edge } from "@xyflow/react";
-import * as Y from "yjs";
 
 import {
   type GraphMutation,
@@ -54,13 +53,16 @@ function setByPath(
 
 export const handleGraphMutation = (
   mutInput: GraphMutation,
-  yNodes: Y.Map<unknown>,
-  yEdges: Y.Map<unknown>,
-) => {
+  currentNodes: AppNode[],
+  currentEdges: Edge[],
+): { edges: Edge[]; nodes: AppNode[] } => {
   const mut = createProto(GraphMutationSchema, mutInput);
   const op = mut.operation;
 
-  if (!op.case) return;
+  let nodes = [...currentNodes];
+  let edges = [...currentEdges];
+
+  if (!op.case) return { edges, nodes };
 
   switch (op.case) {
     case "addEdge":
@@ -74,49 +76,53 @@ export const handleGraphMutation = (
           target: edge.targetNodeId,
           targetHandle: edge.targetHandle || undefined,
         };
-        yEdges.set(rfEdge.id, rfEdge);
+        edges = [...edges.filter((e) => e.id !== rfEdge.id), rfEdge];
       }
       break;
     case "addNode":
       if (op.value.node) {
         const node = fromProtoNode(op.value.node);
         if (node.id) {
-          const existing = yNodes.get(node.id) as AppNode | undefined;
-          if (existing && existing.type === node.type) {
-            // Merge data if types match
-            const updated = {
-              ...existing,
-              ...node,
-              data: {
-                ...(existing.data as Record<string, unknown>),
-                ...(node.data as Record<string, unknown>),
-              },
-            } as unknown as AppNode;
-            yNodes.set(node.id, dehydrateNode(updated));
+          const existingIndex = nodes.findIndex((n) => n.id === node.id);
+          if (existingIndex !== -1) {
+            const existing = nodes[existingIndex];
+            if (existing && existing.type === node.type) {
+              // Merge data if types match
+              const updated = {
+                ...existing,
+                ...node,
+                data: {
+                  ...(existing.data as Record<string, unknown>),
+                  ...(node.data as Record<string, unknown>),
+                },
+              } as unknown as AppNode;
+              nodes[existingIndex] = dehydrateNode(updated);
+            } else {
+              nodes[existingIndex] = dehydrateNode(node);
+            }
           } else {
-            yNodes.set(node.id, dehydrateNode(node));
+            nodes.push(dehydrateNode(node));
           }
         }
       }
       break;
 
     case "clearGraph":
-      yNodes.clear();
-      yEdges.clear();
+      nodes = [];
+      edges = [];
       break;
 
     case "pathUpdate": {
       const { path, targetId, type, value } = op.value;
-      const existing = yNodes.get(targetId);
-      if (existing && value) {
+      const existingIndex = nodes.findIndex((n) => n.id === targetId);
+      if (existingIndex !== -1 && value) {
         try {
           const val = toJson(ValueSchema, value);
-          const updated = JSON.parse(JSON.stringify(existing)) as Record<
-            string,
-            unknown
-          >;
+          const updated = JSON.parse(
+            JSON.stringify(nodes[existingIndex]),
+          ) as Record<string, unknown>;
           setByPath(updated, path, val, type === PathUpdate_UpdateType.MERGE);
-          yNodes.set(targetId, updated);
+          nodes[existingIndex] = updated as unknown as AppNode;
         } catch (e) {
           console.error("[Mutation] Failed to apply path update:", e);
         }
@@ -126,13 +132,16 @@ export const handleGraphMutation = (
 
     case "removeEdge":
       if (op.value.id) {
-        yEdges.delete(op.value.id);
+        edges = edges.filter((e) => e.id !== op.value.id);
       }
       break;
 
     case "removeNode":
       if (op.value.id) {
-        yNodes.delete(op.value.id);
+        nodes = nodes.filter((n) => n.id !== op.value.id);
+        edges = edges.filter(
+          (e) => e.source !== op.value.id && e.target !== op.value.id,
+        );
       }
       break;
 
@@ -141,8 +150,9 @@ export const handleGraphMutation = (
       const id = val.id;
       if (!id) break;
 
-      const existing = yNodes.get(id) as AppNode | undefined;
-      if (existing) {
+      const existingIndex = nodes.findIndex((n) => n.id === id);
+      if (existingIndex !== -1) {
+        const existing = nodes[existingIndex];
         const updated = { ...existing } as AppNode;
 
         if (val.presentation) {
@@ -182,9 +192,10 @@ export const handleGraphMutation = (
           };
         }
 
-        yNodes.set(id, dehydrateNode(updated));
+        nodes[existingIndex] = dehydrateNode(updated);
       }
       break;
     }
   }
+  return { edges, nodes };
 };

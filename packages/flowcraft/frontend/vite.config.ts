@@ -14,15 +14,21 @@ export default defineConfig({
     proxy: {
       "/api": {
         changeOrigin: true,
-        target: "http://localhost:3000",
+        target: "http://localhost:3001",
       },
       "/flowcraft_proto.v1.FlowService": {
         changeOrigin: true,
-        target: "http://localhost:3000",
+        target: "http://localhost:3001",
+      },
+      "/spacetime": {
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/spacetime/, ""),
+        target: "http://127.0.0.1:3000",
+        ws: true,
       },
       "/uploads": {
         changeOrigin: true,
-        target: "http://localhost:3000",
+        target: "http://localhost:3001",
       },
     },
   },

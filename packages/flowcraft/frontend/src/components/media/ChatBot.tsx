@@ -1,21 +1,18 @@
-import { create } from "@bufbuild/protobuf";
+import { create, toJson } from "@bufbuild/protobuf";
 import { type FileUIPart } from "ai";
-import { AlertCircle, RefreshCw } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 
 import { ChatMessagePartSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
 import { useFlowSocket } from "@/hooks/useFlowSocket";
-import { useNodeStream } from "@/hooks/useNodeStream";
 import { useFlowStore } from "@/store/flowStore";
 import { useTaskStore } from "@/store/taskStore";
 import { type DynamicNodeData, TaskStatus } from "@/types";
 
-import { Button } from "../ui/button";
 import { ChatConversationArea } from "./chat/ChatConversationArea";
 import { ChatInputArea } from "./chat/ChatInputArea";
-import { type ChatStatus, type ContextNode } from "./chat/types";
+import { type ContextNode } from "./chat/types";
 import { useChatActions } from "./chat/useChatActions";
 import { useChatController } from "./chat/useChatController";
 import { partsToText } from "./chat/utils";
@@ -35,19 +32,17 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
       ? data.extension.value.conversationHeadId
       : undefined;
 
-  const [status, setStatus] = useState<ChatStatus>("ready");
   const [droppedNodes, setDroppedNodes] = useState<ContextNode[]>([]);
 
   // Controller handles state, history, and streaming buffers
   const {
     appendUserMessage,
     handleStreamChunk,
-    lastRequest,
     messages, // Replaces 'history'
-    setLastRequest,
     sliceHistory,
+    status, // Derived status from SpacetimeDB
     streamingMessage,
-  } = useChatController(conversationHeadId);
+  } = useChatController(conversationHeadId, nodeId);
 
   // Error handling: find failed task for this node
   const failedTask = useTaskStore((s) =>
@@ -55,16 +50,6 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
       (t) => t.nodeId === nodeId && t.status === TaskStatus.TASK_FAILED,
     ),
   );
-
-  // Handle streaming updates via Controller
-  useNodeStream(nodeId, (chunk, isDone) => {
-    if (isDone) {
-      setStatus("ready");
-    } else {
-      setStatus("streaming");
-      handleStreamChunk(chunk);
-    }
-  });
 
   // State lifted from ChatInputArea
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
@@ -86,8 +71,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
     });
   }, [inferenceConfig, selectedModel, selectedEndpoint]); // Only depend on inferenceConfig
 
-  // Pass a dummy setHistory to useChatActions because we manage it via controller now.
-  // We will intercept 'sendMessage' to update controller.
+  // Pass a dummy setStatus to useChatActions because we manage it via controller now.
   const {
     continueChat,
     editMessage,
@@ -95,7 +79,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
     switchBranch,
   } = useChatActions(
     nodeId,
-    setStatus,
+    () => {}, // setStatus is no-op, controller derives it
     appendUserMessage,
     handleStreamChunk,
     () => messages,
@@ -111,21 +95,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
   ) => {
     // rawSendMessage now handles appendUserMessage internally for local inference
     // but for consistency we let it handle the logic.
-    setLastRequest({ content, endpoint, model, search });
     await rawSendMessage(content, model, endpoint, search, files, context);
-  };
-
-  const handleRetry = () => {
-    if (lastRequest) {
-      void sendMessageWrapper(
-        lastRequest.content,
-        lastRequest.model,
-        lastRequest.endpoint,
-        lastRequest.search,
-        [], // attachments are complex to restore perfectly here, but could be added to lastRequest if needed
-        droppedNodes,
-      );
-    }
   };
 
   const handleRegenerate = (index: number) => {
@@ -253,6 +223,56 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
 
   if (!node) return null;
 
+  const handleStreamingEditSave = (content: string) => {
+    const lastMsg = messages[messages.length - 1];
+    const parentId = lastMsg?.id ?? "";
+
+    const newMsgId = crypto.randomUUID();
+    const chatExtension =
+      data.extension?.case === "chat" ? data.extension.value : null;
+
+    // Use current treeId or create new
+    const treeId = chatExtension?.treeId || crypto.randomUUID();
+
+    const newParts = [
+      create(ChatMessagePartSchema, {
+        part: { case: "text", value: content },
+      }),
+    ];
+
+    // Sync to backend via chatSync signal or direct reducer if connected
+    const conn = useFlowStore.getState().spacetimeConn;
+    if (conn) {
+      const partsJson = JSON.stringify(
+        newParts.map((p) => toJson(ChatMessagePartSchema, p)),
+      );
+      conn.reducers.addChatMessage({
+        id: newMsgId,
+        modelId: selectedModel,
+        nodeId: nodeId,
+        parentId: parentId,
+        partsJson,
+        role: "assistant",
+        timestamp: BigInt(Date.now()),
+        treeId: treeId,
+      });
+    }
+
+    // Move node's head to the newly created message
+    updateNodeData(nodeId, {
+      extension: {
+        case: "chat",
+        value: {
+          conversationHeadId: newMsgId,
+          isHistoryCleared: false,
+          treeId: treeId,
+        },
+      },
+    });
+
+    toast.success("Branch created from partial content.");
+  };
+
   return (
     <div
       className="flex flex-col h-full w-full overflow-hidden relative"
@@ -267,32 +287,12 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
         onDelete={handleDeleteBranch}
         onEdit={handleEdit}
         onRegenerate={handleRegenerate}
+        onStreamingEditSave={handleStreamingEditSave}
         onSwitchBranch={handleSwitchBranch}
         status={status}
         streamingContent={partsToText(streamingMessage?.parts)}
+        errorMessage={failedTask?.message}
       />
-
-      {failedTask && (
-        <div className="absolute bottom-24 left-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-2">
-          <div className="bg-destructive/15 border border-destructive/20 backdrop-blur-md p-3 rounded-lg flex items-center justify-between gap-3 shadow-xl">
-            <div className="flex items-center gap-2 text-destructive text-sm font-medium">
-              <AlertCircle size={16} />
-              <span className="truncate">
-                {failedTask.message || "Generation failed"}
-              </span>
-            </div>
-            <Button
-              className="h-8 gap-1.5 shadow-sm shrink-0"
-              onClick={handleRetry}
-              size="sm"
-              variant="destructive"
-            >
-              <RefreshCw size={14} />
-              Retry
-            </Button>
-          </div>
-        </div>
-      )}
 
       <ChatInputArea
         droppedNodes={droppedNodes}

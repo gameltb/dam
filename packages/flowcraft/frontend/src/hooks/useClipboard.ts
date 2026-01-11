@@ -4,7 +4,7 @@ import { create } from "@bufbuild/protobuf";
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 
-import type { AppNode } from "@/types";
+import type { AppNode, DynamicNodeData } from "@/types";
 
 import { EdgeSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import {
@@ -15,13 +15,16 @@ import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
 import { toProtoNode } from "@/utils/protoAdapter";
 
+import { useFlowSocket } from "./useFlowSocket";
+
 /**
  * Hook to manage clipboard operations (copy, paste, duplicate).
  * Supports remapping IDs and maintaining relative positions.
  */
 export function useClipboard() {
-  const { applyMutations, edges, nodes } = useFlowStore();
+  const { applyMutations, edges, nodes, spacetimeConn } = useFlowStore();
   const { clipboard, setClipboard } = useUiStore();
+  const { executeTask } = useFlowSocket();
 
   const copy = useCallback(() => {
     const selectedNodes = nodes.filter((n) => n.selected);
@@ -43,9 +46,27 @@ export function useClipboard() {
       if (!clipboard) return;
 
       const idMap: Record<string, string> = {};
+      const chatNodesToDuplicate: {
+        newId: string;
+        oldHeadId: string;
+        treeId: string;
+      }[] = [];
+
       const newNodes: AppNode[] = clipboard.nodes.map((node) => {
         const newId = uuidv4();
         idMap[node.id] = newId;
+
+        // If it's a chat node, prepare for branch duplication
+        const ext = (node.data as DynamicNodeData).extension;
+        if (ext?.case === "chat") {
+          const chatData = ext.value;
+          chatNodesToDuplicate.push({
+            newId,
+            oldHeadId: chatData.conversationHeadId || "",
+            treeId: chatData.treeId || "",
+          });
+        }
+
         return {
           ...node,
           id: newId,
@@ -65,17 +86,14 @@ export function useClipboard() {
         target: idMap[edge.target] ?? edge.target,
       }));
 
-      // Deselect all existing nodes
+      // Deselect existing
       const deselectMutations: GraphMutation[] = nodes
         .filter((n) => n.selected)
         .map((n) =>
           create(GraphMutationSchema, {
             operation: {
               case: "updateNode",
-              value: {
-                id: n.id,
-                // selected is handled by store locally, but we might want to sync it
-              },
+              value: { id: n.id },
             },
           }),
         );
@@ -111,8 +129,26 @@ export function useClipboard() {
       applyMutations([...deselectMutations, ...addMutations], {
         description: "Paste subgraph",
       });
+
+      // Trigger asynchronous branch duplication for Chat nodes
+      chatNodesToDuplicate.forEach((item) => {
+        if (item.oldHeadId && item.treeId) {
+          // Trigger a specialized action that Worker handles to COW clone the branch
+          if (spacetimeConn) {
+            spacetimeConn.reducers.executeAction({
+              actionId: "chat.duplicateBranch",
+              id: crypto.randomUUID(),
+              nodeId: item.newId,
+              paramsJson: JSON.stringify({
+                sourceHeadId: item.oldHeadId,
+                treeId: item.treeId,
+              }),
+            });
+          }
+        }
+      });
     },
-    [clipboard, nodes, applyMutations],
+    [clipboard, nodes, applyMutations, executeTask, spacetimeConn],
   );
 
   const duplicate = useCallback(() => {

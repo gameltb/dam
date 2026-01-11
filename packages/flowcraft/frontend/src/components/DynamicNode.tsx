@@ -4,7 +4,7 @@ import {
   NodeResizer,
   type ResizeDragEvent,
 } from "@xyflow/react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import React, { memo, useCallback } from "react";
 
 import { PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
@@ -100,6 +100,12 @@ export const DynamicNode = memo(
       ),
     );
 
+    const isProcessing = useTaskStore((s) =>
+      Object.values(s.tasks).some(
+        (t) => t.nodeId === id && t.status === TaskStatus.TASK_PROCESSING,
+      ),
+    );
+
     const handleResizeEnd = useCallback(
       (_event: ResizeDragEvent, params: { height: number; width: number }) => {
         const { applyMutations } = useFlowStore.getState();
@@ -132,6 +138,8 @@ export const DynamicNode = memo(
           "custom-node relative transition-shadow duration-300",
           hasError &&
             "ring-2 ring-destructive ring-offset-2 ring-offset-background",
+          isProcessing &&
+            "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse",
         )}
         style={{
           ...containerStyle,
@@ -145,6 +153,12 @@ export const DynamicNode = memo(
         {hasError && !selected && (
           <div className="absolute -top-3 -right-3 bg-destructive text-white rounded-full p-1.5 shadow-xl animate-bounce z-[1000]">
             <AlertCircle size={14} />
+          </div>
+        )}
+
+        {isProcessing && !selected && (
+          <div className="absolute -top-3 -right-3 bg-primary text-primary-foreground rounded-full p-1.5 shadow-xl animate-spin z-[1000]">
+            <RefreshCw size={14} />
           </div>
         )}
 

@@ -1,8 +1,12 @@
+import { fromJson, toJson } from "@bufbuild/protobuf";
 import crypto from "crypto";
 
-import { type ChatMessagePart } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
+import {
+  type ChatMessagePart,
+  ChatMessagePartSchema,
+} from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 
-import { db } from "./Database";
+import { getSpacetimeConn } from "../spacetimeClient";
 
 export interface ChatMessage {
   id: string;
@@ -15,17 +19,8 @@ export interface ChatMessage {
   treeId: string;
 }
 
-interface ConversationRow {
-  id: string;
-  metadata: string;
-  parent_id: null | string;
-  parts: string;
-  role: string;
-  timestamp: number;
-  tree_id: string;
-}
-
 export function addChatMessage(params: {
+  contentId?: string; // Reuse existing content if provided
   id: string;
   metadata?: unknown;
   nodeId?: string;
@@ -34,20 +29,38 @@ export function addChatMessage(params: {
   role: string;
   treeId: string;
 }) {
-  const stmt = db.prepare(`
-    INSERT INTO conversations (id, parent_id, tree_id, role, parts, metadata, timestamp, node_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(
-    params.id,
-    params.parentId,
-    params.treeId,
-    params.role,
-    JSON.stringify(params.parts),
-    JSON.stringify(params.metadata ?? {}),
-    Date.now(),
-    params.nodeId ?? null,
-  );
+  // Sync to SpacetimeDB
+  try {
+    const conn = getSpacetimeConn();
+    if (conn) {
+      const partsJson = JSON.stringify(
+        (params.parts as ChatMessagePart[]).map((p) =>
+          toJson(ChatMessagePartSchema, p),
+        ),
+      );
+
+      // Generate a contentId if none provided (representing this specific unique content)
+      const contentId = params.contentId || crypto.randomUUID();
+
+      conn.reducers.addChatMessage({
+        contentId,
+        id: params.id,
+        modelId: (params.metadata as any)?.modelId ?? "",
+        nodeId: params.nodeId ?? "",
+        parentId: params.parentId ?? "",
+        partsJson: partsJson,
+        role: params.role,
+        timestamp: BigInt(Date.now()),
+        treeId: params.treeId,
+      });
+    } else {
+      console.warn(
+        "[ChatService] No SpacetimeDB connection for addChatMessage",
+      );
+    }
+  } catch (e) {
+    console.error("[ChatService] Failed to sync to SpacetimeDB:", e);
+  }
 }
 
 export function branchAndEditMessage(params: {
@@ -56,10 +69,13 @@ export function branchAndEditMessage(params: {
   nodeId?: string;
   treeId: string;
 }): string {
+  const conn = getSpacetimeConn();
+  if (!conn) throw new Error("No SpacetimeDB connection");
+
   const original = getMessage(params.messageId);
   if (!original) throw new Error("Message not found");
 
-  // 1. Create the new edited message at the same level
+  // 1. Create the new edited message as a sibling (shares same parent)
   const newId = crypto.randomUUID();
   addChatMessage({
     id: newId,
@@ -71,45 +87,45 @@ export function branchAndEditMessage(params: {
     treeId: params.treeId,
   });
 
-  // 2. Recursively copy the current "main" branch descendants
-  let currentSourceId: null | string =
-    (
-      db
-        .prepare("SELECT id FROM conversations WHERE parent_id = ? LIMIT 1")
-        .get(params.messageId) as undefined | { id: string }
-    )?.id ?? null;
+  // 2. COW: Clone all descendants from original to new branch
+  const copyDescendants = (oldParentId: string, newParentId: string) => {
+    // Collect immediate children from SpacetimeDB
+    const children: ChatMessage[] = [];
+    for (const msg of conn.db.chatMessages) {
+      if (msg.parentId === oldParentId) {
+        children.push(mapSpacetimeMessage(msg));
+      }
+    }
+    children.sort((a, b) => a.timestamp - b.timestamp);
 
-  let lastNewId: string = newId;
+    for (const child of children) {
+      const childNewId = crypto.randomUUID();
+      const stMsg = conn.db.chatMessages.id.find(child.id);
 
-  while (currentSourceId) {
-    const childOriginal = getMessage(currentSourceId);
-    if (!childOriginal) break;
+      addChatMessage({
+        contentId: stMsg?.contentId, // STRUCTURAL SHARING: Reuse content!
+        id: childNewId,
+        metadata: child.metadata,
+        nodeId: params.nodeId,
+        parentId: newParentId,
+        parts: child.parts,
+        role: child.role,
+        treeId: params.treeId,
+      });
+      copyDescendants(child.id, childNewId);
+    }
+  };
 
-    const childNewId = crypto.randomUUID();
-    addChatMessage({
-      id: childNewId,
-      metadata: childOriginal.metadata,
-      nodeId: params.nodeId,
-      parentId: lastNewId,
-      parts: childOriginal.parts,
-      role: childOriginal.role,
-      treeId: params.treeId,
-    });
-
-    lastNewId = childNewId;
-
-    const nextChild = db
-      .prepare("SELECT id FROM conversations WHERE parent_id = ? LIMIT 1")
-      .get(currentSourceId) as undefined | { id: string };
-    currentSourceId = nextChild?.id ?? null;
-  }
-
-  return lastNewId; // Return the new head
+  copyDescendants(params.messageId, newId);
+  return newId;
 }
 
 export function clearChatHistory(nodeId: string) {
-  const stmt = db.prepare("DELETE FROM conversations WHERE node_id = ?");
-  stmt.run(nodeId);
+  // CoW: We no longer perform physical deletion.
+  // The frontend handles this by resetting the conversationHeadId.
+  console.log(
+    `[ChatService] clearChatHistory ignored for nodeId: ${nodeId} to preserve CoW`,
+  );
 }
 
 export function duplicateBranch(params: {
@@ -118,33 +134,55 @@ export function duplicateBranch(params: {
   nodeId?: string;
   startMessageId: string;
 }): string {
-  let currentSourceId: null | string = params.startMessageId;
-  let lastNewId: null | string = params.newParentId;
+  const conn = getSpacetimeConn();
+  if (!conn) throw new Error("No SpacetimeDB connection");
 
-  while (currentSourceId) {
-    const original = getMessage(currentSourceId);
-    if (!original) break;
+  const original = getMessage(params.startMessageId);
+  if (!original) return params.startMessageId;
 
-    const newId = crypto.randomUUID();
-    addChatMessage({
-      id: newId,
-      metadata: original.metadata,
-      nodeId: params.nodeId,
-      parentId: lastNewId,
-      parts: original.parts,
-      role: original.role,
-      treeId: params.newTreeId,
-    });
+  const newId = crypto.randomUUID();
+  const stOrig = conn.db.chatMessages.id.find(params.startMessageId);
 
-    lastNewId = newId;
+  addChatMessage({
+    contentId: stOrig?.contentId, // STRUCTURAL SHARING
+    id: newId,
+    metadata: original.metadata,
+    nodeId: params.nodeId,
+    parentId: params.newParentId,
+    parts: original.parts,
+    role: original.role,
+    treeId: params.newTreeId,
+  });
 
-    const nextChild = db
-      .prepare("SELECT id FROM conversations WHERE parent_id = ? LIMIT 1")
-      .get(currentSourceId) as undefined | { id: string };
-    currentSourceId = nextChild?.id ?? null;
-  }
+  const copyDescendants = (oldParentId: string, newParentId: string) => {
+    const children: ChatMessage[] = [];
+    for (const msg of conn.db.chatMessages) {
+      if (msg.parentId === oldParentId) {
+        children.push(mapSpacetimeMessage(msg));
+      }
+    }
+    children.sort((a, b) => a.timestamp - b.timestamp);
 
-  return lastNewId ?? params.startMessageId; // Fallback to start if nothing cloned
+    for (const child of children) {
+      const childNewId = crypto.randomUUID();
+      const stMsg = conn.db.chatMessages.id.find(child.id);
+
+      addChatMessage({
+        contentId: stMsg?.contentId, // STRUCTURAL SHARING
+        id: childNewId,
+        metadata: child.metadata,
+        nodeId: params.nodeId,
+        parentId: newParentId,
+        parts: child.parts,
+        role: child.role,
+        treeId: params.newTreeId,
+      });
+      copyDescendants(child.id, childNewId);
+    }
+  };
+
+  copyDescendants(params.startMessageId, newId);
+  return newId;
 }
 
 export function getChatHistory(headId: string): ChatMessage[] {
@@ -161,32 +199,59 @@ export function getChatHistory(headId: string): ChatMessage[] {
 }
 
 export function getMessage(id: string): ChatMessage | undefined {
-  const row = db.prepare("SELECT * FROM conversations WHERE id = ?").get(id) as
-    | ConversationRow
-    | undefined;
-  if (!row) return undefined;
+  const conn = getSpacetimeConn();
+  if (!conn) return undefined;
 
-  let siblings: { id: string }[];
-  if (row.parent_id === null) {
-    siblings = db
-      .prepare(
-        "SELECT id FROM conversations WHERE parent_id IS NULL AND tree_id = ? AND id != ?",
-      )
-      .all(row.tree_id, row.id) as { id: string }[];
-  } else {
-    siblings = db
-      .prepare("SELECT id FROM conversations WHERE parent_id = ? AND id != ?")
-      .all(row.parent_id, row.id) as { id: string }[];
+  const stMsg = conn.db.chatMessages.id.find(id);
+  if (!stMsg) return undefined;
+
+  const msg = mapSpacetimeMessage(stMsg);
+
+  // Compute siblings
+  const siblings: string[] = [];
+  for (const m of conn.db.chatMessages) {
+    if (
+      m.id !== msg.id &&
+      m.parentId === msg.parentId &&
+      m.treeId === msg.treeId
+    ) {
+      siblings.push(m.id);
+    }
   }
 
   return {
-    id: row.id,
-    metadata: JSON.parse(row.metadata) as Record<string, unknown>,
-    parentId: row.parent_id,
-    parts: JSON.parse(row.parts) as ChatMessagePart[],
-    role: row.role,
-    siblingIds: siblings.map((s) => s.id),
-    timestamp: row.timestamp,
-    treeId: row.tree_id,
+    ...msg,
+    siblingIds: siblings,
+  };
+}
+
+// Helper to map SpacetimeDB row to ChatMessage
+function mapSpacetimeMessage(msg: any): ChatMessage {
+  const conn = getSpacetimeConn();
+  let parts: ChatMessagePart[] = [];
+
+  // Structural Sharing: Join with chat_contents
+  const content = conn?.db.chatContents.id.find(msg.contentId);
+  const targetPartsJson = content ? content.partsJson : msg.partsJson;
+  const targetRole = content ? content.role : msg.role;
+
+  try {
+    const rawParts = JSON.parse(targetPartsJson || "[]");
+    if (Array.isArray(rawParts)) {
+      parts = rawParts.map((p: any) => fromJson(ChatMessagePartSchema, p));
+    }
+  } catch (e) {
+    console.error("Failed to parse chat message parts", e);
+  }
+
+  return {
+    id: msg.id,
+    metadata: { modelId: msg.modelId },
+    parentId: msg.parentId || null,
+    parts,
+    role: targetRole,
+    siblingIds: [], // Computed separately if needed
+    timestamp: Number(msg.timestamp),
+    treeId: msg.treeId,
   };
 }

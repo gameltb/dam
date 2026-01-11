@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 
 import { INFERENCE_CONFIG, type InferenceEndpoint } from "../config/inference";
+import logger from "../utils/logger";
 
 class InferenceService {
   private clients = new Map<string, OpenAI>();
@@ -11,15 +12,29 @@ class InferenceService {
     model?: string;
     stream?: boolean;
   }) {
+    logger.info(
+      `chatCompletion called for model: ${params.model}, endpoint: ${params.endpointId}`,
+    );
     const endpointId = params.endpointId ?? INFERENCE_CONFIG.defaultEndpointId;
     const model = params.model ?? INFERENCE_CONFIG.defaultModel;
-    const client = this.getClient(endpointId);
 
-    return client.chat.completions.create({
-      messages: params.messages,
-      model,
-      stream: params.stream ?? false,
-    });
+    try {
+      const client = this.getClient(endpointId);
+      logger.info(
+        `Client obtained for endpoint ${endpointId}. Starting request...`,
+      );
+
+      const response = await client.chat.completions.create({
+        messages: params.messages,
+        model,
+        stream: params.stream ?? false,
+      });
+      logger.info(`Request successful. Returning response/stream.`);
+      return response;
+    } catch (error) {
+      logger.error(`OpenAI API Request Failed:`, error);
+      throw error;
+    }
   }
 
   getConfig() {

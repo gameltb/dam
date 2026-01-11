@@ -79,6 +79,27 @@ export enum OverflowMode {
   VISIBLE = "visible",
 }
 
+export enum ActionId {
+  CHAT_DUPLICATE_BRANCH = "chat.duplicateBranch",
+  CHAT_EDIT = "chat.edit",
+  CHAT_GENERATE = "chat.generate",
+}
+
+export enum NodeSignalCase {
+  CHAT_EDIT = "chatEdit",
+  CHAT_GENERATE = "chatGenerate",
+  CHAT_SWITCH = "chatSwitch",
+  CHAT_SYNC = "chatSync",
+  RESTART_INSTANCE = "restartInstance",
+}
+
+export enum ChatStatus {
+  ERROR = "error",
+  READY = "ready",
+  STREAMING = "streaming",
+  SUBMITTED = "submitted",
+}
+
 export enum TaskType {
   ANONYMOUS = "anonymous",
   MANUAL = "manual",

@@ -1,15 +1,15 @@
 # Flowcraft
 
-Flowcraft is a high-performance, backend-driven node-based editor built with React 19, `@xyflow/react` (React Flow 12), and TypeScript. It features a unified incremental update protocol using Protobuf, real-time collaboration support via Yjs, and a robust task system for long-running operations.
+Flowcraft is a high-performance, backend-driven node-based editor built with React 19, `@xyflow/react` (React Flow 12), and TypeScript. It features a unified incremental update protocol using Protobuf, real-time synchronization via SpacetimeDB, and a robust task system for long-running operations.
 
 ## Architecture & Core Technologies
 
 - **Frontend:** React 19, Vite, TypeScript
 - **Graph Engine:** `@xyflow/react` (React Flow 12)
-- **State Management:** Zustand (global state), Zundo (undo/redo), Yjs (CRDT/Collaboration)
+- **State Management:** Zustand (global state), Zundo (undo/redo)
+- **Database & Sync:** SpacetimeDB (Source of Truth for graph and tasks)
 - **Protocol:** Protocol Buffers (Protobuf) for data serialization and contracts
 - **Layout:** `dagre` for automatic directed graph positioning
-- **Mocking:** Mock Service Worker (MSW) for simulating a stateful backend
 
 ## Key Features
 
@@ -23,7 +23,7 @@ Nodes are defined by backend JSON/Protobuf schemas.
 
 ### 2. Unified Protocol
 
-All graph operations (snapshots, mutations, task updates) use a single `FlowMessage` envelope. Updates are incremental and atomic (e.g., `addNode`, `updateNode`).
+All graph operations (mutations, task updates) use a single `FlowMessage` envelope or SpacetimeDB Reducers. Updates are incremental and atomic (e.g., `addNode`, `updateNode`). SpacetimeDB serves as the authoritative source of truth.
 
 ### 3. Task System
 

@@ -4,7 +4,6 @@ import {
   ImagePlus,
   MessageSquare,
   RotateCcw,
-  Trash2,
   X,
 } from "lucide-react";
 import React, { useMemo, useState } from "react";
@@ -272,26 +271,23 @@ export const ChatConversationMessage: React.FC<
                   >
                     <Edit2 size={12} />
                   </MessageAction>
+                  {m.role === "assistant" && (
+                    <MessageAction
+                      onClick={() => {
+                        onRegenerate(index);
+                      }}
+                      tooltip="Regenerate Branch"
+                    >
+                      <RotateCcw size={12} />
+                    </MessageAction>
+                  )}
                   <MessageAction
-                    onClick={() => {
-                      onRegenerate(index);
-                    }}
-                    tooltip={
-                      m.role === "assistant"
-                        ? "Regenerate Branch"
-                        : "Generate Response"
-                    }
-                  >
-                    <RotateCcw size={12} />
-                  </MessageAction>
-                  <MessageAction
-                    className="hover:text-destructive"
                     onClick={() => {
                       onDelete(m.id);
                     }}
-                    tooltip="Switch to Parent"
+                    tooltip="Switch to Parent Branch"
                   >
-                    <Trash2 size={12} />
+                    <MessageSquare size={12} />
                   </MessageAction>
                 </MessageActions>
                 {m.siblingIds && m.siblingIds.length > 0 && (

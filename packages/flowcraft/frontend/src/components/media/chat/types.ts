@@ -1,10 +1,11 @@
 import type { FileUIPart } from "ai";
 
 import type { ChatMessagePart } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
+import { type ChatStatus } from "@/types";
 
 export interface ChatMessage {
   attachments?: FileUIPart[];
-  content?: string; // Legacy field, should prefer parts
+  content?: string;
   contextNodes?: ContextNode[];
   createdAt?: number;
   id: string;
@@ -16,10 +17,10 @@ export interface ChatMessage {
   treeId?: string;
 }
 
-export type ChatStatus = "error" | "ready" | "streaming" | "submitted";
-
 export interface ContextNode {
   id: string;
   label: string;
   typeId?: string;
 }
+
+export type { ChatStatus };

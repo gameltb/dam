@@ -6,11 +6,18 @@ Flowcraft is a high-performance, backend-driven node-based editor built with Rea
 
 - **Frontend:** React 19, Vite, TypeScript.
 - **Graph Engine:** `@xyflow/react` for node and edge management.
-- **State Management:** Zustand for global state, Zundo for undo/redo functionality.
+- **State Management:**
+  - **Global:** Zustand.
+  - **Sync & Persistence:** **SpacetimeDB** is the Source of Truth for the graph (Nodes, Edges, Viewport) and Task status.
+  - **Undo/Redo:** `zundo` (Zustand middleware) for local history management.
 - **Layout:** `dagre` for automatic directed graph positioning.
-- **Protocol:** Protocol Buffers (Protobuf) for data serialization and communication contracts.
-- **Mocking:** Mock Service Worker (MSW) simulates a stateful backend.
-- **Messaging:** Unified "Envelope" protocol (`FlowMessage`) via HTTP streaming to simulate WebSocket behavior.
+- **Protocol:** Protocol Buffers (Protobuf) for data serialization.
+- **Backend (Decentralized):**
+  - **SpacetimeDB (Port 3000):** Real-time synchronization and state management.
+  - **Node.js Worker/Server (Port 3001):**
+    - **Worker**: Subscribes to SpacetimeDB `tasks` table to execute AI actions and node operations.
+    - **Metadata Provider**: Handles legacy `TemplateDiscovery` and `InferenceConfig` via ConnectRPC.
+    - **Asset Server**: Manages file uploads and static assets.
 
 ## Key Systems
 
@@ -24,8 +31,12 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 
 ### 2. Protocol & Communication
 
-- **FlowMessage Envelope**: All communications (snapshots, mutations, task updates, streaming chunks) are wrapped in a unified Protobuf message.
-- **Incremental Mutations**: The graph state is updated via atomic mutations (`addNode`, `updateNode`, `removeNode`, `addEdge`, etc.), ensuring efficient synchronization.
+- **Hybrid Synchronization**:
+  - **Graph State**: Handled by **SpacetimeDB** (Nodes, Edges, Viewport). Changes are pushed via Reducers and pulled via Subscriptions.
+  - **Legacy/Tasks**: **FlowMessage Envelope** (Protobuf) via ConnectRPC/gRPC. Used for `actionExecute`, `taskUpdate`, and `templateDiscovery`.
+- **Incremental Mutations**: The graph state is updated via atomic mutations (`addNode`, `updateNode`, etc.).
+  - **SpacetimeDB**: Mutations are mapped to SpacetimeDB Reducers.
+  - **ConnectRPC**: (Deprecated for Graph) Still used for some specialized updates.
 - **RJSF & JSON Schema Integration**:
   - **Contract-First Forms**: UI forms for node/action configurations are driven by `react-jsonschema-form` (RJSF).
   - **Schema Generation**: JSON Schemas are generated from Protobuf definitions. There is no hard requirement for the file location, but targets must be manually added to `buf.gen.schema.yaml`.
@@ -41,11 +52,15 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 
 ## Building and Running
 
-- **Development:** `npm run dev` (Connects to the Node.js backend configured in Settings).
+- **Development:** `npm run dev` starts all components concurrently:
+  - **Vite (Port 5173)**: Frontend HMR.
+  - **SpacetimeDB (Port 3000)**: Backend database.
+  - **Node.js (Port 3001)**: Worker and Metadata provider.
 - **Build:** `npm run build`
 - **Linting:** `npm run lint`
 - **Formatting:** `npm run format`
-- **Protobuf Generation:** `npm run proto:generate` (Requires `schema/*.proto` files)
+- **Protobuf Generation:** `npm run proto:generate`
+- **Spacetime Bindings:** `npm run spacetime:generate`
 
 ## Development Conventions
 
@@ -58,7 +73,7 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
   - **Error Resilience:** Wrap complex node renderers in local Error Boundaries. A failure in a specific node's media or widget renderer must not crash the entire editor canvas.
 - **Data & Synchronization:**
   - **Defensive Parsing:** When parsing backend-provided JSON (e.g., `widgetsSchemaJson`, `widgetsValues`), always use `try-catch` blocks and provide sensible fallback/default values.
-  - **Mutation Atomicity:** All persistent graph changes (position, data, edges) MUST go through `applyMutations` to ensure Yjs and Backend synchronization. Avoid mixing local component state with store state for data that needs to be synchronized.
+  - **Mutation Atomicity:** All persistent graph changes (position, data, edges) MUST go through `applyMutations` to ensure synchronization with SpacetimeDB. Avoid mixing local component state with store state for data that needs to be synchronized.
 - **Modularity & File Size:** Keep components small and focused. **A single file should ideally not exceed 300 lines of code.** If a component or utility grows beyond this limit, consider refactoring logic into custom hooks and splitting UI into smaller sub-components.
 - **Imports & Path Aliases:** Use the `@/` alias for all absolute imports from the `src` directory (e.g., `import { useFlowStore } from "@/store/flowStore"`). Avoid deep relative paths (e.g., `../../hooks/...`) whenever possible to improve maintainability and readability.
 - **Polymorphism over Conditionals:**
@@ -85,5 +100,20 @@ To maintain high code quality and prevent regressions, follow this iterative pro
     - **Step 2:** Attach to the worker's debug port using `attach_debugger` (usually port `9229` as specified in the command).
       _Note: Using `start_node_process` on the CLI directly causes a "double-pause" (once for the CLI, once for the worker). Using the shell to start the worker directly is more efficient._
 6.  **Commit:** Ensure the test remains as a permanent artifact to prevent future regressions.
+
+## Future Roadmap
+
+### Phase 1: Optimization & Decoupling (Completed)
+-   **Remove Yjs:** Frontend now uses standard Zustand state for nodes and edges, synced via SpacetimeDB mutations. `yNodes`, `yEdges`, and `ydoc` have been removed.
+-   **Differential Sync:** `useSpacetimeSync` now uses the `applyMutations` pipeline to sync remote changes efficiently.
+-   **Decentralized Task Execution:** Actions are now triggered via SpacetimeDB `execute_action` reducer. The Node.js server acts as a worker, subscribing to the `tasks` table.
+
+### Phase 2: Full Integration
+-   **Asset Management:** Ensure all asset operations (upload, metadata) are reflected in SpacetimeDB.
+-   **Templates & Config:** Move `templateDiscovery` and global configuration to SpacetimeDB tables.
+-   **Decommission ConnectRPC:** Remove the legacy `socketClient` and `FlowMessage` envelope once all features (like signals and discovery) are ported.
+-   **Execution Graph:** Implement server-side graph execution by having the worker read the full graph state from SpacetimeDB.
+
+
 
 ---
