@@ -11,8 +11,8 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.string().primaryKey(),
   clientIdentity: __t.string(),
+  id: __t.string().primaryKey(),
   operationType: __t.string(),
   payloadJson: __t.string(),
   taskId: __t.string(),

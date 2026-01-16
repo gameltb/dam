@@ -13,13 +13,7 @@ export interface NodeHandlersResult {
   minHeight: number;
   minWidth: number;
   onChange: (id: string, data: Partial<DynamicNodeData>) => void;
-  onGalleryItemContext: (
-    nodeId: string,
-    url: string,
-    mediaType: MediaType,
-    x: number,
-    y: number,
-  ) => void;
+  onGalleryItemContext: (nodeId: string, url: string, mediaType: MediaType, x: number, y: number) => void;
   onWidgetClick: (nodeId: string, widgetId: string) => void;
   shouldLockAspectRatio: boolean;
 }
@@ -41,11 +35,7 @@ export function useNodeHandlers(
   const { isAudio, isMedia, minHeight, minWidth } = layout;
 
   const shouldLockAspectRatio = useMemo(() => {
-    return (
-      isMedia &&
-      (data?.media?.type === MediaType.MEDIA_IMAGE ||
-        data?.media?.type === MediaType.MEDIA_VIDEO)
-    );
+    return isMedia && (data?.media?.type === MediaType.MEDIA_IMAGE || data?.media?.type === MediaType.MEDIA_VIDEO);
   }, [isMedia, data?.media?.type]);
 
   const containerStyle = useMemo((): React.CSSProperties => {
@@ -83,13 +73,7 @@ export function useNodeHandlers(
   );
 
   const onGalleryItemContext = useCallback(
-    (
-      nodeId: string,
-      url: string,
-      mediaType: MediaType,
-      x: number,
-      y: number,
-    ) => {
+    (nodeId: string, url: string, mediaType: MediaType, x: number, y: number) => {
       dispatchNodeEvent(FlowEvent.GALLERY_ITEM_CONTEXT, {
         mediaType,
         nodeId,

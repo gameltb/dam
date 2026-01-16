@@ -1,11 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { v4 as uuidv4 } from "uuid";
 
-import {
-  NodeDataSchema,
-  NodeTemplateSchema,
-  RenderMode,
-} from "@/generated/flowcraft/v1/core/node_pb";
+import { NodeDataSchema, NodeTemplateSchema, RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
 
 import { NodeRegistry } from "../services/NodeRegistry";
 import { ChatNodeInstance } from "./ChatNodeInstance";

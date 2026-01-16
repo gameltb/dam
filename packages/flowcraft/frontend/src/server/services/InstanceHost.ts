@@ -19,9 +19,7 @@ export class InstanceHost {
 
   public getInstancesForNode(nodeId: string): BaseInstance[] {
     const ids = this.nodeToInstances.get(nodeId) ?? [];
-    return ids
-      .map((id) => this.instances.get(id))
-      .filter((i): i is BaseInstance => i !== undefined);
+    return ids.map((id) => this.instances.get(id)).filter((i): i is BaseInstance => i !== undefined);
   }
 
   public getTask(taskId: string): BaseInstance | undefined {

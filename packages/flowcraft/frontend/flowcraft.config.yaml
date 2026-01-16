@@ -1,0 +1,10 @@
+# Flowcraft Build Configuration
+
+# SpacetimeDB Schema 生成配置
+stdb_schema:
+  output_path: "spacetime-module/src/generated/generated_schema.ts"
+
+# Frontend PbClient 生成配置
+pb_client:
+  reducers_dir: "spacetime-module/src/reducers"
+  output_path: "src/generated/pb_client.ts"

@@ -1,10 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 
-import {
-  NodeDataSchema,
-  NodeTemplateSchema,
-  RenderMode,
-} from "@/generated/flowcraft/v1/core/node_pb";
+import { NodeDataSchema, NodeTemplateSchema, RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
 
 import { NodeRegistry } from "../services/NodeRegistry";
 

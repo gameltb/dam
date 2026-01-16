@@ -1,12 +1,6 @@
 import { create } from "zustand";
 
-import {
-  type MutationLogEntry,
-  MutationSource,
-  type TaskDefinition,
-  TaskStatus,
-  TaskType,
-} from "@/types";
+import { type MutationLogEntry, MutationSource, type TaskDefinition, TaskStatus, TaskType } from "@/types";
 
 interface TaskState {
   addMutationLog: (log: MutationLogEntry) => void;
@@ -15,9 +9,7 @@ interface TaskState {
   mutationLogs: MutationLogEntry[];
 
   // Actions
-  registerTask: (
-    task: Partial<TaskDefinition> & { label: string; taskId: string },
-  ) => void;
+  registerTask: (task: Partial<TaskDefinition> & { label: string; taskId: string }) => void;
   resetStore: () => void;
   selectedTaskId: null | string;
   setDrawerOpen: (open: boolean) => void;

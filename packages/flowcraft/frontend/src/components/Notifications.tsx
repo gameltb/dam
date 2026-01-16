@@ -95,14 +95,10 @@ export function Notifications() {
           setIsOpen(true);
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = isDark
-            ? "rgba(255, 255, 255, 0.1)"
-            : "rgba(0, 0, 0, 0.05)";
+          e.currentTarget.style.backgroundColor = isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = isDark
-            ? "rgba(0, 0, 0, 0.5)"
-            : "rgba(255, 255, 255, 0.8)";
+          e.currentTarget.style.backgroundColor = isDark ? "rgba(0, 0, 0, 0.5)" : "rgba(255, 255, 255, 0.8)";
         }}
         style={buttonStyle}
       >

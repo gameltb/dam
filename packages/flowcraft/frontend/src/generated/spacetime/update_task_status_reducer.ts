@@ -11,7 +11,5 @@ import {
 } from "spacetimedb";
 
 export default {
-  id: __t.string(),
-  resultJson: __t.string(),
-  status: __t.string(),
+  update: __t.byteArray(),
 };

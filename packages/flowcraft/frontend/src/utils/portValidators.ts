@@ -1,12 +1,9 @@
 import type { Edge } from "@xyflow/react";
 
 import { PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
-import {
-  type Port,
-  type PortType,
-} from "@/generated/flowcraft/v1/core/node_pb";
+import { type Port, type PortType } from "@/generated/flowcraft/v1/core/node_pb";
 
-import { PORT_MAIN_TYPE_FROM_PROTO } from "./protoAdapter";
+import { PORT_MAIN_TYPE_FROM_PROTO } from "./nodeUtils";
 
 export interface ConnectionResult {
   canConnect: boolean;
@@ -56,14 +53,11 @@ export const AnyValidator: PortValidator = {
 /**
  * Validator Registry / Factory
  */
-export const getValidator = (
-  portType: null | PortType | undefined,
-): PortValidator => {
+export const getValidator = (portType: null | PortType | undefined): PortValidator => {
   const mainType = portType?.mainType ?? PortMainType.ANY;
 
   if (mainType === PortMainType.ANY) return AnyValidator;
-  if (mainType === PortMainType.LIST || mainType === PortMainType.SET)
-    return CollectionValidator;
+  if (mainType === PortMainType.LIST || mainType === PortMainType.SET) return CollectionValidator;
 
   return StandardValidator;
 };
@@ -79,11 +73,7 @@ export const validateConnection = (
   const validator = getValidator(target.type);
 
   // 1. Type Check
-  if (
-    source.type &&
-    target.type &&
-    !validator.canAccept(source.type, target.type)
-  ) {
+  if (source.type && target.type && !validator.canAccept(source.type, target.type)) {
     return {
       canConnect: false,
       reason: `Type Mismatch: Cannot connect ${PORT_MAIN_TYPE_FROM_PROTO[source.type.mainType] ?? "any"} to ${PORT_MAIN_TYPE_FROM_PROTO[target.type.mainType] ?? "any"}`,
@@ -92,9 +82,7 @@ export const validateConnection = (
 
   // 2. Multi-connection Check
   const maxInputs = validator.getMaxInputs();
-  const inputCount = currentEdges.filter(
-    (e) => e.target === target.nodeId && e.targetHandle === target.id,
-  ).length;
+  const inputCount = currentEdges.filter((e) => e.target === target.nodeId && e.targetHandle === target.id).length;
 
   if (inputCount >= maxInputs) {
     // If it's a single input port, we allow connection to "replace" the existing one

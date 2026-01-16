@@ -11,14 +11,7 @@ interface NodeInfoPanelProps {
   y: number;
 }
 
-export const NodeInfoPanel: React.FC<NodeInfoPanelProps> = ({
-  height,
-  nodeId,
-  templateId,
-  width,
-  x,
-  y,
-}) => (
+export const NodeInfoPanel: React.FC<NodeInfoPanelProps> = ({ height, nodeId, templateId, width, x, y }) => (
   <div
     className={cn(
       "nodrag nopan absolute -top-12 left-1/2 -translate-x-1/2",
@@ -36,9 +29,7 @@ export const NodeInfoPanel: React.FC<NodeInfoPanelProps> = ({
 
     <div className="flex items-center gap-1.5">
       <span className="opacity-50 text-[9px]">TEMPLATE_ID</span>
-      <span className="text-primary-color tracking-wider uppercase">
-        {templateId}
-      </span>
+      <span className="text-primary-color tracking-wider uppercase">{templateId}</span>
     </div>
 
     <div className="w-px h-3 bg-white/15" />

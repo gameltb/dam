@@ -9,10 +9,7 @@ import { type GraphMiddleware, type GraphMutationEvent } from "./types";
  * TaskMiddleware
  * 负责记录变更到任务日志中，并确保关联的任务存在
  */
-export const taskMiddleware: GraphMiddleware = (
-  event: GraphMutationEvent,
-  next,
-) => {
+export const taskMiddleware: GraphMiddleware = (event: GraphMutationEvent, next) => {
   const { context, mutations } = event;
   const source = context.source ?? MutationSource.SOURCE_USER;
   const taskId = context.taskId ?? "manual-action";

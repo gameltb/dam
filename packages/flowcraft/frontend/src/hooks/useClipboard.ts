@@ -6,16 +6,12 @@ import { v4 as uuidv4 } from "uuid";
 
 import type { AppNode, DynamicNodeData } from "@/types";
 
+import { ActionExecutionRequestSchema } from "@/generated/flowcraft/v1/core/action_pb";
 import { EdgeSchema } from "@/generated/flowcraft/v1/core/node_pb";
-import {
-  type GraphMutation,
-  GraphMutationSchema,
-} from "@/generated/flowcraft/v1/core/service_pb";
+import { type GraphMutation, GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
-import { toProtoNode } from "@/utils/protoAdapter";
-
-import { useFlowSocket } from "./useFlowSocket";
+import { appNodeToProto } from "@/utils/nodeProtoUtils";
 
 /**
  * Hook to manage clipboard operations (copy, paste, duplicate).
@@ -24,16 +20,13 @@ import { useFlowSocket } from "./useFlowSocket";
 export function useClipboard() {
   const { applyMutations, edges, nodes, spacetimeConn } = useFlowStore();
   const { clipboard, setClipboard } = useUiStore();
-  const { executeTask } = useFlowSocket();
 
   const copy = useCallback(() => {
     const selectedNodes = nodes.filter((n) => n.selected);
     if (selectedNodes.length === 0) return;
 
     const selectedNodeIds = new Set(selectedNodes.map((n) => n.id));
-    const selectedEdges = edges.filter(
-      (e) => selectedNodeIds.has(e.source) && selectedNodeIds.has(e.target),
-    );
+    const selectedEdges = edges.filter((e) => selectedNodeIds.has(e.source) && selectedNodeIds.has(e.target));
 
     setClipboard({
       edges: selectedEdges,
@@ -103,7 +96,7 @@ export function useClipboard() {
           create(GraphMutationSchema, {
             operation: {
               case: "addNode",
-              value: { node: toProtoNode(n) },
+              value: { node: appNodeToProto(n) },
             },
           }),
         ),
@@ -135,20 +128,33 @@ export function useClipboard() {
         if (item.oldHeadId && item.treeId) {
           // Trigger a specialized action that Worker handles to COW clone the branch
           if (spacetimeConn) {
-            spacetimeConn.reducers.executeAction({
+            const request = create(ActionExecutionRequestSchema, {
               actionId: "chat.duplicateBranch",
+              params: {
+                case: "paramsStruct",
+                value: {
+                  fields: {
+                    sourceHeadId: {
+                      kind: { case: "stringValue", value: item.oldHeadId },
+                    },
+                    treeId: {
+                      kind: { case: "stringValue", value: item.treeId },
+                    },
+                  },
+                } as any,
+              },
+              sourceNodeId: item.newId,
+            });
+
+            spacetimeConn.pbreducers.executeAction({
               id: crypto.randomUUID(),
-              nodeId: item.newId,
-              paramsJson: JSON.stringify({
-                sourceHeadId: item.oldHeadId,
-                treeId: item.treeId,
-              }),
+              request,
             });
           }
         }
       });
     },
-    [clipboard, nodes, applyMutations, executeTask, spacetimeConn],
+    [clipboard, nodes, applyMutations, spacetimeConn],
   );
 
   const duplicate = useCallback(() => {

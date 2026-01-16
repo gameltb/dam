@@ -52,38 +52,31 @@ describe("useGraphOperations - Grouping", () => {
   });
 
   it("should calculate correct relative positions and parentId when grouping", () => {
-    const { result } = renderHook(() =>
-      useGraphOperations(),
-    );
+    const { result } = renderHook(() => useGraphOperations());
 
     result.current.groupSelected();
 
     expect(mockApplyMutations).toHaveBeenCalled();
     const calls = mockApplyMutations.mock.calls;
-     
-    const mutations = (calls[0]?.[0] as GraphMutation[]) ?? [];
+    if (!calls[0]) throw new Error("Expected mockApplyMutations to be called");
+
+    const mutations = calls[0][0] as GraphMutation[];
 
     // 1. Check if group node is added
 
     const addGroupMut = mutations.find(
-      (m) =>
-        m.operation.case === "addNode" &&
-        m.operation.value.node?.nodeKind === NodeKind.GROUP,
+      (m) => m.operation.case === "addNode" && m.operation.value.node?.nodeKind === NodeKind.GROUP,
     );
     expect(addGroupMut).toBeDefined();
 
     // Bounding Box: minX=100, minY=100, maxX=300, maxY=250 (padding=40)
     // groupX = 100 - 40 = 60, groupY = 100 - 40 = 60
     const groupPos =
-      addGroupMut?.operation.case === "addNode"
-        ? addGroupMut.operation.value.node?.presentation?.position
-        : null;
+      addGroupMut?.operation.case === "addNode" ? addGroupMut.operation.value.node?.presentation?.position : null;
     expect(groupPos).toMatchObject({ x: 60, y: 60 });
 
     // 2. Check if children are updated with parentId and relative positions
-    const updateNode1 = mutations.find(
-      (m) => m.operation.case === "updateNode" && m.operation.value.id === "1",
-    );
+    const updateNode1 = mutations.find((m) => m.operation.case === "updateNode" && m.operation.value.id === "1");
     if (updateNode1?.operation.case === "updateNode") {
       expect(updateNode1.operation.value.presentation?.parentId).toBeDefined();
       // relativeX = 100 - 60 = 40, relativeY = 100 - 60 = 40
@@ -95,9 +88,7 @@ describe("useGraphOperations - Grouping", () => {
       throw new Error("Expected updateNode mutation");
     }
 
-    const updateNode2 = mutations.find(
-      (m) => m.operation.case === "updateNode" && m.operation.value.id === "2",
-    );
+    const updateNode2 = mutations.find((m) => m.operation.case === "updateNode" && m.operation.value.id === "2");
     if (updateNode2?.operation.case === "updateNode") {
       // relativeX = 200 - 60 = 140, relativeY = 200 - 60 = 140
       expect(updateNode2.operation.value.presentation?.position).toMatchObject({

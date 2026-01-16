@@ -23,7 +23,14 @@
     "test": "vitest run",
     "verify": "set -ex; npm run lint:fix; npm run test; npm run build; npm run format",
     "preview": "vite preview",
+    "gen": "npm run scripts:check && npm run proto:generate && npm run proto:sync && npm run spacetime:generate-schema && npm run spacetime:generate-client && npm run spacetime:generate",
+    "scripts:type-check": "tsc -p tsconfig.scripts.json",
+    "scripts:lint": "eslint scripts/**/*.ts --fix",
+    "scripts:check": "npm run scripts:type-check && npm run scripts:lint",
     "proto:generate": "rm -rf src/generated/flowcraft src/generated/schemas && npx buf generate && npx buf generate --template buf.gen.schema.yaml",
+    "proto:sync": "rm -rf spacetime-module/src/generated/flowcraft spacetime-module/src/generated/proto-stdb-bridge.ts && mkdir -p spacetime-module/src/generated/flowcraft && cp -r src/generated/flowcraft/* spacetime-module/src/generated/flowcraft/ && cp src/utils/proto-stdb-bridge.ts spacetime-module/src/generated/proto-stdb-bridge.ts",
+    "spacetime:generate-schema": "npx tsx scripts/proto-to-stdb.ts",
+    "spacetime:generate-client": "npx tsx scripts/generate-pb-client.ts",
     "prepare": "husky"
   },
   "dependencies": {
@@ -74,10 +81,11 @@
     "use-stick-to-bottom": "^1.1.1",
     "uuid": "^13.0.0",
     "winston": "^3.19.0",
+    "yaml": "^2.8.2",
     "zundo": "^2.3.0"
   },
   "devDependencies": {
-    "@bufbuild/buf": "^1.62.1",
+    "@bufbuild/buf": "^1.63.0",
     "@bufbuild/protoc-gen-es": "^2.10.2",
     "@connectrpc/connect-fastify": "^2.1.1",
     "@connectrpc/connect-node": "^2.1.1",
@@ -91,6 +99,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@types/winston": "^2.4.4",
+    "@types/yaml": "^1.9.6",
     "@vitejs/plugin-react": "^5.1.2",
     "autoprefixer": "^10.4.23",
     "concurrently": "^9.2.1",

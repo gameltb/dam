@@ -11,15 +11,8 @@ import {
 } from "spacetimedb";
 
 export default __t.object("AddChatMessage", {
-  contentId: __t.string(),
-  id: __t.string(),
-  modelId: __t.string(),
+  message: __t.byteArray(),
   nodeId: __t.string(),
-  parentId: __t.string(),
-  partsJson: __t.string(),
-  role: __t.string(),
-  timestamp: __t.u64(),
-  treeId: __t.string(),
 });
 
 

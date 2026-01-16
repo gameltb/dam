@@ -13,6 +13,5 @@ import {
 export default __t.row({
   content: __t.string(),
   nodeId: __t.string().primaryKey(),
-  parentId: __t.string(),
   status: __t.string(),
 });

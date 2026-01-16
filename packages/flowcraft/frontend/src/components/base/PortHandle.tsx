@@ -3,14 +3,10 @@ import { Position, Handle as ReactFlowHandle, useStore } from "@xyflow/react";
 import React, { useState } from "react";
 
 import { PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
-import {
-  PortSchema,
-  PortStyle,
-  PortTypeSchema,
-} from "@/generated/flowcraft/v1/core/node_pb";
+import { PortSchema, PortStyle, PortTypeSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import { useUiStore } from "@/store/uiStore";
+import { PORT_MAIN_TYPE_FROM_PROTO } from "@/utils/nodeUtils";
 import { getValidator, validateConnection } from "@/utils/portValidators";
-import { PORT_MAIN_TYPE_FROM_PROTO } from "@/utils/protoAdapter";
 
 import { PortIcon } from "./PortIcon";
 
@@ -51,17 +47,11 @@ export const PortHandle: React.FC<PortHandleProps> = ({
 
   // Connection state
   const isConnected = edges.some((e) =>
-    isLeft
-      ? e.target === nodeId && e.targetHandle === portId
-      : e.source === nodeId && e.sourceHandle === portId,
+    isLeft ? e.target === nodeId && e.targetHandle === portId : e.source === nodeId && e.sourceHandle === portId,
   );
 
-  const validator = getValidator(
-    create(PortTypeSchema, { isGeneric, itemType, mainType }),
-  );
-  const inputCount = edges.filter(
-    (e) => e.target === nodeId && e.targetHandle === portId,
-  ).length;
+  const validator = getValidator(create(PortTypeSchema, { isGeneric, itemType, mainType }));
+  const inputCount = edges.filter((e) => e.target === nodeId && e.targetHandle === portId).length;
 
   // --- Dynamic Guarding & Tooltip Logic ---
   let isInvalidTarget = false;
@@ -108,15 +98,12 @@ export const PortHandle: React.FC<PortHandleProps> = ({
   }
 
   const maxInputs = validator.getMaxInputs();
-  const isConnectable =
-    !isInvalidTarget && (!isLeft || inputCount < maxInputs || maxInputs === 1);
+  const isConnectable = !isInvalidTarget && (!isLeft || inputCount < maxInputs || maxInputs === 1);
 
   const tooltip = `Type: ${PORT_MAIN_TYPE_FROM_PROTO[mainType] ?? "any"}${itemType ? `<${itemType}>` : ""}\nLimit: ${validator.getMaxInputs() === 999 ? "Multiple" : "Single"}\n${description ?? ""}`;
 
   // --- Presentation Mode Specific Styles ---
-  const trianglePath = isLeft
-    ? "M 7 0 L 0 7 L 7 14 Z"
-    : "M 7 0 L 14 7 L 7 14 Z";
+  const trianglePath = isLeft ? "M 7 0 L 0 7 L 7 14 Z" : "M 7 0 L 14 7 L 7 14 Z";
 
   const handleStyle: React.CSSProperties = isPresentation
     ? {
@@ -153,11 +140,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
         minHeight: "10px",
         minWidth: "10px",
         opacity:
-          isImplicit && !activeConnection && !isConnected
-            ? 0.001
-            : activeConnection && isInvalidTarget
-              ? 0.15
-              : 1,
+          isImplicit && !activeConnection && !isConnected ? 0.001 : activeConnection && isInvalidTarget ? 0.15 : 1,
         padding: 0,
         pointerEvents: activeConnection && isInvalidTarget ? "none" : "auto",
         position: "absolute",
@@ -184,12 +167,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
       type={type}
     >
       {isPresentation ? (
-        <svg
-          height="14"
-          style={{ overflow: "visible" }}
-          viewBox="0 0 14 14"
-          width="14"
-        >
+        <svg height="14" style={{ overflow: "visible" }} viewBox="0 0 14 14" width="14">
           <path
             d={trianglePath}
             fill={color}
@@ -255,9 +233,7 @@ export const PortHandle: React.FC<PortHandleProps> = ({
             This Port: {PORT_MAIN_TYPE_FROM_PROTO[mainType]}
           </div>
           {!validationResult?.canConnect && validationResult?.reason && (
-            <div style={{ color: "#f87171", fontSize: "9px" }}>
-              {validationResult.reason}
-            </div>
+            <div style={{ color: "#f87171", fontSize: "9px" }}>{validationResult.reason}</div>
           )}
         </div>
       )}

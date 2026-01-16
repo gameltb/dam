@@ -74,12 +74,35 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 - **Data & Synchronization:**
   - **Defensive Parsing:** When parsing backend-provided JSON (e.g., `widgetsSchemaJson`, `widgetsValues`), always use `try-catch` blocks and provide sensible fallback/default values.
   - **Mutation Atomicity:** All persistent graph changes (position, data, edges) MUST go through `applyMutations` to ensure synchronization with SpacetimeDB. Avoid mixing local component state with store state for data that needs to be synchronized.
-- **Modularity & File Size:** Keep components small and focused. **A single file should ideally not exceed 300 lines of code.** If a component or utility grows beyond this limit, consider refactoring logic into custom hooks and splitting UI into smaller sub-components.
+- **Modularity & File Size:** Keep components small and focused. **A single file should ideally not exceed 300 lines of code.**
+  - **Exemption:** Components in `src/components/ui/` and `src/components/ai-elements/` (typically introduced via shadcn or external libraries) are exempt from this line limit and should not be refactored solely to satisfy this rule.
 - **Imports & Path Aliases:** Use the `@/` alias for all absolute imports from the `src` directory (e.g., `import { useFlowStore } from "@/store/flowStore"`). Avoid deep relative paths (e.g., `../../hooks/...`) whenever possible to improve maintainability and readability.
+- **Structural Refactoring (ast-grep):** Use `npx ast-grep` for precise, syntax-aware code transformations across the project. 
+  - *Example:* `npx ast-grep --pattern '$O.reducers.$M($$A)' --rewrite '$O.pbreducers.$M($$A)'` helps migrate legacy calls.
+  - Prefer AST-based tools over simple regex/sed for complex nested structures to avoid breaking code context.
 - **Polymorphism over Conditionals:**
   - **Avoid `if/else` or `switch` on node types** in shared logic (hooks, stores, utils).
   - Use **Data-Driven Design**: Define type-specific constraints (min-size, default data) in `NodeTemplate` or dedicated config registries (e.g., `mediaConfigs.ts`).
   - Presentation fields like `position`, `width`, `height`, and `parentId` must be **strictly typed** in Protobuf and handled as "pass-through" by the backend to ensure visual consistency while allowing introspection.
+
+## Advanced Bridging & Communication
+
+### 1. Dual-Track Reducers (PB + Native)
+The system supports two parallel ways to call SpacetimeDB reducers:
+- **`conn.reducers`**: Original SpacetimeDB accessors. Expects `Uint8Array` for Protobuf-backed fields.
+- **`conn.pbreducers`**: Enhanced accessors. Transparently accepts standard Protobuf Message objects and performs serialization automatically.
+- **Type Safety**: The type of `pbreducers` is automatically projected from the native definition via `PbReducersProjection`. NEVER manually define `interface PbReducers`.
+
+### 2. Automatic Metadata Discovery
+The generation pipeline (`scripts/generate-pb-client.ts`) automatically discovers mappings between STDB Tables/Reducers and Protobuf Schemas by:
+- Mocking the STDB server environment and capturing table definitions.
+- Heuristically matching TypeNames (e.g., `Node` in STDB maps to `NodeSchema` in PB).
+- Generating a pure metadata file `src/generated/pb_metadata.ts`.
+
+### 3. Data Normalization
+Always use `convertStdbToPb` (from `@/utils/pb-client`) to ingest data from SpacetimeDB subscriptions. 
+- **Reason**: SpacetimeDB may represent Enums as objects (e.g., `{ mode: 1 }`). This utility "washes" the data back into standard Protobuf primitive format before it hits the store.
+- **Consistency**: Use the bridge at the entry point (`useSpacetimeSync`) so that the rest of the application (UI components and stores) only deals with standardized Protobuf shapes.
 
 ## Quality & Development Workflow
 
@@ -89,8 +112,7 @@ To maintain high code quality and prevent regressions, follow this iterative pro
 2.  **Write Tests First (or during):** Create a test file in `__tests__/` that explicitly describes the **Problem** and the **Requirement** in a header comment.
 3.  **Implement Fix:** Code the solution.
 4.  **One-Click Verification:** Run `npm run verify` to execute the full pipeline:
-    - `proto:generate`: Refresh Protobuf contracts.
-    - `lint:fix`: Auto-fix linting issues.
+    - `lint:fix`: Auto-fix linting issues (Excludes `src/components/ui` and `src/components/ai-elements` from mandatory manual refactoring).
     - `test`: Run all unit and integration tests.
     - `build`: Perform type-checking (`tsc`) and production build.
     - `format`: Finalize code formatting.
@@ -100,20 +122,3 @@ To maintain high code quality and prevent regressions, follow this iterative pro
     - **Step 2:** Attach to the worker's debug port using `attach_debugger` (usually port `9229` as specified in the command).
       _Note: Using `start_node_process` on the CLI directly causes a "double-pause" (once for the CLI, once for the worker). Using the shell to start the worker directly is more efficient._
 6.  **Commit:** Ensure the test remains as a permanent artifact to prevent future regressions.
-
-## Future Roadmap
-
-### Phase 1: Optimization & Decoupling (Completed)
--   **Remove Yjs:** Frontend now uses standard Zustand state for nodes and edges, synced via SpacetimeDB mutations. `yNodes`, `yEdges`, and `ydoc` have been removed.
--   **Differential Sync:** `useSpacetimeSync` now uses the `applyMutations` pipeline to sync remote changes efficiently.
--   **Decentralized Task Execution:** Actions are now triggered via SpacetimeDB `execute_action` reducer. The Node.js server acts as a worker, subscribing to the `tasks` table.
-
-### Phase 2: Full Integration
--   **Asset Management:** Ensure all asset operations (upload, metadata) are reflected in SpacetimeDB.
--   **Templates & Config:** Move `templateDiscovery` and global configuration to SpacetimeDB tables.
--   **Decommission ConnectRPC:** Remove the legacy `socketClient` and `FlowMessage` envelope once all features (like signals and discovery) are ported.
--   **Execution Graph:** Implement server-side graph execution by having the worker read the full graph state from SpacetimeDB.
-
-
-
----

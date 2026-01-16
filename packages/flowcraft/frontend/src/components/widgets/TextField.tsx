@@ -7,12 +7,7 @@ export interface TextFieldProps {
   value: string;
 }
 
-export const TextField: React.FC<TextFieldProps> = ({
-  label,
-  onChange,
-  placeholder,
-  value,
-}) => {
+export const TextField: React.FC<TextFieldProps> = ({ label, onChange, placeholder, value }) => {
   const [localValue, setLocalValue] = useState(value);
 
   useEffect(() => {

@@ -1,88 +1,57 @@
-import { fromJson, toJson } from "@bufbuild/protobuf";
-import { useEffect, useMemo } from "react";
+import { create } from "@bufbuild/protobuf";
+import { useCallback, useEffect, useMemo } from "react";
 import { useSpacetimeDB, useTable } from "spacetimedb/react";
 
 import { type ChatMessage } from "@/components/media/chat/types";
-import {
-  type ChatMessagePart,
-  ChatMessagePartSchema,
-} from "@/generated/flowcraft/v1/actions/chat_actions_pb";
-import { DbConnection, tables } from "@/generated/spacetime";
+import { ChatSyncMessageSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
+import { wrapReducers } from "@/utils/pb-client";
+import { type DbConnection, tables } from "@/generated/spacetime";
 
-export const useSpacetimeChat = (
-  nodeId: string,
-  treeId?: string,
-  headId?: string,
-) => {
-  const { getConnection } = useSpacetimeDB();
+export const useSpacetimeChat = (nodeId: string, treeId?: string, headId?: string) => {
+  const stdb = useSpacetimeDB();
+  const getConnection = useCallback(() => stdb.getConnection<DbConnection>(), [stdb]);
+
   const [stMessages] = useTable(tables.chatMessages);
-  const [stContents] = useTable(tables.chatContents);
 
   useEffect(() => {
-    const conn = getConnection<DbConnection>();
+    const conn = getConnection();
     if (conn) {
-      conn
-        .subscriptionBuilder()
-        .subscribe(["SELECT * FROM chat_messages", "SELECT * FROM chat_contents"]);
+      void conn.subscriptionBuilder().subscribe(["SELECT * FROM chat_messages"]);
     }
   }, [getConnection]);
 
   const { messages } = useMemo(() => {
-    // 0. Create content lookup map
-    const contentMap = new Map(stContents.map((c: any) => [c.id, c]));
-
     const filtered = stMessages
-      .filter((msg: any) =>
-        treeId ? msg.treeId === treeId : msg.nodeId === nodeId,
-      )
+
+      .filter((msg: any) => (treeId ? msg.state.treeId === treeId : msg.state.treeId === nodeId))
+
       .map((msg: any) => {
-        const content = contentMap.get(msg.contentId);
-        let parts: ChatMessagePart[] = [];
+        const m = msg.state;
 
-        const targetPartsJson = content ? content.partsJson : msg.partsJson;
-        const targetRole = content ? content.role : msg.role;
-
-        try {
-          const rawParts = JSON.parse(targetPartsJson || "[]");
-          if (Array.isArray(rawParts)) {
-            parts = rawParts.map((p: any) => fromJson(ChatMessagePartSchema, p));
-          }
-        } catch (e) {
-          console.error("Failed to parse chat message parts", e);
-        }
+        const modelId = m.metadata?.tag === "chatMetadata" ? m.metadata.value.modelId : "";
 
         return {
-          createdAt: Number(msg.timestamp),
-          id: msg.id,
-          modelId: msg.modelId,
-          parentId: msg.parentId || undefined,
-          parts,
-          role: targetRole as "assistant" | "system" | "user",
-          siblingIds: [],
-          treeId: msg.treeId,
+          createdAt: Number(m.timestamp),
+
+          id: m.id,
+
+          metadata: { modelId },
+
+          parentId: m.parentId === "" ? undefined : m.parentId,
+
+          parts: m.parts || [],
+
+          role: m.role as "assistant" | "system" | "user",
+
+          siblingIds: m.siblingIds || [],
+
+          treeId: m.treeId,
         } as ChatMessage;
       });
 
-    // 1. Build parent mapping for sibling calculation
-    const parentMap = new Map<string, string[]>();
-    filtered.forEach((m) => {
-      const pid = m.parentId || "root";
-      if (!parentMap.has(pid)) parentMap.set(pid, []);
-      parentMap.get(pid)?.push(m.id);
-    });
-
-    const enriched = filtered.map((m) => ({
-      ...m,
-      siblingIds:
-        parentMap.get(m.parentId || "root")?.filter((id) => id !== m.id) || [],
-    }));
-
-    // 2. Trace path from headId upwards to build the current branch
     const branch: ChatMessage[] = [];
     let currentId = headId;
-
-    // Sort all by time initially just to be safe
-    const msgMap = new Map(enriched.map((m) => [m.id, m]));
+    const msgMap = new Map(filtered.map((m) => [m.id, m]));
 
     while (currentId) {
       const msg = msgMap.get(currentId);
@@ -92,41 +61,33 @@ export const useSpacetimeChat = (
     }
 
     return {
-      allMessagesInTree: enriched,
-      messages:
-        branch.length > 0
-          ? branch
-          : enriched.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0)),
+      allMessagesInTree: filtered,
+      messages: branch.length > 0 ? branch : filtered.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0)),
     };
   }, [stMessages, nodeId, treeId, headId]);
 
   const addMessage = (msg: ChatMessage) => {
-    const conn = getConnection<DbConnection>();
+    const conn = getConnection();
     if (conn) {
-      const partsJson = JSON.stringify(
-        (msg.parts || []).map((p) => toJson(ChatMessagePartSchema, p)),
-      );
-
-      const contentId = (msg as any).contentId || crypto.randomUUID();
-
-      conn.reducers.addChatMessage({
-        contentId,
-        id: msg.id,
-        modelId: (msg as any).modelId || "",
+      const client = wrapReducers(conn);
+      client.pbreducers.addChatMessage({
+        message: create(ChatSyncMessageSchema, {
+          id: msg.id,
+          modelId: (msg.metadata?.modelId as string) || "",
+          parts: msg.parts || [],
+          role: msg.role,
+          timestamp: BigInt(msg.createdAt ?? Date.now()),
+        }),
         nodeId: nodeId,
-        parentId: msg.parentId || "",
-        partsJson,
-        role: msg.role,
-        timestamp: BigInt(msg.createdAt || Date.now()),
-        treeId: msg.treeId || treeId || "",
       });
     }
   };
 
   const clearHistory = () => {
-    const conn = getConnection<DbConnection>();
+    const conn = getConnection();
     if (conn) {
-      conn.reducers.clearChatHistory({ nodeId });
+      const client = wrapReducers(conn);
+      client.reducers.clearChatHistory({ nodeId });
     }
   };
 

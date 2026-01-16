@@ -4,39 +4,27 @@ import { useCallback, useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 import { useShallow } from "zustand/react/shallow";
 
-import {
-  type ActionTemplate,
-} from "@/generated/flowcraft/v1/core/action_pb";
+import { type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
+import { useAppActions } from "@/hooks/useAppActions";
 import { useAppHotkeys } from "@/hooks/useAppHotkeys";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useFlowHandlers } from "@/hooks/useFlowHandlers";
 import { useFlowSocket } from "@/hooks/useFlowSocket";
 import { useGraphOperations } from "@/hooks/useGraphOperations";
 import { useHelperLines } from "@/hooks/useHelperLines";
-import {
-  type PreviewData,
-  useNodeEventListener,
-} from "@/hooks/useNodeEventListener";
+import { type PreviewData, useNodeEventListener } from "@/hooks/useNodeEventListener";
 import { useSpacetimeSync } from "@/hooks/useSpacetimeSync";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { useFlowStore } from "@/store/flowStore";
-import { useTaskStore } from "@/store/taskStore";
 import { type RFState } from "@/store/types";
 import { useUiStore } from "@/store/uiStore";
-import {
-  type AppNode,
-  ChatViewMode,
-  MutationSource,
-  type NodeTemplate,
-  TaskStatus,
-} from "@/types";
-import { fromProtoNodeData } from "@/utils/protoAdapter";
+import { ChatViewMode } from "@/types";
 import { socketClient, SocketStatus } from "@/utils/SocketClient";
 
 import { FlowCanvas } from "./components/canvas/FlowCanvas";
-import { ChatBot } from "./components/media/ChatBot";
 import { ContextMenuOverlay } from "./components/menus/ContextMenuOverlay";
+import { ChatBot } from "./components/media/ChatBot";
 import { Sidebar } from "./components/Sidebar";
 import { AppOverlays } from "./components/ui/AppOverlays";
 import { Button } from "./components/ui/button";
@@ -44,7 +32,7 @@ import { Button } from "./components/ui/button";
 function App() {
   useSpacetimeSync();
   const {
-    addNode: addNodeToStore,
+    addNode: _addNodeToStore,
     edges,
     nodes,
     onConnect,
@@ -60,28 +48,15 @@ function App() {
       onNodesChange: s.onNodesChange,
     })),
   );
-  const {
-    activeChatNodeId,
-    dragMode,
-    isChatFullscreen,
-    setActiveChat,
-    settings,
-  } = useUiStore();
-  const { cancelTask, executeTask, streamAction, templates, updateViewport } =
-    useFlowSocket();
+  const { activeChatNodeId, dragMode, isChatFullscreen, setActiveChat, settings } = useUiStore();
+  const { cancelTask, executeTask, streamAction, templates, updateViewport } = useFlowSocket();
   const { calculateLines, helperLines, setHelperLines } = useHelperLines();
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition: _screenToFlowPosition } = useReactFlow();
   useTheme();
 
-  const [connectionStatus, setConnectionStatus] = useState<SocketStatus>(
-    socketClient.getStatus(),
-  );
-  const [availableActions, setAvailableActions] = useState<ActionTemplate[]>(
-    [],
-  );
-  const [pendingAction, setPendingAction] = useState<ActionTemplate | null>(
-    null,
-  );
+  const [connectionStatus, setConnectionStatus] = useState<SocketStatus>(socketClient.getStatus());
+  const [availableActions, setAvailableActions] = useState<ActionTemplate[]>([]);
+  const [pendingAction, setPendingAction] = useState<ActionTemplate | null>(null);
   const [previewData, setPreviewData] = useState<null | PreviewData>(null);
   const [activeEditorId, setActiveEditorId] = useState<null | string>(null);
 
@@ -97,14 +72,20 @@ function App() {
   } = useContextMenu();
 
   const {
-    addNode,
-    autoLayout,
-    copySelected,
-    deleteEdge,
-    deleteNode,
-    duplicateSelected,
-    groupSelected,
-    paste,
+    handleAddNode: _handleAddNode,
+    handleDrop,
+    handleExecuteAction,
+  } = useAppActions(setPendingAction, contextMenu, closeContextMenuAndClear);
+
+  const {
+    addNode: _addNode,
+    autoLayout: _autoLayout,
+    copySelected: _copySelected,
+    deleteEdge: _deleteEdge,
+    deleteNode: _deleteNode,
+    duplicateSelected: _duplicateSelected,
+    groupSelected: _groupSelected,
+    paste: _paste,
   } = useGraphOperations();
 
   const {
@@ -127,7 +108,7 @@ function App() {
 
   useAppHotkeys();
   useNodeEventListener({
-    addNodeToStore,
+    addNodeToStore: _addNodeToStore,
     cancelTask,
     executeTask,
     nodes,
@@ -150,122 +131,11 @@ function App() {
     };
   }, []);
 
-  const handleExecuteAction = useCallback(
-    (action: ActionTemplate, params: Record<string, unknown> = {}) => {
-      if (action.paramsSchema && Object.keys(params).length === 0) {
-        setPendingAction(action);
-        closeContextMenuAndClear();
-        return;
-      }
-      const effectiveNodeId =
-        contextMenu?.nodeId ?? nodes.find((n: AppNode) => n.selected)?.id ?? "";
-      if (
-        !effectiveNodeId &&
-        nodes.filter((n: AppNode) => n.selected).length === 0
-      )
-        return;
-
-      const taskId = crypto.randomUUID();
-      useTaskStore.getState().registerTask({
-        label: action.label,
-        source: MutationSource.SOURCE_REMOTE_TASK,
-        taskId,
-      });
-
-      const { spacetimeConn } = useFlowStore.getState();
-      if (spacetimeConn) {
-        try {
-          spacetimeConn.reducers.executeAction({
-            actionId: action.id,
-            id: taskId,
-            nodeId: effectiveNodeId,
-            paramsJson: JSON.stringify({
-              ...params,
-              contextNodeIds: nodes
-                .filter((n: AppNode) => n.selected)
-                .map((n: AppNode) => n.id),
-            }),
-          });
-        } catch (err) {
-          console.error("[SpacetimeDB] Failed to execute action:", err);
-          useTaskStore.getState().updateTask(taskId, {
-            message: String(err),
-            status: TaskStatus.TASK_FAILED,
-          });
-        }
-      } else {
-        // Fallback or warning
-        console.warn("[App] Cannot execute action: No SpacetimeDB connection");
-      }
-
-      setPendingAction(null);
-      closeContextMenuAndClear();
-    },
-    [closeContextMenuAndClear, contextMenu, nodes],
-  );
-
-  const handleAddNode = useCallback(
-    (template: NodeTemplate) => {
-      if (!contextMenu) return;
-      const pos = screenToFlowPosition({ x: contextMenu.x, y: contextMenu.y });
-      addNode(
-        template.templateId,
-        pos,
-        {
-          ...(template.defaultState
-            ? fromProtoNodeData(template.defaultState)
-            : {}),
-          label: template.displayName,
-        },
-        template.defaultWidth,
-        template.defaultHeight,
-      );
-    },
-    [addNode, contextMenu, screenToFlowPosition],
-  );
-
   const onDrop = useCallback(
     (event: React.DragEvent) => {
-      event.preventDefault();
-      const dropLogic = async () => {
-        const files = event.dataTransfer.files;
-        if (files.length === 0) return;
-        const position = screenToFlowPosition({
-          x: event.clientX,
-          y: event.clientY,
-        });
-        for (const file of Array.from(files)) {
-          const formData = new FormData();
-          formData.append("file", file);
-          const res = await fetch("/api/upload", {
-            body: formData,
-            method: "POST",
-          });
-          const asset = (await res.json()) as {
-            mimeType: string;
-            name: string;
-            url: string;
-          };
-          let tpl = "flowcraft.node.media.document";
-          if (asset.mimeType.startsWith("image/"))
-            tpl = "flowcraft.node.media.visual";
-          const template = templates.find((t) => t.templateId === tpl);
-          addNode(tpl, position, {
-            ...(template?.defaultState
-              ? fromProtoNodeData(template.defaultState)
-              : {}),
-            label: asset.name
-              ? asset.name
-              : (template?.displayName ?? "New Asset"),
-            widgetsValues: { mimeType: asset.mimeType, url: asset.url },
-          });
-        }
-      };
-      void dropLogic().catch((e: unknown) => {
-        console.error(e);
-      });
+      handleDrop(event, templates);
     },
-    [addNode, templates, screenToFlowPosition],
+    [handleDrop, templates],
   );
 
   const onNodeDragStart = useCallback((_e: React.MouseEvent, node: RFNode) => {
@@ -273,7 +143,7 @@ function App() {
     if (nativeEvent?.dataTransfer) {
       nativeEvent.dataTransfer.setData(
         "application/flowcraft-node",
-        JSON.stringify({ id: node.id, label: node.data.label }),
+        JSON.stringify({ id: node.id, label: node.data.displayName }),
       );
       nativeEvent.dataTransfer.effectAllowed = "move";
     }
@@ -326,11 +196,26 @@ function App() {
           setPendingAction={setPendingAction}
           setPreviewData={setPreviewData}
         />
+        <ContextMenuOverlay
+          availableActions={availableActions}
+          contextMenu={contextMenu}
+          edges={edges}
+          nodes={nodes}
+          onAddNode={_handleAddNode}
+          onAutoLayout={_autoLayout}
+          onClose={closeContextMenuAndClear}
+          onCopy={_copySelected}
+          onDeleteEdge={_deleteEdge}
+          onDeleteNode={_deleteNode}
+          onDuplicate={_duplicateSelected}
+          onExecuteAction={handleExecuteAction}
+          onGroup={_groupSelected}
+          onOpenEditor={setActiveEditorId}
+          onPaste={_paste}
+          templates={templates}
+        />
       </div>
-      <div
-        className={cn(isChatFullscreen && "pointer-events-none")}
-        inert={isChatFullscreen ? true : undefined}
-      >
+      <div className={cn(isChatFullscreen && "pointer-events-none")} inert={isChatFullscreen ? true : undefined}>
         <Sidebar />
       </div>
       {isChatFullscreen && activeChatNodeId && (
@@ -345,10 +230,10 @@ function App() {
                 onClick={() => {
                   setActiveChat(activeChatNodeId, ChatViewMode.INLINE);
                 }}
-                size="sm"
-                variant="outline"
+                size="icon"
+                variant="ghost"
               >
-                <Minimize2 className="mr-2" size={16} /> Dock to Node
+                <Minimize2 size={18} />
               </Button>
               <Button
                 onClick={() => {
@@ -357,33 +242,15 @@ function App() {
                 size="icon"
                 variant="ghost"
               >
-                <X size={20} />
+                <X size={18} />
               </Button>
             </div>
           </div>
-          <div className="flex-1 overflow-hidden ai-theme-container">
+          <div className="flex-1 overflow-hidden relative">
             <ChatBot nodeId={activeChatNodeId} />
           </div>
         </div>
       )}
-      <ContextMenuOverlay
-        availableActions={availableActions}
-        contextMenu={contextMenu}
-        edges={edges}
-        nodes={nodes}
-        onAddNode={handleAddNode}
-        onAutoLayout={autoLayout}
-        onClose={closeContextMenuAndClear}
-        onCopy={copySelected}
-        onDeleteEdge={deleteEdge}
-        onDeleteNode={deleteNode}
-        onDuplicate={duplicateSelected}
-        onExecuteAction={handleExecuteAction}
-        onGroup={groupSelected}
-        onOpenEditor={setActiveEditorId}
-        onPaste={paste}
-        templates={templates}
-      />
       <Toaster position="bottom-right" />
     </div>
   );

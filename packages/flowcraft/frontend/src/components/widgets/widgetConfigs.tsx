@@ -17,16 +17,9 @@ export interface WidgetRendererProps {
   value: unknown;
 }
 
-export const WIDGET_COMPONENTS: Record<
-  number,
-  React.ComponentType<WidgetRendererProps>
-> = {
+export const WIDGET_COMPONENTS: Record<number, React.ComponentType<WidgetRendererProps>> = {
   [WidgetType.WIDGET_BUTTON]: ({ label, onClick }) => (
-    <button
-      className="nodrag"
-      onClick={onClick}
-      style={{ padding: "4px", width: "100%" }}
-    >
+    <button className="nodrag" onClick={onClick} style={{ padding: "4px", width: "100%" }}>
       {label}
     </button>
   ),

@@ -8,9 +8,7 @@ export interface Notification {
 }
 
 interface NotificationState {
-  addNotification: (
-    notification: Omit<Notification, "id" | "timestamp">,
-  ) => void;
+  addNotification: (notification: Omit<Notification, "id" | "timestamp">) => void;
   clearNotifications: () => void;
   notifications: Notification[];
 }
@@ -18,10 +16,7 @@ interface NotificationState {
 export const useNotificationStore = create<NotificationState>((set) => ({
   addNotification: (notification) => {
     set((state) => ({
-      notifications: [
-        ...state.notifications,
-        { ...notification, id: Date.now(), timestamp: new Date() },
-      ],
+      notifications: [...state.notifications, { ...notification, id: Date.now(), timestamp: new Date() }],
     }));
   },
   clearNotifications: () => {

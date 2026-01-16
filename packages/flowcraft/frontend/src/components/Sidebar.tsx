@@ -8,17 +8,9 @@ import { ChatBot } from "./media/ChatBot";
 import { Button } from "./ui/button";
 
 export const Sidebar: React.FC = () => {
-  const {
-    activeChatNodeId,
-    isSidebarOpen,
-    setActiveChat,
-    setSidebarWidth,
-    sidebarWidth,
-  } = useUiStore();
+  const { activeChatNodeId, isSidebarOpen, setActiveChat, setSidebarWidth, sidebarWidth } = useUiStore();
 
-  const node = useFlowStore((s) =>
-    s.nodes.find((n) => n.id === activeChatNodeId),
-  );
+  const node = useFlowStore((s) => s.nodes.find((n) => n.id === activeChatNodeId));
 
   const isResizing = useRef(false);
 
@@ -69,7 +61,7 @@ export const Sidebar: React.FC = () => {
           <div className="flex items-center gap-2">
             <PanelLeftClose className="text-primary-color" size={18} />
             <h2 className="text-sm font-semibold truncate">
-              {node ? `Chat: ${node.data.label ?? node.id}` : "AI Assistant"}
+              {node ? `Chat: ${node.data.displayName ?? node.id}` : "AI Assistant"}
             </h2>
           </div>
           <Button
@@ -90,9 +82,7 @@ export const Sidebar: React.FC = () => {
             <ChatBot nodeId={activeChatNodeId} />
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center">
-              <p className="text-sm">
-                Select a node with Chat enabled to view conversation here.
-              </p>
+              <p className="text-sm">Select a node with Chat enabled to view conversation here.</p>
             </div>
           )}
         </div>

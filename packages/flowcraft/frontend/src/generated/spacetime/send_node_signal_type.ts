@@ -11,10 +11,7 @@ import {
 } from "spacetimedb";
 
 export default __t.object("SendNodeSignal", {
-  id: __t.string(),
-  nodeId: __t.string(),
-  payloadJson: __t.string(),
-  signalCase: __t.string(),
+  signal: __t.byteArray(),
 });
 
 

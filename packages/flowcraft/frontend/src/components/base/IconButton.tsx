@@ -6,26 +6,16 @@ interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
   label?: string;
 }
 
-export const IconButton: React.FC<IconButtonProps> = ({
-  active,
-  icon,
-  label,
-  style,
-  ...props
-}) => {
+export const IconButton: React.FC<IconButtonProps> = ({ active, icon, label, style, ...props }) => {
   return (
     <button
       {...props}
       className={`icon-button ${props.className ?? ""}`}
       style={{
         alignItems: "center",
-        background: active
-          ? "rgba(100, 108, 255, 0.2)"
-          : "rgba(255, 255, 255, 0.05)",
+        background: active ? "rgba(100, 108, 255, 0.2)" : "rgba(255, 255, 255, 0.05)",
         border: "1px solid",
-        borderColor: active
-          ? "rgba(100, 108, 255, 0.4)"
-          : "rgba(255, 255, 255, 0.1)",
+        borderColor: active ? "rgba(100, 108, 255, 0.4)" : "rgba(255, 255, 255, 0.1)",
         borderRadius: "6px",
         color: active ? "#646cff" : "white",
         cursor: "pointer",

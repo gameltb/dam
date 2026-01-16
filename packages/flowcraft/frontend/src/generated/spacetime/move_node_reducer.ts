@@ -12,6 +12,6 @@ import {
 
 export default {
   id: __t.string(),
-  x: __t.f32(),
-  y: __t.f32(),
+  x: __t.f64(),
+  y: __t.f64(),
 };

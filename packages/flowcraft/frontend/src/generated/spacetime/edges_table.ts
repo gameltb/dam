@@ -9,11 +9,12 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import Edge from "./edge_type";
+
 
 export default __t.row({
-  id: __t.string().primaryKey(),
-  sourceHandle: __t.string(),
-  sourceId: __t.string(),
-  targetHandle: __t.string(),
-  targetId: __t.string(),
+  edgeId: __t.string().primaryKey(),
+  get state() {
+    return Edge;
+  },
 });

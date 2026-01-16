@@ -20,13 +20,12 @@ interface CommonChatMessage {
 
  */
 
-export function mapHistoryToOpenAI(
-  history: CommonChatMessage[],
-): OpenAI.Chat.ChatCompletionMessageParam[] {
+export function mapHistoryToOpenAI(history: CommonChatMessage[]): OpenAI.Chat.ChatCompletionMessageParam[] {
   return history.map((m) => {
-    const role = (
-      ["assistant", "system", "user"].includes(m.role) ? m.role : "user"
-    ) as "assistant" | "system" | "user";
+    const role = (["assistant", "system", "user"].includes(m.role) ? m.role : "user") as
+      | "assistant"
+      | "system"
+      | "user";
 
     return {
       content: mapPartsToOpenAI(m.parts ?? []),
@@ -40,9 +39,7 @@ export function mapHistoryToOpenAI(
  * Shared utility to convert Protobuf message parts to OpenAI content parts.
  * This ensures multi-modal logic is identical on both Frontend and Backend.
  */
-export function mapPartsToOpenAI(
-  parts: ChatMessagePart[],
-): OpenAI.Chat.ChatCompletionContentPart[] {
+export function mapPartsToOpenAI(parts: ChatMessagePart[]): OpenAI.Chat.ChatCompletionContentPart[] {
   return parts.map((p) => {
     if (p.part.case === "text") {
       return { text: p.part.value, type: "text" };

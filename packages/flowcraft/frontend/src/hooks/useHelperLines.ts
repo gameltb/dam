@@ -24,11 +24,7 @@ export function useHelperLines(): {
   const [helperLines, setHelperLines] = useState<HelperLines>({});
 
   // Helper to find absolute position of a node
-  const getAbsolutePosition = (
-    node: Node,
-    allNodes: Node[],
-    overriddenPosition?: XYPosition,
-  ): XYPosition => {
+  const getAbsolutePosition = (node: Node, allNodes: Node[], overriddenPosition?: XYPosition): XYPosition => {
     let x = overriddenPosition ? overriddenPosition.x : node.position.x;
     let y = overriddenPosition ? overriddenPosition.y : node.position.y;
     let parentId = node.parentId;
@@ -47,28 +43,17 @@ export function useHelperLines(): {
   };
 
   const calculateLines = useCallback(
-    (
-      draggingNode: Node,
-      allNodes: Node[],
-      shouldUpdateState: boolean,
-      overriddenPosition?: XYPosition,
-    ) => {
+    (draggingNode: Node, allNodes: Node[], shouldUpdateState: boolean, overriddenPosition?: XYPosition) => {
       const result: HelperLines = {
         horizontal: undefined,
         vertical: undefined,
       };
 
       // We only want to snap against nodes that are NOT being dragged
-      const targetNodesForSnapping = allNodes.filter(
-        (n) => n.id !== draggingNode.id && !n.dragging,
-      );
+      const targetNodesForSnapping = allNodes.filter((n) => n.id !== draggingNode.id && !n.dragging);
 
       // Calculate dragging node's absolute position
-      const draggingAbsPos = getAbsolutePosition(
-        draggingNode,
-        allNodes,
-        overriddenPosition,
-      );
+      const draggingAbsPos = getAbsolutePosition(draggingNode, allNodes, overriddenPosition);
 
       const draggingRect = {
         height: draggingNode.measured?.height ?? 0,
@@ -115,10 +100,8 @@ export function useHelperLines(): {
             if (Math.abs(drag.x - target.x) < SNAP_DISTANCE) {
               result.vertical = target.x;
               if (drag.type === "left") snappedAbsPos.x = target.x;
-              else if (drag.type === "v-center")
-                snappedAbsPos.x = target.x - draggingRect.width / 2;
-              else if (drag.type === "right")
-                snappedAbsPos.x = target.x - draggingRect.width;
+              else if (drag.type === "v-center") snappedAbsPos.x = target.x - draggingRect.width / 2;
+              else if (drag.type === "right") snappedAbsPos.x = target.x - draggingRect.width;
             }
           }
         }
@@ -131,10 +114,8 @@ export function useHelperLines(): {
             if (Math.abs(drag.y - target.y) < SNAP_DISTANCE) {
               result.horizontal = target.y;
               if (drag.type === "top") snappedAbsPos.y = target.y;
-              else if (drag.type === "h-center")
-                snappedAbsPos.y = target.y - draggingRect.height / 2;
-              else if (drag.type === "bottom")
-                snappedAbsPos.y = target.y - draggingRect.height;
+              else if (drag.type === "h-center") snappedAbsPos.y = target.y - draggingRect.height / 2;
+              else if (drag.type === "bottom") snappedAbsPos.y = target.y - draggingRect.height;
             }
           }
         }

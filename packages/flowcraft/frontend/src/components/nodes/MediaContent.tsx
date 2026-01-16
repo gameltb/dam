@@ -1,12 +1,15 @@
 import { create as createProto } from "@bufbuild/protobuf";
 import React, { memo } from "react";
 
-import { PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
-import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
+import {
+  MediaType,
+  type MediaContent as ProtoMediaContent,
+  PresentationSchema,
+} from "@/generated/flowcraft/v1/core/base_pb";
 import { GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
 import { useNodeHandlers } from "@/hooks/useNodeHandlers";
 import { useFlowStore } from "@/store/flowStore";
-import { type DynamicNodeData, FlowEvent, OverflowMode } from "@/types";
+import { type DynamicNodeData, FlowEvent } from "@/types";
 import { getMediaTypeFromMime } from "@/utils/nodeUtils";
 import { getPortColor, getPortShape } from "@/utils/themeUtils";
 
@@ -18,269 +21,155 @@ interface MediaContentProps {
   data: DynamicNodeData;
   height?: number;
   id: string;
-  onOverflowChange?: (o: OverflowMode) => void;
+  onOverflowChange?: (o: any) => void;
   width?: number;
 }
 
-export const MediaContent: React.FC<MediaContentProps> = memo(
-  ({ data, height, id, onOverflowChange, width }) => {
-    const { onChange, onGalleryItemContext } = useNodeHandlers(data);
-    const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
+export const MediaContent: React.FC<MediaContentProps> = memo(({ data, height, id, onOverflowChange, width }) => {
+  const { onChange, onGalleryItemContext } = useNodeHandlers(data);
+  const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
 
-    const getEffectiveMedia = () => {
-      if (data.media?.url) return data.media;
+  const getEffectiveMedia = () => {
+    if (data.media?.url) return data.media;
 
-      // Fallback to widgetsValues (e.g. from drag & drop)
-      const url = data.widgetsValues?.url as string | undefined;
-      const mimeType = data.widgetsValues?.mimeType as string | undefined;
-      const content = data.widgetsValues?.content as string | undefined;
+    const url = data.widgetsValues?.url as string | undefined;
+    const mimeType = data.widgetsValues?.mimeType as string | undefined;
+    const content = data.widgetsValues?.content as string | undefined;
 
-      if (!url && !content) return null;
+    if (!url && !content) return null;
 
-      return {
-        aspectRatio: data.media?.aspectRatio ?? 0,
-        content: content ?? "",
-        galleryUrls: [],
-        type: getMediaTypeFromMime(mimeType),
-        url: url ?? "",
-      };
+    return {
+      aspectRatio: data.media?.aspectRatio ?? 0,
+      content: content ?? "",
+      galleryUrls: [],
+      type: getMediaTypeFromMime(mimeType),
+      url: url ?? "",
     };
+  };
 
-    const media = getEffectiveMedia();
-    if (!media) return null;
+  const media = getEffectiveMedia();
+  if (!media) return null;
 
-    const nodeWidth = width ?? 240;
-    const nodeHeight = height ?? 180;
+  const nodeWidth = width ?? 240;
+  const nodeHeight = height ?? 180;
 
-    const handleOpenPreview = (index = 0) => {
-      dispatchNodeEvent(FlowEvent.OPEN_PREVIEW, { index, nodeId: id });
-    };
+  const handleOpenPreview = (index = 0) => {
+    dispatchNodeEvent(FlowEvent.OPEN_PREVIEW, { index, nodeId: id });
+  };
 
-    const handleDimensionsLoad = (ratio: number) => {
-      // 1. Update internal aspect ratio metadata
-      if (Math.abs((media.aspectRatio ?? 0) - ratio) > 0.01) {
-        onChange(id, {
-          media: { ...media, aspectRatio: ratio },
-        });
+  const handleDimensionsLoad = (ratio: number) => {
+    if (Math.abs((media.aspectRatio ?? 0) - ratio) > 0.01) {
+      onChange(id, {
+        media: { ...media, aspectRatio: ratio } as ProtoMediaContent,
+      });
 
-        // 2. Adjust node physical dimensions to match the ratio
-        // We keep the width and adjust the height
-        const currentWidth = width ?? 240;
-        const targetHeight = Math.round(currentWidth / ratio);
+      const currentWidth = width ?? 240;
+      const targetHeight = Math.round(currentWidth / ratio);
 
-        // Only update if the difference is significant to avoid infinite loops
-        if (Math.abs((height ?? 0) - targetHeight) > 5) {
-          const { applyMutations } = useFlowStore.getState();
-          applyMutations([
-            createProto(GraphMutationSchema, {
-              operation: {
-                case: "updateNode",
-                value: {
-                  id: id,
-                  presentation: createProto(PresentationSchema, {
-                    height: targetHeight,
-                    isInitialized: true,
-                    width: currentWidth,
-                  }),
-                },
+      if (Math.abs((height ?? 0) - targetHeight) > 5) {
+        const { applyMutations } = useFlowStore.getState();
+        applyMutations([
+          createProto(GraphMutationSchema, {
+            operation: {
+              case: "updateNode",
+              value: {
+                id: id,
+                presentation: createProto(PresentationSchema, {
+                  height: targetHeight,
+                  isInitialized: true,
+                  width: currentWidth,
+                }),
               },
-            }),
-          ]);
-        }
+            },
+          }),
+        ]);
       }
-    };
+    }
+  };
 
-    const renderContent = (
-      url: string,
-      type: MediaType,
-      index = 0,
-      content?: string,
-    ) => {
-      const Renderer = MEDIA_RENDERERS[type];
-      if (!Renderer) {
-        return (
-          <div style={{ padding: "20px", textAlign: "center" }}>
-            Unsupported media type: {type} for {url}
-          </div>
-        );
-      }
+  const renderContent = (url: string, type: MediaType, index = 0, content?: string) => {
+    const Renderer = MEDIA_RENDERERS[type];
+    if (!Renderer) return null;
 
-      return (
-        <Renderer
-          content={content}
-          index={index}
-          onDimensionsLoad={handleDimensionsLoad}
-          onEdit={(newContent) => {
-            onChange(id, {
-              media: { ...media, content: newContent },
-              widgetsValues: { ...data.widgetsValues, content: newContent },
-            });
-          }}
-          onOpenPreview={handleOpenPreview}
-          url={url}
-        />
-      );
-    };
-
-    const gallery = media.galleryUrls ?? [];
-    const inputs = data.inputPorts ?? [];
-    const outputs = data.outputPorts ?? [];
-
-    // --- Layer 1: Core Media Content (Clipped for rounded corners) ---
-    const mediaLayer = (
-      <div
-        className="nopan"
-        style={{
-          borderRadius: "inherit",
-          height: "100%",
-          overflow: "hidden",
-          pointerEvents: "auto",
-          position: "relative",
-          width: "100%",
+    return (
+      <Renderer
+        content={content}
+        index={index}
+        onDimensionsLoad={handleDimensionsLoad}
+        onEdit={(newContent: string) => {
+          onChange(id, {
+            media: { ...media, content: newContent } as ProtoMediaContent,
+            widgetsValues: { ...data.widgetsValues, content: newContent },
+          });
         }}
-      >
+        onOpenPreview={handleOpenPreview}
+        url={url}
+      />
+    );
+  };
+
+  const gallery = (media.galleryUrls as string[]) ?? [];
+  const inputs = data.inputPorts ?? [];
+  const outputs = data.outputPorts ?? [];
+
+  return (
+    <div
+      className="relative h-full w-full overflow-visible"
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        handleOpenPreview(0);
+      }}
+    >
+      <div className="nopan relative h-full w-full overflow-hidden rounded-[inherit] pointer-events-auto">
         {renderContent(media.url ?? "", media.type, 0, media.content)}
       </div>
-    );
 
-    // --- Layer 2: Interaction & Overlay Layer (Visible overflow) ---
-    // This layer hosts ports and gallery expansions which must extend beyond node borders.
-    const overlayLayer = (
-      <div
-        style={{
-          inset: 0,
-          overflow: "visible",
-          pointerEvents: "none", // Click-through by default
-          position: "absolute",
-          zIndex: 100,
-        }}
-      >
-        {/* Gallery Logic (Floating over content) */}
+      <div className="absolute inset-0 overflow-visible pointer-events-none z-[100]">
         {gallery.length > 0 && (
-          <div style={{ height: "100%", pointerEvents: "none", width: "100%" }}>
-            <GalleryWrapper
-              gallery={gallery}
-              id={id}
-              mainContent={
-                <div
-                  style={{
-                    height: "100%",
-                    pointerEvents: "none",
-                    width: "100%",
-                  }}
-                />
-              } // Invisible ghost to drive layout
-              mediaType={media.type}
-              nodeHeight={nodeHeight}
-              nodeWidth={nodeWidth}
-              onExpand={
-                (expanded) =>
-                  onOverflowChange?.(
-                    expanded ? OverflowMode.VISIBLE : OverflowMode.VISIBLE,
-                  ) // Force parent to stay visible
-              }
-              onGalleryItemContext={(nodeId, url, mType, x, y) => {
-                onGalleryItemContext(nodeId, url, mType, x, y);
-              }}
-              renderItem={(url) => {
-                return (
-                  <div
-                    style={{
-                      borderRadius: "4px",
-                      height: "100%",
-                      overflow: "hidden",
-                      width: "100%",
-                    }}
-                  >
-                    {renderContent(url, media.type, gallery.indexOf(url) + 1)}
-                  </div>
-                );
-              }}
-            />
-          </div>
+          <GalleryWrapper
+            gallery={gallery}
+            id={id}
+            mainContent={<div className="h-full w-full pointer-events-none" />}
+            mediaType={media.type}
+            nodeHeight={nodeHeight}
+            nodeWidth={nodeWidth}
+            onExpand={() => onOverflowChange?.("visible")}
+            onGalleryItemContext={onGalleryItemContext}
+            renderItem={(url) => (
+              <div className="h-full w-full overflow-hidden rounded-sm">
+                {renderContent(url, media.type, gallery.indexOf(url) + 1)}
+              </div>
+            )}
+          />
         )}
 
-        {/* Triangle Ports Layer */}
-        <div style={{ pointerEvents: "none" }}>
+        <div className="pointer-events-none">
           {outputs.map((port, idx) => (
-            <div
-              key={port.id || idx}
-              style={{
-                pointerEvents: "auto",
-                position: "absolute",
-                right: 0,
-                top: "50%",
-                transform: "translateY(-50%)",
-              }}
-            >
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-auto" key={port.id || idx}>
               <PortHandle
-                color={getPortColor(port.type)}
+                color={getPortColor(port.type as any)}
                 isPresentation={true}
                 nodeId={id}
                 portId={port.id}
-                style={getPortShape(port.type)}
+                style={getPortShape(port.type as any)}
                 type="source"
               />
             </div>
           ))}
           {inputs.map((port, idx) => (
-            <div
-              key={port.id || idx}
-              style={{
-                left: 0,
-                pointerEvents: "auto",
-                position: "absolute",
-                top: "50%",
-                transform: "translateY(-50%)",
-              }}
-            >
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 pointer-events-auto" key={port.id || idx}>
               <PortHandle
-                color={getPortColor(port.type)}
+                color={getPortColor(port.type as any)}
                 isPresentation={true}
                 nodeId={id}
                 portId={port.id}
-                style={getPortShape(port.type)}
+                style={getPortShape(port.type as any)}
                 type="target"
               />
             </div>
           ))}
         </div>
       </div>
-    );
-
-    return (
-      <div
-        onDoubleClick={(e) => {
-          e.stopPropagation();
-          handleOpenPreview(0);
-        }}
-        style={{
-          borderRadius: "inherit",
-          height: "100%",
-          // The base container must remain visible to show the overlay
-          overflow: "visible",
-          pointerEvents: "auto",
-          position: "relative",
-          width: "100%",
-        }}
-      >
-        {/* Top Drag Handle (Invisible Overlay) */}
-        <div
-          style={{
-            borderRadius: "8px 8px 0 0",
-            cursor: "grab",
-            height: "30px", // Slightly larger hit area
-            left: 0,
-            pointerEvents: "auto",
-            position: "absolute",
-            right: 0,
-            top: 0,
-            zIndex: 50,
-          }}
-        />
-        {mediaLayer}
-        {overlayLayer}
-      </div>
-    );
-  },
-);
+    </div>
+  );
+});

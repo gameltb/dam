@@ -12,6 +12,7 @@ import {
 import { isDynamicNode } from "@/types";
 import { toProtoEdge, toProtoNode } from "@/utils/protoAdapter";
 
+import { getChatHistory } from "./ChatService";
 import { watchGraph } from "./GraphWatcher";
 import { inferenceService } from "./InferenceService";
 import { executeMutation } from "./MutationExecutor";
@@ -19,7 +20,6 @@ import { runAction, runNodeSignal } from "./NodeExecutor";
 import { NodeRegistry } from "./NodeRegistry";
 import {
   eventBus,
-  getChatHistory,
   getMutations,
   incrementVersion,
   logMutation,
@@ -32,11 +32,7 @@ export const FlowServiceImpl: ServiceImpl<typeof FlowService> = {
     const { mutations, source } = req;
     mutations.forEach((mut) => {
       try {
-        logMutation(
-          mut.operation.case ?? "unknown",
-          toBinary(GraphMutationSchema, mut),
-          source,
-        );
+        logMutation(mut.operation.case ?? "unknown", toBinary(GraphMutationSchema, mut), source);
       } catch (e) {
         console.error("[Server] Log failed:", e);
       }
@@ -59,9 +55,9 @@ export const FlowServiceImpl: ServiceImpl<typeof FlowService> = {
     return {};
   },
 
-  clearChatHistory(req) {
+  clearChatHistory() {
     void import("./PersistenceService").then(({ clearChatHistory }) => {
-      clearChatHistory(req.nodeId);
+      clearChatHistory();
     });
     return {};
   },
@@ -70,11 +66,8 @@ export const FlowServiceImpl: ServiceImpl<typeof FlowService> = {
     const { nodeId } = req;
     const node = serverGraph.nodes.find((n) => n.id === nodeId);
     let actions = NodeRegistry.getGlobalActions();
-    if (node && isDynamicNode(node) && node.data.typeId) {
-      actions = [
-        ...actions,
-        ...NodeRegistry.getActionsForNode(node.data.typeId),
-      ];
+    if (node && isDynamicNode(node) && node.data.templateId) {
+      actions = [...actions, ...NodeRegistry.getActionsForNode(node.data.templateId)];
     }
     return { actions };
   },
@@ -102,8 +95,8 @@ export const FlowServiceImpl: ServiceImpl<typeof FlowService> = {
     return {};
   },
 
-  getChatHistory(req) {
-    const history = getChatHistory(req.headId);
+  async getChatHistory(req) {
+    const history = await getChatHistory(req.headId);
     return {
       entries: history.map((m) => {
         const metadata = m.metadata as {
@@ -132,14 +125,11 @@ export const FlowServiceImpl: ServiceImpl<typeof FlowService> = {
 
   getHistory(req) {
     const { fromSeq, toSeq } = req;
-    const dbMutations = getMutations(
-      Number(fromSeq),
-      toSeq ? Number(toSeq) : undefined,
-    );
+    const dbMutations = getMutations(Number(fromSeq), toSeq ? Number(toSeq) : undefined);
     return {
       entries: dbMutations.map((m) => ({
         description: m.description ?? "",
-        mutation: fromBinary(GraphMutationSchema, m.payload),
+        mutation: fromBinary(GraphMutationSchema, m.payload as Uint8Array),
         seq: BigInt(m.seq),
         source: m.source,
         timestamp: BigInt(m.timestamp),
@@ -153,7 +143,7 @@ export const FlowServiceImpl: ServiceImpl<typeof FlowService> = {
     serverGraph.nodes = [];
     serverGraph.edges = [];
     getMutations(0, targetSeq).forEach((h) => {
-      executeMutation(fromBinary(GraphMutationSchema, h.payload), serverGraph);
+      executeMutation(fromBinary(GraphMutationSchema, h.payload as Uint8Array), serverGraph);
     });
     incrementVersion();
     const snapshot = create(GraphSnapshotSchema, {

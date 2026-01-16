@@ -8,14 +8,7 @@ import { type AppNode, type Edge } from "@/types";
 import { useGraphOperations } from "./useGraphOperations";
 
 export const useAppHotkeys = () => {
-  const {
-    autoLayout,
-    copySelected,
-    deleteEdge,
-    deleteNode,
-    duplicateSelected,
-    paste,
-  } = useGraphOperations();
+  const { autoLayout, copySelected, deleteEdge, deleteNode, duplicateSelected, paste } = useGraphOperations();
 
   const { edges, nodes } = useFlowStore(
     useShallow((state) => ({

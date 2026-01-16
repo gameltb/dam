@@ -1,4 +1,4 @@
-import { create as createProto } from "@bufbuild/protobuf";
+import { type JsonObject, create as createProto } from "@bufbuild/protobuf";
 import { applyEdgeChanges, applyNodeChanges } from "@xyflow/react";
 import { temporal, type TemporalState } from "zundo";
 import { create } from "zustand";
@@ -6,21 +6,19 @@ import { create } from "zustand";
 import { MutationSource as ProtoSource } from "@/generated/flowcraft/v1/core/base_pb";
 import { PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import { type PortType } from "@/generated/flowcraft/v1/core/node_pb";
-import {
-  type GraphMutation,
-  GraphMutationSchema,
-} from "@/generated/flowcraft/v1/core/service_pb";
+import { type GraphMutation, GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
+import { NodeSignalSchema } from "@/generated/flowcraft/v1/core/signals_pb";
 import { type RFState } from "@/store/types";
 import { type AppNode, type DynamicNodeData, MutationSource } from "@/types";
+import { appNodeDataToProto, appNodeToProto } from "@/utils/nodeProtoUtils";
 import { dehydrateNode, findPort } from "@/utils/nodeUtils";
 import { getValidator } from "@/utils/portValidators";
-import { toProtoNode, toProtoNodeData } from "@/utils/protoAdapter";
-import { dispatchToSpacetime } from "./spacetimeDispatcher";
 
 import { pipeline } from "./middleware/pipeline";
 import { MutationDirection } from "./middleware/types";
 import { handleGraphMutation } from "./mutationHandlers";
 import { getWidgetSignalListener } from "./signalHandlers";
+import { dispatchToSpacetime } from "./spacetimeDispatcher";
 
 const useStore = create(
   temporal<RFState>(
@@ -31,7 +29,7 @@ const useStore = create(
             createProto(GraphMutationSchema, {
               operation: {
                 case: "addNode",
-                value: { node: toProtoNode(node) },
+                value: { node: appNodeToProto(node) },
               },
             }),
           ]);
@@ -44,46 +42,35 @@ const useStore = create(
             direction = MutationDirection.INCOMING;
           }
 
-          pipeline.execute(
-            { context: context ?? {}, direction, mutations },
-            (finalEvent) => {
-              const {
-                edges: currentEdges,
-                nodes: currentNodes,
-                spacetimeConn,
-              } = get();
+          pipeline.execute({ context: context ?? {}, direction, mutations }, (finalEvent) => {
+            const { edges: currentEdges, nodes: currentNodes, spacetimeConn } = get();
 
-              let nextNodes = currentNodes;
-              let nextEdges = currentEdges;
+            let nextNodes = currentNodes;
+            let nextEdges = currentEdges;
 
-              finalEvent.mutations.forEach((mutInput) => {
-                const result = handleGraphMutation(
-                  mutInput,
-                  nextNodes,
-                  nextEdges,
-                );
-                nextNodes = result.nodes;
-                nextEdges = result.edges;
+            finalEvent.mutations.forEach((mutInput) => {
+              const result = handleGraphMutation(mutInput, nextNodes, nextEdges);
+              nextNodes = result.nodes;
+              nextEdges = result.edges;
 
-                // Sync to SpacetimeDB
-                if (direction === MutationDirection.OUTGOING && spacetimeConn) {
-                  // Set implicit task context if a taskId is provided in the mutation
-                  if (mutInput.originTaskId) {
-                    spacetimeConn.reducers.assignCurrentTask({
-                      taskId: mutInput.originTaskId,
-                    });
-                  }
-                  dispatchToSpacetime(spacetimeConn, mutInput);
+              // Sync to SpacetimeDB
+              if (direction === MutationDirection.OUTGOING && spacetimeConn) {
+                // Set implicit task context if a taskId is provided in the mutation
+                if (mutInput.originTaskId) {
+                  spacetimeConn.reducers.assignCurrentTask({
+                    taskId: mutInput.originTaskId,
+                  });
                 }
-              });
+                dispatchToSpacetime(spacetimeConn, mutInput);
+              }
+            });
 
-              set({
-                edges: nextEdges,
-                isLayoutDirty: true,
-                nodes: nextNodes,
-              });
-            },
-          );
+            set({
+              edges: nextEdges,
+              isLayoutDirty: true,
+              nodes: nextNodes,
+            });
+          });
         },
         dispatchNodeEvent: (type, payload) => {
           set({ lastNodeEvent: { payload, timestamp: Date.now(), type } });
@@ -105,9 +92,7 @@ const useStore = create(
           if (targetNode) {
             const port = findPort(targetNode, connection.targetHandle ?? "");
             if (port) {
-              const validator = getValidator(
-                port.type as unknown as PortType | undefined,
-              );
+              const validator = getValidator(port.type as unknown as PortType | undefined);
               maxInputs = validator.getMaxInputs();
             }
           }
@@ -115,10 +100,7 @@ const useStore = create(
           const mutations: GraphMutation[] = [];
           if (maxInputs === 1) {
             edges.forEach((e) => {
-              if (
-                e.target === connection.target &&
-                e.targetHandle === connection.targetHandle
-              ) {
+              if (e.target === connection.target && e.targetHandle === connection.targetHandle) {
                 mutations.push(
                   createProto(GraphMutationSchema, {
                     operation: { case: "removeEdge", value: { id: e.id } },
@@ -183,10 +165,7 @@ const useStore = create(
                   operation: { case: "removeNode", value: { id: c.id } },
                 }),
               );
-            } else if (
-              (c.type === "position" && !c.dragging) ||
-              c.type === "dimensions"
-            ) {
+            } else if ((c.type === "position" && !c.dragging) || c.type === "dimensions") {
               const n = nextNodes.find((node) => node.id === c.id);
               if (n) {
                 const presentation = createProto(PresentationSchema, {
@@ -197,12 +176,13 @@ const useStore = create(
                   width: n.measured?.width ?? Number(n.style?.width ?? 0),
                 });
 
+                const dynData = n.data as DynamicNodeData;
                 mutations.push(
                   createProto(GraphMutationSchema, {
                     operation: {
                       case: "updateNode",
                       value: {
-                        data: toProtoNodeData(n.data as DynamicNodeData),
+                        data: appNodeDataToProto(dynData),
                         id: n.id,
                         presentation,
                       },
@@ -229,25 +209,36 @@ const useStore = create(
         sendNodeSignal: (signal) => {
           const { spacetimeConn } = get();
           if (spacetimeConn) {
-            spacetimeConn.reducers.sendNodeSignal({
-              id: crypto.randomUUID(),
-              nodeId: signal.nodeId,
-              payloadJson: JSON.stringify(signal.payload),
-              signalCase: signal.payload.case ?? "unknown",
+            spacetimeConn.pbreducers.sendNodeSignal({
+              signal,
             });
           }
         },
         sendWidgetSignal: (signal) => {
           const { spacetimeConn } = get();
           if (spacetimeConn) {
-            spacetimeConn.reducers.sendNodeSignal({
-              id: crypto.randomUUID(),
-              nodeId: signal.nodeId,
-              payloadJson: JSON.stringify({
-                payload: signal.payload,
-                widgetId: signal.widgetId,
+            // Mapping widget signal to node signal with structured parameters.
+            // Using google.protobuf.Struct to hold the payload and widgetId.
+            spacetimeConn.pbreducers.sendNodeSignal({
+              signal: createProto(NodeSignalSchema, {
+                nodeId: signal.nodeId,
+                payload: {
+                  case: "parameters",
+                  value: {
+                    fields: {
+                      payload: {
+                        kind: {
+                          case: "structValue",
+                          value: signal.payload as JsonObject,
+                        },
+                      },
+                      widgetId: {
+                        kind: { case: "stringValue", value: signal.widgetId },
+                      },
+                    },
+                  },
+                },
               }),
-              signalCase: "widgetSignal",
             });
           }
         },
@@ -270,7 +261,7 @@ const useStore = create(
                 operation: {
                   case: "updateNode",
                   value: {
-                    data: toProtoNodeData(updatedData),
+                    data: appNodeDataToProto(updatedData),
                     id: id,
                   },
                 },
@@ -296,9 +287,7 @@ const useStore = create(
   ),
 );
 
-import {
-  useTemporalStore as useTemporalStoreInternal,
-} from "./temporalSync";
+import { useTemporalStore as useTemporalStoreInternal } from "./temporalSync";
 
 export const useFlowStore = useStore;
 

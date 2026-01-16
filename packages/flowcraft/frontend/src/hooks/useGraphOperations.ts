@@ -17,11 +17,7 @@ export const useGraphOperations = () => {
 
   const { addNode, deleteEdge, deleteNode } = useNodeOperations(applyMutations);
   const { copy, duplicate, paste } = useClipboard();
-  const { autoLayout, groupSelected } = useLayoutOperations(
-    nodes,
-    edges,
-    applyMutations,
-  );
+  const { autoLayout, groupSelected } = useLayoutOperations(nodes, edges, applyMutations);
 
   return {
     addNode,

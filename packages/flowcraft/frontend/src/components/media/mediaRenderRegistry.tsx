@@ -16,10 +16,7 @@ export interface MediaRenderProps {
   url: string;
 }
 
-export const MEDIA_RENDERERS: Record<
-  number,
-  React.ComponentType<MediaRenderProps>
-> = {
+export const MEDIA_RENDERERS: Record<number, React.ComponentType<MediaRenderProps>> = {
   [MediaType.MEDIA_AUDIO]: ({ index, onOpenPreview, url }) => (
     <div
       onDoubleClick={() => {
@@ -35,9 +32,7 @@ export const MEDIA_RENDERERS: Record<
       <ImageRenderer onDimensionsLoad={onDimensionsLoad} url={url} />
     </div>
   ),
-  [MediaType.MEDIA_MARKDOWN]: ({ content, onEdit }) => (
-    <MarkdownRenderer content={content ?? ""} onEdit={onEdit} />
-  ),
+  [MediaType.MEDIA_MARKDOWN]: ({ content, onEdit }) => <MarkdownRenderer content={content ?? ""} onEdit={onEdit} />,
   [MediaType.MEDIA_VIDEO]: ({ onDimensionsLoad, url }) => (
     <div
       style={{

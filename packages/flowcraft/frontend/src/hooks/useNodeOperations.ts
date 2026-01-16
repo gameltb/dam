@@ -4,47 +4,48 @@ import { create } from "@bufbuild/protobuf";
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 
-import {
-  type GraphMutation,
-  GraphMutationSchema,
-} from "@/generated/flowcraft/v1/core/service_pb";
+import { type GraphMutation, GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
 import { type MutationContext } from "@/store/types";
-import { type AppNode, AppNodeType, type DynamicNodeData } from "@/types";
-import { toProtoNode } from "@/utils/protoAdapter";
+import { type AppNode, AppNodeType, type NodeId, type DynamicNodeData } from "@/types";
+import { appNodeToProto } from "@/utils/nodeProtoUtils";
+import { mapToRenderMode } from "@/utils/nodeUtils";
 
-export const useNodeOperations = (
-  applyMutations: (
-    mutations: GraphMutation[],
-    context?: MutationContext,
-  ) => void,
-) => {
+export const useNodeOperations = (applyMutations: (mutations: GraphMutation[], context?: MutationContext) => void) => {
   const addNode = useCallback(
     (
-      templateId: string,
+      _templateId: string,
       position: XYPosition,
       initialData?: Partial<DynamicNodeData>,
       initialWidth = 300,
       initialHeight = 200,
     ) => {
+      const cleanedInitialData = { ...initialData };
+      if (cleanedInitialData.activeMode !== undefined) {
+        cleanedInitialData.activeMode = mapToRenderMode(cleanedInitialData.activeMode);
+      }
+      if (cleanedInitialData.availableModes !== undefined && Array.isArray(cleanedInitialData.availableModes)) {
+        cleanedInitialData.availableModes = cleanedInitialData.availableModes.map(mapToRenderMode);
+      }
+
       const newNode: AppNode = {
         data: {
-          label: initialData?.label ?? "New Node",
-          modes: [],
-          typeId: templateId,
-          ...initialData,
+          ...cleanedInitialData,
+          displayName: initialData?.displayName ?? "New Node",
         } as DynamicNodeData,
-        id: uuidv4(),
+        id: uuidv4() as NodeId,
         measured: { height: initialHeight, width: initialWidth },
         position,
-        style: { height: initialHeight, width: initialWidth },
         type: AppNodeType.DYNAMIC,
       };
+
+      // Ensure style is also set for immediate local feedback if needed
+      (newNode as any).style = { height: initialHeight, width: initialWidth };
 
       applyMutations([
         create(GraphMutationSchema, {
           operation: {
             case: "addNode",
-            value: { node: toProtoNode(newNode) },
+            value: { node: appNodeToProto(newNode) },
           },
         }),
       ]);

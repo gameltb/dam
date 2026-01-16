@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
 import { cn } from "@/lib/utils";
 import { type DynamicNodeData, OverflowMode } from "@/types";
+import { mapToRenderMode } from "@/utils/nodeUtils";
 
 import { NodeInfoPanel } from "./NodeInfoPanel";
 
@@ -15,11 +16,7 @@ export interface BaseNodeProps<T extends RFNode> {
   initialMode?: RenderMode;
   measured?: { height?: number; width?: number };
   onOverflowChange?: (overflow: OverflowMode) => void;
-  renderChat?: React.ComponentType<{
-    data: T["data"];
-    id: string;
-    updateNodeData: (nodeId: string, data: Partial<DynamicNodeData>) => void;
-  }>;
+  renderChat?: React.ComponentType<any>;
   renderMedia?: React.ComponentType<{
     data: T["data"];
     id: string;
@@ -64,26 +61,15 @@ export function BaseNode<T extends RFNode>({
   // Default to visible so handles are never cut off
   const [overflow, setOverflow] = useState<OverflowMode>(OverflowMode.VISIBLE);
 
-  const mode = (data as DynamicNodeData).activeMode ?? internalMode;
+  const mode = mapToRenderMode((data as DynamicNodeData).activeMode ?? internalMode);
   const isMedia = mode === RenderMode.MODE_MEDIA;
   const isChat = mode === RenderMode.MODE_CHAT;
   const nodeType = type ?? "node";
 
   const toggleMode = () => {
-    const nextMode =
-      mode === RenderMode.MODE_WIDGETS
-        ? RenderMode.MODE_MEDIA
-        : RenderMode.MODE_WIDGETS;
-    const dynamicData = data as unknown as DynamicNodeData;
-    if (typeof dynamicData.onChange === "function") {
-      (
-        dynamicData.onChange as (
-          id: string,
-          data: { activeMode: RenderMode },
-        ) => void
-      )(id, {
-        activeMode: nextMode,
-      });
+    const nextMode = mode === RenderMode.MODE_WIDGETS ? RenderMode.MODE_MEDIA : RenderMode.MODE_WIDGETS;
+    if (updateNodeData) {
+      updateNodeData(id, { activeMode: nextMode });
     } else {
       setInternalMode(nextMode);
     }
@@ -107,37 +93,20 @@ export function BaseNode<T extends RFNode>({
         />
       )}
       <div
-        className={cn(
-          "w-full h-full flex flex-col box-border rounded-[inherit]",
-          isMedia ? "p-0" : "p-0",
-        )}
+        className={cn("w-full h-full flex flex-col box-border rounded-[inherit]", isMedia ? "p-0" : "p-0")}
         style={{
           overflow: overflow,
           ...wrapperStyle,
         }}
       >
         {isMedia && RenderMedia && (
-          <RenderMedia
-            data={data as DynamicNodeData}
-            id={id}
-            {...rest}
-            onOverflowChange={handleOverflowChange}
-          />
+          <RenderMedia data={data as DynamicNodeData} id={id} {...rest} onOverflowChange={handleOverflowChange} />
         )}
         {isChat && RenderChat && updateNodeData && (
-          <RenderChat
-            data={data as DynamicNodeData}
-            id={id}
-            updateNodeData={updateNodeData}
-          />
+          <RenderChat data={data as DynamicNodeData} id={id} updateNodeData={updateNodeData} />
         )}
         {!isMedia && !isChat && RenderWidgets && (
-          <RenderWidgets
-            data={data as DynamicNodeData}
-            id={id}
-            {...rest}
-            onToggleMode={toggleMode}
-          />
+          <RenderWidgets data={data as DynamicNodeData} id={id} {...rest} onToggleMode={toggleMode} />
         )}
       </div>
       {handles}

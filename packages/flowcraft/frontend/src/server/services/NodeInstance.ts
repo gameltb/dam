@@ -11,9 +11,7 @@ export abstract class NodeInstance extends BaseInstance {
     await this.onReady(params);
   }
   protected flushPersistence(): void {
-    console.log(
-      `[NodeInstance] Buffered persistence flushing for node: ${this.nodeId ?? "unknown"}`,
-    );
+    console.log(`[NodeInstance] Buffered persistence flushing for node: ${this.nodeId ?? "unknown"}`);
     syncToDB();
   }
 

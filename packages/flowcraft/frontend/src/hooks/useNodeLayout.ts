@@ -21,10 +21,7 @@ export function useNodeLayout(data: DynamicNodeData) {
     const isMedia = data.activeMode === RenderMode.MODE_MEDIA;
     const isAudio = isMedia && data.media?.type === MediaType.MEDIA_AUDIO;
 
-    const portRows = Math.max(
-      data.inputPorts?.length ?? 0,
-      data.outputPorts?.length ?? 0,
-    );
+    const portRows = Math.max(data.inputPorts?.length ?? 0, data.outputPorts?.length ?? 0);
     const widgetsCount = data.widgets?.length ?? 0;
 
     let minHeight = 50;

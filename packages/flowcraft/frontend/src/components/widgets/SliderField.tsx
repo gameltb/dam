@@ -8,13 +8,7 @@ export interface SliderFieldProps {
   value: number;
 }
 
-export const SliderField: React.FC<SliderFieldProps> = ({
-  label,
-  max = 100,
-  min = 0,
-  onChange,
-  value,
-}) => {
+export const SliderField: React.FC<SliderFieldProps> = ({ label, max = 100, min = 0, onChange, value }) => {
   const [localValue, setLocalValue] = useState(value);
 
   // Sync with prop if it changes from outside

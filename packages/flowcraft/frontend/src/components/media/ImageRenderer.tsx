@@ -5,10 +5,7 @@ export interface ImageRendererProps {
   url: string;
 }
 
-export const ImageRenderer: React.FC<ImageRendererProps> = ({
-  onDimensionsLoad,
-  url,
-}) => {
+export const ImageRenderer: React.FC<ImageRendererProps> = ({ onDimensionsLoad, url }) => {
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalHeight, naturalWidth } = e.currentTarget;
     if (naturalWidth && naturalHeight && onDimensionsLoad) {

@@ -6,11 +6,7 @@ interface AudioRendererProps {
   url: string;
 }
 
-export const AudioRenderer: React.FC<AudioRendererProps> = ({
-  autoPlay = false,
-  controls = true,
-  url,
-}) => {
+export const AudioRenderer: React.FC<AudioRendererProps> = ({ autoPlay = false, controls = true, url }) => {
   return (
     <div
       style={{

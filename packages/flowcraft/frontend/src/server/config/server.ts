@@ -9,8 +9,7 @@ export interface ServerConfig {
   storageDir: string;
 }
 
-const storageDir =
-  process.env.FLOWCRAFT_STORAGE_DIR ?? path.join(process.cwd(), "storage");
+const storageDir = process.env.FLOWCRAFT_STORAGE_DIR ?? path.join(process.cwd(), "storage");
 
 export const SERVER_CONFIG: ServerConfig = {
   assetsDir: path.join(storageDir, "assets"),

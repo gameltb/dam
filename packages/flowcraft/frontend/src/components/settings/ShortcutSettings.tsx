@@ -27,12 +27,7 @@ const ShortcutRecordButton: React.FC<{
       if (e.altKey) keys.push("alt");
 
       const key = e.key.toLowerCase();
-      if (
-        key !== "control" &&
-        key !== "shift" &&
-        key !== "alt" &&
-        key !== "meta"
-      ) {
+      if (key !== "control" && key !== "shift" && key !== "alt" && key !== "meta") {
         keys.push(key);
         onSave(keys.join("+"));
         setIsRecording(false);
@@ -51,9 +46,7 @@ const ShortcutRecordButton: React.FC<{
         setIsRecording(true);
       }}
       style={{
-        backgroundColor: isRecording
-          ? "rgba(100, 108, 255, 0.2)"
-          : "rgba(255,255,255,0.08)",
+        backgroundColor: isRecording ? "rgba(100, 108, 255, 0.2)" : "rgba(255,255,255,0.08)",
         border: `1px solid ${isRecording ? "var(--primary-color)" : "rgba(255,255,255,0.1)"}`,
         borderRadius: "6px",
         color: isRecording ? "var(--primary-color)" : "#fff",
@@ -70,10 +63,7 @@ const ShortcutRecordButton: React.FC<{
   );
 };
 
-export const ShortcutSettings: React.FC<ShortcutSettingsProps> = ({
-  setShortcut,
-  shortcuts,
-}) => {
+export const ShortcutSettings: React.FC<ShortcutSettingsProps> = ({ setShortcut, shortcuts }) => {
   const shortcutList: { key: keyof ShortcutConfig; label: string }[] = [
     { key: "undo", label: "Undo" },
     { key: "redo", label: "Redo" },

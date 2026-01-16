@@ -1,15 +1,8 @@
 import { create } from "@bufbuild/protobuf";
 
-import {
-  NodeDataSchema,
-  NodeTemplateSchema,
-  RenderMode,
-} from "@/generated/flowcraft/v1/core/node_pb";
+import { NodeDataSchema, NodeTemplateSchema, RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
 
-import {
-  type NodeExecutionContext,
-  NodeRegistry,
-} from "../services/NodeRegistry";
+import { type NodeExecutionContext, NodeRegistry } from "../services/NodeRegistry";
 
 NodeRegistry.register({
   execute: async (ctx: NodeExecutionContext) => {

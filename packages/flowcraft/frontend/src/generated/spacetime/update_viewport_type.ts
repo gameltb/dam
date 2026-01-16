@@ -12,9 +12,7 @@ import {
 
 export default __t.object("UpdateViewport", {
   id: __t.string(),
-  x: __t.f32(),
-  y: __t.f32(),
-  zoom: __t.f32(),
+  viewport: __t.byteArray(),
 });
 
 

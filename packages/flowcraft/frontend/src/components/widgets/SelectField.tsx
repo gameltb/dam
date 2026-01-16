@@ -35,9 +35,7 @@ export const SelectField: React.FC<SelectFieldProps> = ({
   return (
     <div className="widget select-field">
       {label && (
-        <label
-          style={{ display: "block", fontSize: "11px", marginBottom: "2px" }}
-        >
+        <label style={{ display: "block", fontSize: "11px", marginBottom: "2px" }}>
           {label} {loading && "(Loading...)"}
         </label>
       )}

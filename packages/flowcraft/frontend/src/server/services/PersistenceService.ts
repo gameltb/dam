@@ -20,13 +20,21 @@ export const serverGraph: {
 
 export const eventBus = new EventEmitter();
 
-// In-memory mutation log (previously SQLite)
-const mutationLog: any[] = [];
+export interface MutationEntry {
+  description: null | string;
+  payload: Buffer;
+  seq: number;
+  source: number;
+  timestamp: number;
+  type: string;
+  user_id: null | string;
+}
 
-export function getMutations(fromSeq: number, toSeq?: number) {
-  return mutationLog.filter(
-    (m) => m.seq >= fromSeq && (!toSeq || m.seq <= toSeq),
-  );
+// In-memory mutation log (previously SQLite)
+const mutationLog: MutationEntry[] = [];
+
+export function getMutations(fromSeq: number, toSeq?: number): MutationEntry[] {
+  return mutationLog.filter((m) => m.seq >= fromSeq && (!toSeq || m.seq <= toSeq));
 }
 
 export function loadFromDisk() {
@@ -41,12 +49,7 @@ export function loadFromDisk() {
   }
 }
 
-export function logMutation(
-  type: string,
-  payloadBinary: Uint8Array,
-  source: number,
-  description?: string,
-) {
+export function logMutation(type: string, payloadBinary: Uint8Array, source: number, description?: string) {
   const seq = mutationLog.length;
   const entry = {
     description: description ?? null,

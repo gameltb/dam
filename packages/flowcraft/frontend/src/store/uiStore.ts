@@ -2,14 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
-import {
-  type AppNode,
-  ChatViewMode,
-  DragMode,
-  type Edge,
-  type LocalLLMClientConfig,
-  Theme,
-} from "@/types";
+import { type AppNode, ChatViewMode, DragMode, type Edge, type LocalLLMClientConfig, Theme } from "@/types";
 
 export interface ShortcutConfig {
   autoLayout: string;
@@ -71,10 +64,7 @@ interface UIState {
   // Compatibility helpers for existing components
   shortcuts: ShortcutConfig;
   sidebarWidth: number;
-  updateLocalClient: (
-    id: string,
-    client: Partial<LocalLLMClientConfig>,
-  ) => void;
+  updateLocalClient: (id: string, client: Partial<LocalLLMClientConfig>) => void;
 }
 
 const DEFAULT_SHORTCUTS: ShortcutConfig = {
@@ -129,13 +119,8 @@ export const useUiStore = create<UIState>()(
         set((state) => ({
           settings: {
             ...state.settings,
-            activeLocalClientId:
-              state.settings.activeLocalClientId === id
-                ? null
-                : state.settings.activeLocalClientId,
-            localClients: state.settings.localClients.filter(
-              (c) => c.id !== id,
-            ),
+            activeLocalClientId: state.settings.activeLocalClientId === id ? null : state.settings.activeLocalClientId,
+            localClients: state.settings.localClients.filter((c) => c.id !== id),
           },
         }));
       },
@@ -154,8 +139,7 @@ export const useUiStore = create<UIState>()(
       setChatFullscreen: (fullscreen) => set({ isChatFullscreen: fullscreen }),
       setClipboard: (content) => set({ clipboard: content }),
 
-      setConnectionStartHandle: (handle) =>
-        set({ connectionStartHandle: handle }),
+      setConnectionStartHandle: (handle) => set({ connectionStartHandle: handle }),
 
       setDragMode: (mode) => set({ dragMode: mode }),
 
@@ -182,9 +166,7 @@ export const useUiStore = create<UIState>()(
         set((state) => ({
           settings: {
             ...state.settings,
-            localClients: state.settings.localClients.map((c) =>
-              c.id === id ? { ...c, ...client } : c,
-            ),
+            localClients: state.settings.localClients.map((c) => (c.id === id ? { ...c, ...client } : c)),
           },
         }));
       },

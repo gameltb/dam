@@ -7,10 +7,7 @@ export enum MutationDirection {
   OUTGOING = "OUTGOING", // From UI/Local Action
 }
 
-export type GraphMiddleware = (
-  event: GraphMutationEvent,
-  next: MiddlewareNext,
-) => void;
+export type GraphMiddleware = (event: GraphMutationEvent, next: MiddlewareNext) => void;
 
 export interface GraphMutationEvent {
   context: MutationContext;

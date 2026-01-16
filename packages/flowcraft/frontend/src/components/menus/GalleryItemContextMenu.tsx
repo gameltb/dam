@@ -10,13 +10,7 @@ interface GalleryItemContextMenuProps {
   y: number;
 }
 
-export const GalleryItemContextMenu: React.FC<GalleryItemContextMenuProps> = ({
-  onClose,
-  onExtract,
-  url,
-  x,
-  y,
-}) => (
+export const GalleryItemContextMenu: React.FC<GalleryItemContextMenuProps> = ({ onClose, onExtract, url, x, y }) => (
   <MenuContainer x={x} y={y}>
     <div className="fc-menu-section">
       <div

@@ -19,8 +19,7 @@ export const getPortColor = (type?: ClientPort["type"]): string => {
     [PortMainType.VIDEO]: "var(--port-color-video, #673ab7)",
   };
 
-  const baseColor =
-    typeMap[type.mainType] ?? "var(--port-color-default, #9e9e9e)";
+  const baseColor = typeMap[type.mainType] ?? "var(--port-color-default, #9e9e9e)";
 
   // 如果是 generic (泛型) 类型，可以增加一些视觉特征，例如降低透明度
   return type.isGeneric ? `${baseColor}88` : baseColor;

@@ -32,8 +32,7 @@ function loadConfig(): InferenceConfig {
 
   return {
     defaultEndpointId: config.defaultEndpointId ?? "openai",
-    defaultModel:
-      config.defaultModel ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+    defaultModel: config.defaultModel ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini",
     endpoints: config.endpoints ?? [
       {
         apiKey: process.env.OPENAI_API_KEY ?? "dummy-key",
@@ -44,8 +43,7 @@ function loadConfig(): InferenceConfig {
       },
       {
         apiKey: process.env.ANTHROPIC_API_KEY ?? "",
-        baseURL:
-          process.env.ANTHROPIC_BASE_URL ?? "https://api.anthropic.com/v1",
+        baseURL: process.env.ANTHROPIC_BASE_URL ?? "https://api.anthropic.com/v1",
         id: "anthropic",
         models: ["claude-3-5-sonnet-20240620", "claude-3-opus-20240229"],
         name: "Anthropic (Proxy)",

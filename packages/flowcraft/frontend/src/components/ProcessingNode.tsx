@@ -4,11 +4,7 @@ import { memo } from "react";
 
 import { useFlowSocket } from "@/hooks/useFlowSocket";
 import { useTaskStore } from "@/store/taskStore";
-import {
-  type ProcessingNodeData,
-  type ProcessingNodeType,
-  TaskStatus,
-} from "@/types";
+import { type ProcessingNodeData, type ProcessingNodeType, TaskStatus } from "@/types";
 
 import { BaseNode } from "./base/BaseNode";
 import { Handle } from "./base/Handle";
@@ -18,7 +14,7 @@ const ProcessingContent: React.FC<{
   data: ProcessingNodeData;
   id: string;
 }> = ({ data }) => {
-  const { label, taskId } = data;
+  const { displayName, taskId } = data;
   const { cancelTask } = useFlowSocket({ disablePolling: true });
   const taskState = useTaskStore((state) => state.tasks[taskId]);
 
@@ -54,11 +50,9 @@ const ProcessingContent: React.FC<{
         padding: "16px",
       }}
     >
-      <div style={{ fontWeight: "bold", marginBottom: "8px" }}>{label}</div>
+      <div style={{ fontWeight: "bold", marginBottom: "8px" }}>{displayName}</div>
 
-      <div style={{ color: "#cbd5e0", fontSize: "12px", marginBottom: "4px" }}>
-        {getStatusLabel(status)}
-      </div>
+      <div style={{ color: "#cbd5e0", fontSize: "12px", marginBottom: "4px" }}>{getStatusLabel(status)}</div>
 
       <div
         style={{
@@ -72,8 +66,7 @@ const ProcessingContent: React.FC<{
       >
         <div
           style={{
-            background:
-              status === TaskStatus.TASK_FAILED ? "#e53e3e" : "#4299e1",
+            background: status === TaskStatus.TASK_FAILED ? "#e53e3e" : "#4299e1",
             height: "100%",
             transition: "width 0.3s ease",
             width: `${String(Math.round(progress))}%`,
@@ -81,9 +74,7 @@ const ProcessingContent: React.FC<{
         />
       </div>
 
-      <div style={{ color: "#a0aec0", fontSize: "10px", marginBottom: "12px" }}>
-        {message}
-      </div>
+      <div style={{ color: "#a0aec0", fontSize: "10px", marginBottom: "12px" }}>{message}</div>
 
       {status !== TaskStatus.TASK_COMPLETED &&
         status !== TaskStatus.TASK_CANCELLED &&

@@ -17,9 +17,7 @@ export enum SocketStatus {
   INITIALIZING = "initializing",
 }
 
-type Handler<K extends keyof SocketEventMap> = (
-  data: SocketEventMap[K],
-) => void;
+type Handler<K extends keyof SocketEventMap> = (data: SocketEventMap[K]) => void;
 
 interface SocketEventMap {
   actions: ActionTemplate[];
@@ -30,10 +28,7 @@ interface SocketEventMap {
 }
 
 class SocketClientImpl {
-  private currentBaseUrl =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "http://localhost:3000";
+  private currentBaseUrl = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
   private transport = createConnectTransport({
     baseUrl: this.currentBaseUrl,
   });
@@ -88,9 +83,7 @@ class SocketClientImpl {
         }
 
         default: {
-          console.warn(
-            `[SocketClient] Handled case ${payload.case} is legacy/unsupported in discovery mode.`,
-          );
+          console.warn(`[SocketClient] Handled case ${payload.case} is legacy/unsupported in discovery mode.`);
           break;
         }
       }
@@ -121,10 +114,7 @@ class SocketClientImpl {
     }
   }
 
-  private emit<K extends keyof SocketEventMap>(
-    event: K,
-    data: SocketEventMap[K],
-  ) {
+  private emit<K extends keyof SocketEventMap>(event: K, data: SocketEventMap[K]) {
     const handlers = this.handlers[event];
     if (handlers) {
       handlers.forEach((h: Handler<K>) => {

@@ -1,6 +1,8 @@
+import { create } from "@bufbuild/protobuf";
 import { useCallback, useMemo, useState } from "react";
 import { useTable } from "spacetimedb/react";
 
+import { ChatNodeStateSchema } from "@/generated/flowcraft/v1/nodes/chat_node_pb";
 import { tables } from "@/generated/spacetime";
 import { useSpacetimeChat } from "@/hooks/useSpacetimeChat";
 import { useFlowStore } from "@/store/flowStore";
@@ -17,10 +19,7 @@ interface ChatState {
   };
 }
 
-export function useChatController(
-  conversationHeadId: string | undefined,
-  nodeId: string,
-) {
+export function useChatController(conversationHeadId: string | undefined, nodeId: string) {
   const { addMessage, messages: allMessages } = useSpacetimeChat(nodeId);
   const [stStreams] = useTable(tables.chatStreams);
 
@@ -52,7 +51,7 @@ export function useChatController(
     if (!streamEntry || streamEntry.status === "idle") return null;
 
     return {
-      createdAt: Date.now(),
+      createdAt: 0, // Placeholder doesn't need real timestamp
       id: "streaming-placeholder",
       parts: [
         {
@@ -71,10 +70,10 @@ export function useChatController(
 
   // Derive consolidated status
   const status = useMemo<ChatStatus>(() => {
-    if (stStreams.some((s: any) => s.nodeId === nodeId && s.status === "streaming")) {
+    if (stStreams.some((s) => s.nodeId === nodeId && s.status === "streaming")) {
       return ChatStatus.STREAMING;
     }
-    if (stStreams.some((s: any) => s.nodeId === nodeId && s.status === "thinking")) {
+    if (stStreams.some((s) => s.nodeId === nodeId && s.status === "thinking")) {
       return ChatStatus.SUBMITTED;
     }
     return ChatStatus.READY;
@@ -97,11 +96,11 @@ export function useChatController(
       useFlowStore.getState().updateNodeData(nodeId, {
         extension: {
           case: "chat",
-          value: {
+          value: create(ChatNodeStateSchema, {
             conversationHeadId: msg.id,
             isHistoryCleared: false,
-            treeId: msg.treeId || "",
-          },
+            treeId: msg.treeId ?? "",
+          }),
         },
       });
     },
@@ -110,13 +109,19 @@ export function useChatController(
 
   return {
     appendUserMessage,
-    clearAll: () => {},
-    handleStreamChunk: (_chunk: string) => {}, // No longer needed locally
-    isLoading: status === "streaming" || status === "submitted",
+    clearAll: () => {
+      /* Implemented via SpacetimeDB signals */
+    },
+    handleStreamChunk: (_chunk: string) => {
+      /* Handled via SpacetimeDB chat_streams table */
+    },
+    isLoading: status === ChatStatus.STREAMING || status === ChatStatus.SUBMITTED,
     lastRequest: state.lastRequest,
     messages,
     setLastRequest,
-    sliceHistory: (_index: number) => {},
+    sliceHistory: (_index: number) => {
+      /* Local slice for optimistic UI if needed */
+    },
     status,
     streamingMessage,
   };

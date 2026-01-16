@@ -10,25 +10,13 @@ import type {
   Edge as RFEdge,
 } from "@xyflow/react";
 
-import {
-  Background,
-  BackgroundVariant,
-  Controls,
-  MiniMap,
-  ReactFlow,
-  SelectionMode,
-} from "@xyflow/react";
+import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, SelectionMode } from "@xyflow/react";
 import React from "react";
 
+import { defaultEdgeOptions, edgeTypes, nodeTypes, snapGrid } from "@/flowConfig";
 import { type HelperLines } from "@/hooks/useHelperLines";
 import { type AppNode } from "@/types";
 
-import {
-  defaultEdgeOptions,
-  edgeTypes,
-  nodeTypes,
-  snapGrid,
-} from "../../flowConfig";
 import { HelperLinesRenderer } from "../HelperLinesRenderer";
 import { Notifications } from "../Notifications";
 

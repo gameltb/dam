@@ -1,50 +1,50 @@
-import { t } from "spacetimedb/server";
+import { create } from "@bufbuild/protobuf";
+import { type ReducerCtx, t } from "spacetimedb/server";
 
+import { ChatSyncMessage as ProtoChatSyncMessage } from "../generated/flowcraft/v1/actions/chat_actions_pb";
+import { ChatSyncMessageSchema } from "../generated/flowcraft/v1/actions/chat_actions_pb";
+import { ChatMessageSchema } from "../generated/flowcraft/v1/core/service_pb";
+import { ChatMessage as StdbChatMessage } from "../generated/generated_schema";
+import { pbToStdb } from "../generated/proto-stdb-bridge";
+import { type AppSchema } from "../schema";
 
 export const chatReducers = {
   add_chat_message: {
     args: {
-      contentId: t.string(),
-      id: t.string(),
-      modelId: t.string(),
+      message: ChatSyncMessageSchema,
       nodeId: t.string(),
-      parentId: t.string(),
-      partsJson: t.string(),
-      role: t.string(),
-      timestamp: t.u64(),
-      treeId: t.string(),
     },
-    handler: (ctx: any, args: any) => {
-      // 1. Structural Sharing: Check if content already exists
-      const existingContent = ctx.db.chatContents.id.find(args.contentId);
-      if (!existingContent) {
-        ctx.db.chatContents.insert({
-          id: args.contentId,
-          partsJson: args.partsJson,
-          role: args.role,
-        });
-      }
+    handler: (ctx: ReducerCtx<AppSchema>, { message, nodeId }: { message: ProtoChatSyncMessage; nodeId: string }) => {
+      // Convert sync message to full message structure
+      const fullMsg = create(ChatMessageSchema, {
+        id: message.id,
+        metadata: {
+          case: "chatMetadata",
+          value: { attachmentUrls: [], modelId: message.modelId },
+        },
+        parentId: "",
+        parts: message.parts,
+        role: message.role,
+        siblingIds: [],
+        timestamp: message.timestamp,
+        treeId: nodeId,
+      });
 
-      // 2. Topology: Always insert the link
       ctx.db.chatMessages.insert({
-        contentId: args.contentId,
-        id: args.id,
-        modelId: args.modelId,
-        nodeId: args.nodeId,
-        parentId: args.parentId,
-        timestamp: args.timestamp,
-        treeId: args.treeId,
+        id: message.id,
+        state: pbToStdb(ChatMessageSchema, StdbChatMessage, fullMsg) as StdbChatMessage,
       });
     },
   },
 
   clear_chat_history: {
     args: { nodeId: t.string() },
-    handler: (ctx: any, { nodeId }: any) => {
-      // Note: In CoW approach, we might want to keep contents.
-      // We only delete topology links for the specific node.
-      for (const msg of ctx.db.chatMessages) {
-        if (msg.nodeId === nodeId) {
+    handler: (ctx: ReducerCtx<AppSchema>, { nodeId }: { nodeId: string }) => {
+      // In this version, treeId is tied to nodeId
+      const messages = [...ctx.db.chatMessages.iter()];
+      for (const msg of messages) {
+        // msg.state is inferred from StdbChatMessage
+        if (msg.state.treeId === nodeId) {
           ctx.db.chatMessages.id.delete(msg.id);
         }
       }
@@ -55,15 +55,17 @@ export const chatReducers = {
     args: {
       content: t.string(),
       nodeId: t.string(),
-      parentId: t.string(),
       status: t.string(),
     },
-    handler: (ctx: any, args: any) => {
-      const existing = ctx.db.chatStreams.nodeId.find(args.nodeId);
+    handler: (
+      ctx: ReducerCtx<AppSchema>,
+      { content, nodeId, status }: { content: string; nodeId: string; status: string },
+    ) => {
+      const existing = ctx.db.chatStreams.nodeId.find(nodeId);
       if (existing) {
-        ctx.db.chatStreams.nodeId.update({ ...existing, ...args });
+        ctx.db.chatStreams.nodeId.update({ content, nodeId, status });
       } else {
-        ctx.db.chatStreams.insert(args);
+        ctx.db.chatStreams.insert({ content, nodeId, status });
       }
     },
   },

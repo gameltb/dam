@@ -5,26 +5,17 @@ import dagre from "dagre";
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 
-import {
-  NodeKind,
-  PresentationSchema,
-} from "@/generated/flowcraft/v1/core/base_pb";
+import { NodeKind, PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import { NodeSchema } from "@/generated/flowcraft/v1/core/node_pb";
-import {
-  type GraphMutation,
-  GraphMutationSchema,
-} from "@/generated/flowcraft/v1/core/service_pb";
+import { type GraphMutation, GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
 import { type MutationContext } from "@/store/types";
 import { type AppNode, AppNodeType, type DynamicNodeData } from "@/types";
-import { toProtoNodeData } from "@/utils/protoAdapter";
+import { appNodeDataToProto } from "@/utils/nodeProtoUtils";
 
 export const useLayoutOperations = (
   nodes: AppNode[],
   edges: RFEdge[],
-  applyMutations: (
-    mutations: GraphMutation[],
-    context?: MutationContext,
-  ) => void,
+  applyMutations: (mutations: GraphMutation[], context?: MutationContext) => void,
 ) => {
   const autoLayout = useCallback(() => {
     const layoutSubgraph = (parentNodes: AppNode[], parentEdges: RFEdge[]) => {
@@ -69,7 +60,7 @@ export const useLayoutOperations = (
             operation: {
               case: "updateNode",
               value: {
-                data: toProtoNodeData(node.data as DynamicNodeData),
+                data: appNodeDataToProto(node.data as DynamicNodeData),
                 id: node.id,
                 presentation,
               },
@@ -81,16 +72,11 @@ export const useLayoutOperations = (
         if (node.type === AppNodeType.GROUP) {
           const children = nodes.filter((n) => n.parentId === node.id);
           const childEdges = edges.filter(
-            (e) =>
-              children.some((c) => c.id === e.source) &&
-              children.some((c) => c.id === e.target),
+            (e) => children.some((c) => c.id === e.source) && children.some((c) => c.id === e.target),
           );
 
           if (children.length > 0) {
-            const { boundingBox, mutations: childMutations } = layoutSubgraph(
-              children,
-              childEdges,
-            );
+            const { boundingBox, mutations: childMutations } = layoutSubgraph(children, childEdges);
             mutations.push(...childMutations);
 
             // Update group size to fit children with padding
@@ -105,10 +91,7 @@ export const useLayoutOperations = (
             const offsetY = padding - boundingBox.y;
 
             childMutations.forEach((m) => {
-              if (
-                m.operation.case === "updateNode" &&
-                m.operation.value.presentation?.position
-              ) {
+              if (m.operation.case === "updateNode" && m.operation.value.presentation?.position) {
                 m.operation.value.presentation.position.x += offsetX;
                 m.operation.value.presentation.position.y += offsetY;
               }
@@ -116,14 +99,9 @@ export const useLayoutOperations = (
 
             // Update the group's own size in the mutation we already created
             const groupMutation = mutations.find(
-              (m) =>
-                m.operation.case === "updateNode" &&
-                m.operation.value.id === node.id,
+              (m) => m.operation.case === "updateNode" && m.operation.value.id === node.id,
             );
-            if (
-              groupMutation?.operation.case === "updateNode" &&
-              groupMutation.operation.value.presentation
-            ) {
+            if (groupMutation?.operation.case === "updateNode" && groupMutation.operation.value.presentation) {
               groupMutation.operation.value.presentation.width = newWidth;
               groupMutation.operation.value.presentation.height = newHeight;
             }
@@ -159,9 +137,7 @@ export const useLayoutOperations = (
 
     const rootNodes = nodes.filter((n) => !n.parentId);
     const rootEdges = edges.filter(
-      (e) =>
-        rootNodes.some((n) => n.id === e.source) &&
-        rootNodes.some((n) => n.id === e.target),
+      (e) => rootNodes.some((n) => n.id === e.source) && rootNodes.some((n) => n.id === e.target),
     );
 
     const { mutations } = layoutSubgraph(rootNodes, rootEdges);
@@ -204,7 +180,10 @@ export const useLayoutOperations = (
         position: { x: groupX, y: groupY },
         width: groupW,
       }),
-      state: toProtoNodeData({ label: "New Group", modes: [] }),
+      state: appNodeDataToProto({
+        availableModes: [],
+        displayName: "New Group",
+      } as any),
       templateId: "group",
     });
 

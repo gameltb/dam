@@ -85,14 +85,9 @@ export const ContextMenuOverlay: React.FC<Props> = (props) => {
           onFocus={() => {
             /* empty */
           }}
-          onGroupSelected={
-            nodes.some((n) => n.selected) ? props.onGroup : undefined
-          }
+          onGroupSelected={nodes.some((n) => n.selected) ? props.onGroup : undefined}
           onLayoutGroup={
-            nodes.find((n) => n.id === contextMenu.nodeId)?.type ===
-            AppNodeType.GROUP
-              ? props.onAutoLayout
-              : undefined
+            nodes.find((n) => n.id === contextMenu.nodeId)?.type === AppNodeType.GROUP ? props.onAutoLayout : undefined
           }
           onOpenEditor={() => {
             if (contextMenu.nodeId) props.onOpenEditor(contextMenu.nodeId);
@@ -140,44 +135,37 @@ export const ContextMenuOverlay: React.FC<Props> = (props) => {
           y={contextMenu.y}
         />
       )}
-      {!contextMenu.nodeId &&
-        !contextMenu.edgeId &&
-        !contextMenu.galleryItemUrl &&
-        !nodes.some((n) => n.selected) && (
-          <PaneContextMenu
-            onAddNode={props.onAddNode}
-            onAutoLayout={props.onAutoLayout}
-            onClose={props.onClose}
-            onCopy={nodes.some((n) => n.selected) ? props.onCopy : undefined}
-            onDeleteSelected={
-              nodes.some((n) => n.selected) || edges.some((e) => e.selected)
-                ? () => {
-                    nodes
-                      .filter((n) => n.selected)
-                      .forEach((n) => {
-                        props.onDeleteNode(n.id);
-                      });
-                    edges
-                      .filter((e) => e.selected)
-                      .forEach((e) => {
-                        props.onDeleteEdge(e.id);
-                      });
-                    props.onClose();
-                  }
-                : undefined
-            }
-            onDuplicate={
-              nodes.some((n) => n.selected) ? props.onDuplicate : undefined
-            }
-            onGroupSelected={
-              nodes.some((n) => n.selected) ? props.onGroup : undefined
-            }
-            onPaste={props.onPaste}
-            templates={props.templates}
-            x={contextMenu.x}
-            y={contextMenu.y}
-          />
-        )}
+      {!contextMenu.nodeId && !contextMenu.edgeId && !contextMenu.galleryItemUrl && !nodes.some((n) => n.selected) && (
+        <PaneContextMenu
+          onAddNode={props.onAddNode}
+          onAutoLayout={props.onAutoLayout}
+          onClose={props.onClose}
+          onCopy={nodes.some((n) => n.selected) ? props.onCopy : undefined}
+          onDeleteSelected={
+            nodes.some((n) => n.selected) || edges.some((e) => e.selected)
+              ? () => {
+                  nodes
+                    .filter((n) => n.selected)
+                    .forEach((n) => {
+                      props.onDeleteNode(n.id);
+                    });
+                  edges
+                    .filter((e) => e.selected)
+                    .forEach((e) => {
+                      props.onDeleteEdge(e.id);
+                    });
+                  props.onClose();
+                }
+              : undefined
+          }
+          onDuplicate={nodes.some((n) => n.selected) ? props.onDuplicate : undefined}
+          onGroupSelected={nodes.some((n) => n.selected) ? props.onGroup : undefined}
+          onPaste={props.onPaste}
+          templates={props.templates}
+          x={contextMenu.x}
+          y={contextMenu.y}
+        />
+      )}
     </>
   );
 };

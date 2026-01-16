@@ -1,9 +1,6 @@
 import { Bot, Check, Edit2, Play, RotateCcw, X } from "lucide-react";
 import React, { useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-
 import {
   Message,
   MessageAction,
@@ -11,30 +8,33 @@ import {
   MessageContent,
   MessageResponse,
   MessageToolbar,
-} from "../../ai-elements/message";
-import { type ChatStatus } from "./types";
+} from "@/components/ai-elements/message";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { ChatStatus } from "@/types";
+
+import { type ChatStatus as ChatStatusType } from "./types";
 
 interface Props {
   errorMessage?: string;
   isUploading: boolean;
   onEditSave?: (content: string) => void;
   onRegenerate?: () => void;
-  status: ChatStatus;
+  status: ChatStatusType;
   streamingContent: string;
 }
 
 export const ChatStreamingMessage: React.FC<Props> = ({
+  errorMessage,
+  onEditSave,
+  onRegenerate,
   status,
   streamingContent,
-  errorMessage,
-  onRegenerate,
-  onEditSave,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
 
-  const isPendingResponse =
-    status === "ready" && !streamingContent && !errorMessage;
+  const isPendingResponse = status === ChatStatus.READY && !streamingContent && !errorMessage;
 
   const handleStartEdit = () => {
     setEditValue(streamingContent);
@@ -48,19 +48,18 @@ export const ChatStreamingMessage: React.FC<Props> = ({
     }
   };
 
-  if (status === "ready" && !streamingContent && !errorMessage && !isEditing)
-    return null;
+  if (status === ChatStatus.READY && !streamingContent && !errorMessage && !isEditing) return null;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
       <Message from="assistant">
         <MessageContent>
           {/* Status Indicator */}
-          {!isEditing && (status === "submitted" || status === "streaming") && (
+          {!isEditing && (status === ChatStatus.SUBMITTED || status === ChatStatus.STREAMING) && (
             <div className="flex items-center gap-2 mb-2 opacity-50">
               <Bot className="animate-pulse" size={14} />
               <span className="text-[10px] uppercase tracking-wider font-bold">
-                {status === "submitted" ? "Thinking..." : "Generating..."}
+                {status === ChatStatus.SUBMITTED ? "Thinking..." : "Generating..."}
               </span>
             </div>
           )}
@@ -124,23 +123,17 @@ export const ChatStreamingMessage: React.FC<Props> = ({
           {!isEditing && (
             <MessageToolbar>
               <MessageActions>
-                {(errorMessage || isPendingResponse) && onRegenerate && (
+                {(!!errorMessage || isPendingResponse) && onRegenerate && (
                   <MessageAction
                     className={errorMessage ? "text-destructive" : "text-primary"}
                     onClick={onRegenerate}
-                    tooltip={
-                      errorMessage ? "Try Regenerating" : "Generate Response"
-                    }
+                    tooltip={errorMessage ? "Try Regenerating" : "Generate Response"}
                   >
-                    {errorMessage ? (
-                      <RotateCcw size={12} />
-                    ) : (
-                      <Play size={12} fill="currentColor" />
-                    )}
+                    {errorMessage ? <RotateCcw size={12} /> : <Play fill="currentColor" size={12} />}
                   </MessageAction>
                 )}
                 {/* Allow editing if we have content OR an error */}
-                {(streamingContent || errorMessage) && (
+                {(!!streamingContent || !!errorMessage) && (
                   <MessageAction onClick={handleStartEdit} tooltip="Edit & Save">
                     <Edit2 size={12} />
                   </MessageAction>

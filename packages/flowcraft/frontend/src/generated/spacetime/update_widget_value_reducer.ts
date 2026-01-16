@@ -12,6 +12,6 @@ import {
 
 export default {
   nodeId: __t.string(),
-  valueJson: __t.string(),
+  value: __t.string(),
   widgetId: __t.string(),
 };

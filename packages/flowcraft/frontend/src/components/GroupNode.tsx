@@ -7,7 +7,7 @@ import { useFlowStore } from "@/store/flowStore";
 import { AppNodeType } from "@/types";
 
 export type GroupNodeData = Record<string, unknown> & {
-  label?: string;
+  displayName?: string;
 };
 
 export type GroupNodeType = Node<GroupNodeData, AppNodeType.GROUP>;
@@ -17,21 +17,21 @@ const GroupNode = ({ data, id, selected }: NodeProps<GroupNodeType>) => {
   const isDark = theme === "dark";
   const updateNodeData = useFlowStore(useShallow((s) => s.updateNodeData));
 
-  const [label, setLabel] = useState(data.label ?? "");
+  const [label, setLabel] = useState(data.displayName ?? "");
   const [isFocused, setIsFocused] = useState(false);
 
   // Update local state when external data changes
-  const [prevDataLabel, setPrevDataLabel] = useState(data.label);
-  if (data.label !== prevDataLabel) {
-    setLabel(data.label ?? "");
-    setPrevDataLabel(data.label);
+  const [prevDataLabel, setPrevDataLabel] = useState(data.displayName);
+  if (data.displayName !== prevDataLabel) {
+    setLabel(data.displayName ?? "");
+    setPrevDataLabel(data.displayName);
   }
 
   const handleBlur = () => {
     setIsFocused(false);
-    if (label !== data.label) {
-      // Correctly update the label within the data object
-      updateNodeData(id, { label });
+    if (label !== data.displayName) {
+      // Correctly update the displayName within the data object
+      updateNodeData(id, { displayName: label });
     }
   };
 
@@ -45,9 +45,7 @@ const GroupNode = ({ data, id, selected }: NodeProps<GroupNodeType>) => {
   return (
     <div
       style={{
-        backgroundColor: isDark
-          ? "rgba(100, 108, 255, 0.08)"
-          : "rgba(100, 108, 255, 0.05)",
+        backgroundColor: isDark ? "rgba(100, 108, 255, 0.08)" : "rgba(100, 108, 255, 0.05)",
         border: `2px ${selected ? "solid" : "dashed"} ${selected ? "var(--primary-color)" : isDark ? "rgba(100, 108, 255, 0.3)" : "rgba(100, 108, 255, 0.4)"}`,
         borderRadius: "12px",
         boxSizing: "border-box",
@@ -58,12 +56,7 @@ const GroupNode = ({ data, id, selected }: NodeProps<GroupNodeType>) => {
         width: "100%",
       }}
     >
-      <NodeResizer
-        color="var(--primary-color)"
-        isVisible={selected}
-        minHeight={100}
-        minWidth={150}
-      />
+      <NodeResizer color="var(--primary-color)" isVisible={selected} minHeight={100} minWidth={150} />
       <div
         className="nodrag nopan"
         style={{

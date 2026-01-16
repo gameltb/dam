@@ -42,9 +42,7 @@ export function useFlowHandlers({
   setHelperLines,
   updateViewport,
 }: FlowHandlersProps) {
-  const setConnectionStartHandle = useUiStore(
-    (s) => s.setConnectionStartHandle,
-  );
+  const setConnectionStartHandle = useUiStore((s) => s.setConnectionStartHandle);
 
   const handleMoveEnd = useCallback(
     (_: unknown, viewport: { x: number; y: number; zoom: number }) => {
@@ -65,12 +63,7 @@ export function useFlowHandlers({
         if (change.type === "position" && change.position) {
           const node = nodes.find((n) => n.id === change.id);
           if (node) {
-            const { snappedPosition } = calculateLines(
-              node,
-              nodes,
-              true,
-              change.position,
-            );
+            const { snappedPosition } = calculateLines(node, nodes, true, change.position);
             return { ...change, position: snappedPosition };
           }
         }

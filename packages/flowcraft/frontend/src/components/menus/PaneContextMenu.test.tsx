@@ -2,11 +2,8 @@ import { create } from "@bufbuild/protobuf";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  NodeTemplateSchema,
-  RenderMode,
-} from "@/generated/flowcraft/v1/core/node_pb";
-import { toProtoNodeData } from "@/utils/protoAdapter";
+import { NodeTemplateSchema, RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
+import { appNodeDataToProto } from "@/utils/nodeProtoUtils";
 
 import { PaneContextMenu } from "./PaneContextMenu";
 
@@ -18,12 +15,12 @@ describe("PaneContextMenu", () => {
 
     const templates = [
       create(NodeTemplateSchema, {
-        defaultState: toProtoNodeData({
+        defaultState: appNodeDataToProto({
           activeMode: RenderMode.MODE_WIDGETS,
-          label: "Test",
-          modes: [RenderMode.MODE_WIDGETS],
+          availableModes: [RenderMode.MODE_WIDGETS],
+          displayName: "Test",
           widgets: [],
-        }),
+        } as any),
         displayName: "Test Node",
         menuPath: ["Basic"],
         templateId: "test-node",

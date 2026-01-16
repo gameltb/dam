@@ -14,13 +14,7 @@ interface GalleryWrapperProps {
   nodeHeight: number;
   nodeWidth: number;
   onExpand?: (expanded: boolean) => void;
-  onGalleryItemContext?: (
-    nodeId: string,
-    url: string,
-    mediaType: MediaType,
-    x: number,
-    y: number,
-  ) => void;
+  onGalleryItemContext?: (nodeId: string, url: string, mediaType: MediaType, x: number, y: number) => void;
   renderItem: (url: string) => React.ReactNode;
 }
 
@@ -43,12 +37,11 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
     if (!isExpanded || !lastNodeEvent) return;
 
     // Only collapse if it's a NEW pane-click event that happened after we opened
-    if (
-      lastNodeEvent.type === FlowEvent.PANE_CLICK &&
-      lastNodeEvent.timestamp > lastProcessedTimestamp.current
-    ) {
-      setIsExpanded(false);
-      onExpand?.(false);
+    if (lastNodeEvent.type === FlowEvent.PANE_CLICK && lastNodeEvent.timestamp > lastProcessedTimestamp.current) {
+      queueMicrotask(() => {
+        setIsExpanded(false);
+        onExpand?.(false);
+      });
       lastProcessedTimestamp.current = lastNodeEvent.timestamp;
     }
   }, [lastNodeEvent, isExpanded, onExpand]);
@@ -62,9 +55,7 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
     const nodes = useFlowStore.getState().nodes;
     const currentNode = nodes.find((n) => n.id === id);
     if (currentNode && !currentNode.selected) {
-      useFlowStore
-        .getState()
-        .onNodesChange([{ id, selected: true, type: "select" }]);
+      useFlowStore.getState().onNodesChange([{ id, selected: true, type: "select" }]);
     }
 
     const next = !isExpanded;
@@ -79,9 +70,7 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
   };
 
   const handleOpenPreview = (index: number) => {
-    useFlowStore
-      .getState()
-      .dispatchNodeEvent(FlowEvent.OPEN_PREVIEW, { index, nodeId: id });
+    useFlowStore.getState().dispatchNodeEvent(FlowEvent.OPEN_PREVIEW, { index, nodeId: id });
   };
 
   const getGalleryRows = () => {
@@ -143,16 +132,10 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
       {hasGallery && (
         <IconButton
           icon={isExpanded ? <X size={14} /> : <Layers size={14} />}
-          label={
-            isExpanded
-              ? "Collapse Gallery"
-              : `Expand Gallery (${String(gallery.length)})`
-          }
+          label={isExpanded ? "Collapse Gallery" : `Expand Gallery (${String(gallery.length)})`}
           onClick={handleToggleExpand}
           style={{
-            backgroundColor: isExpanded
-              ? "rgba(255, 59, 48, 0.8)"
-              : "rgba(0,0,0,0.6)",
+            backgroundColor: isExpanded ? "rgba(255, 59, 48, 0.8)" : "rgba(0,0,0,0.6)",
             borderRadius: "12px",
             fontSize: "10px",
             height: "24px",
@@ -202,24 +185,14 @@ export const GalleryWrapper: React.FC<GalleryWrapperProps> = ({
                   onContextMenu={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    onGalleryItemContext?.(
-                      id,
-                      url,
-                      mediaType,
-                      e.clientX,
-                      e.clientY,
-                    );
+                    onGalleryItemContext?.(id, url, mediaType, e.clientX, e.clientY);
                   }}
                   onDoubleClick={(e) => {
                     e.stopPropagation();
                     handleOpenPreview(gallery.indexOf(url) + 1);
                   }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.transform = "scale(1.02)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.transform = "scale(1)")
-                  }
+                  onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.02)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
                   style={{
                     backdropFilter: "blur(10px)",
                     backgroundColor: "rgba(0,0,0,0.2)",

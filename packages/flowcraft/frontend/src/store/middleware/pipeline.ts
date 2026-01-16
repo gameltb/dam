@@ -8,10 +8,7 @@ export class MutationPipeline {
     return this;
   }
 
-  execute(
-    event: GraphMutationEvent,
-    finalAction: (event: GraphMutationEvent) => void,
-  ) {
+  execute(event: GraphMutationEvent, finalAction: (event: GraphMutationEvent) => void) {
     let index = -1;
 
     const next = (i: number, currentEvent: GraphMutationEvent) => {

@@ -11,8 +11,5 @@ import {
 } from "spacetimedb";
 
 export default {
-  id: __t.string(),
-  nodeId: __t.string(),
-  payloadJson: __t.string(),
-  signalCase: __t.string(),
+  signal: __t.byteArray(),
 };

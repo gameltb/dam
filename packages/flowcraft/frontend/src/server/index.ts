@@ -5,20 +5,29 @@ import fastifyStatic from "@fastify/static";
 import { fastify } from "fastify";
 
 import { FlowService } from "@/generated/flowcraft/v1/core/service_pb";
+import { wrapReducers } from "../utils/pb-client";
 
 import { SERVER_CONFIG } from "./config";
 import { AssetService } from "./services/AssetService";
+import { initConfigSync } from "./services/ConfigSyncService";
 import { FlowServiceImpl } from "./services/FlowService";
 import { loadFromDisk } from "./services/PersistenceService";
 import { initTaskWatcher } from "./services/TaskService";
-import { initSpacetime } from "./spacetimeClient";
 import "./templates"; // 触发所有节点和动作的注册
+import { initSpacetime, onSpacetimeConnect } from "./spacetimeClient";
+import { ChatWorker } from "./workers/ChatWorker";
 
 const app = fastify();
 
 // 1. Initialize SpacetimeDB
 initSpacetime();
 initTaskWatcher();
+initConfigSync();
+
+onSpacetimeConnect((conn) => {
+  const pbConn = wrapReducers(conn as any);
+  new ChatWorker(conn as any, pbConn);
+});
 
 // 2. 注册核心插件
 await app.register(multipart);
@@ -63,7 +72,5 @@ app.listen({ host: SERVER_CONFIG.host, port: SERVER_CONFIG.port }, (err) => {
     console.error(err);
     process.exit(1);
   }
-  console.log(
-    `[Server] Ready at http://${SERVER_CONFIG.host}:${SERVER_CONFIG.port.toString()}`,
-  );
+  console.log(`[Server] Ready at http://${SERVER_CONFIG.host}:${SERVER_CONFIG.port.toString()}`);
 });

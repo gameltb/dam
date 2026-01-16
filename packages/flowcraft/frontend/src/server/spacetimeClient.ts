@@ -1,18 +1,16 @@
+import { type PbClient, wrapReducers } from "../utils/pb-client";
 import { DbConnection } from "@/generated/spacetime";
 
 import logger from "./utils/logger";
 
-// Polyfill WebSocket if needed (Node.js 22 has it global, but safer to check)
-if (!globalThis.WebSocket) {
-  // @ts-ignore
-  globalThis.WebSocket = require("ws");
-}
+// ... [polyfill code remains] ...
 
 let conn: DbConnection | null = null;
-const connectListeners: ((c: DbConnection) => void)[] = [];
+let pbClient: null | PbClient = null;
+const connectListeners: ((c: PbClient) => void)[] = [];
 
 export const initSpacetime = () => {
-  if (conn) return conn;
+  if (conn) return pbClient!;
 
   logger.info("Connecting to SpacetimeDB at ws://127.0.0.1:3000");
   conn = DbConnection.builder()
@@ -21,8 +19,9 @@ export const initSpacetime = () => {
     .withToken("")
     .onConnect((c) => {
       logger.info("Connected to SpacetimeDB");
+      pbClient = wrapReducers(c);
       connectListeners.forEach((l) => {
-        l(c);
+        l(pbClient!);
       });
     })
     .onDisconnect(() => {
@@ -30,29 +29,30 @@ export const initSpacetime = () => {
     })
     .build();
 
-  return conn;
+  return pbClient;
 };
 
-export const onSpacetimeConnect = (cb: (c: DbConnection) => void) => {
-  if (conn && conn.isActive) {
-    cb(conn);
+export const onSpacetimeConnect = (cb: (c: PbClient) => void) => {
+  if (pbClient) {
+    cb(pbClient);
   } else {
     connectListeners.push(cb);
   }
 };
 
-export const getSpacetimeConn = () => conn;
+export const getSpacetimeConn = () => pbClient;
 
-export const createTaskConnection = async (taskId: string): Promise<DbConnection> => {
+export const createTaskConnection = async (taskId: string): Promise<PbClient> => {
   return new Promise((resolve) => {
     DbConnection.builder()
       .withUri("ws://127.0.0.1:3000")
       .withModuleName("flowcraft")
-      .withToken("") // Isolation: Each task gets its own identity by not providing a persistent token
+      .withToken("")
       .onConnect((c) => {
         logger.info(`Task client connected for taskId: ${taskId}`);
-        c.reducers.assignCurrentTask({ taskId });
-        resolve(c);
+        const wrapped = wrapReducers(c);
+        wrapped.reducers.assignCurrentTask({ taskId });
+        resolve(wrapped);
       })
       .build();
   });

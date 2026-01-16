@@ -8,13 +8,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
 export const AiSettings: React.FC = () => {
-  const {
-    addLocalClient,
-    removeLocalClient,
-    setActiveLocalClient,
-    settings,
-    updateLocalClient,
-  } = useUiStore();
+  const { addLocalClient, removeLocalClient, setActiveLocalClient, settings, updateLocalClient } = useUiStore();
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<null | string>(null);
@@ -67,9 +61,7 @@ export const AiSettings: React.FC = () => {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-text-color">
-          Local LLM Clients
-        </h3>
+        <h3 className="text-sm font-bold uppercase tracking-wider text-text-color">Local LLM Clients</h3>
         {!isAdding && !editingId && (
           <Button
             className="h-8 gap-1 text-xs"
@@ -95,9 +87,7 @@ export const AiSettings: React.FC = () => {
           return (
             <div
               className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                isActive
-                  ? "bg-primary/10 border-primary/50"
-                  : "bg-muted/10 border-node-border hover:border-primary/30"
+                isActive ? "bg-primary/10 border-primary/50" : "bg-muted/10 border-node-border hover:border-primary/30"
               }`}
               key={client.id}
             >
@@ -109,16 +99,12 @@ export const AiSettings: React.FC = () => {
               >
                 <div className="flex items-center gap-2">
                   {isActive && <Check className="text-primary" size={14} />}
-                  <span className="text-sm font-semibold text-text-color">
-                    {client.name}
-                  </span>
+                  <span className="text-sm font-semibold text-text-color">{client.name}</span>
                   <Badge className="text-[10px]" variant="outline">
                     {client.model}
                   </Badge>
                 </div>
-                <div className="text-[10px] text-muted-foreground mt-1 truncate max-w-[300px]">
-                  {client.baseUrl}
-                </div>
+                <div className="text-[10px] text-muted-foreground mt-1 truncate max-w-[300px]">{client.baseUrl}</div>
               </div>
 
               <div className="flex items-center gap-1">
@@ -158,9 +144,7 @@ export const AiSettings: React.FC = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase text-muted-foreground font-bold">
-                Client Name
-              </label>
+              <label className="text-[10px] uppercase text-muted-foreground font-bold">Client Name</label>
               <input
                 className="bg-background border border-node-border rounded px-2 py-1.5 text-xs text-text-color outline-none focus:border-primary"
                 onChange={(e) => {
@@ -172,9 +156,7 @@ export const AiSettings: React.FC = () => {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] uppercase text-muted-foreground font-bold">
-                Model ID
-              </label>
+              <label className="text-[10px] uppercase text-muted-foreground font-bold">Model ID</label>
               <input
                 className="bg-background border border-node-border rounded px-2 py-1.5 text-xs text-text-color outline-none focus:border-primary"
                 onChange={(e) => {
@@ -188,9 +170,7 @@ export const AiSettings: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase text-muted-foreground font-bold">
-              Base URL
-            </label>
+            <label className="text-[10px] uppercase text-muted-foreground font-bold">Base URL</label>
             <input
               className="bg-background border border-node-border rounded px-2 py-1.5 text-xs text-text-color outline-none focus:border-primary"
               onChange={(e) => {
@@ -203,9 +183,7 @@ export const AiSettings: React.FC = () => {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] uppercase text-muted-foreground font-bold">
-              API Key (Optional)
-            </label>
+            <label className="text-[10px] uppercase text-muted-foreground font-bold">API Key (Optional)</label>
             <input
               className="bg-background border border-node-border rounded px-2 py-1.5 text-xs text-text-color outline-none focus:border-primary"
               onChange={(e) => {
@@ -221,11 +199,7 @@ export const AiSettings: React.FC = () => {
             <Button onClick={cancelEdit} size="sm" variant="ghost">
               Cancel
             </Button>
-            <Button
-              disabled={!formData.name || !formData.baseUrl}
-              onClick={handleSave}
-              size="sm"
-            >
+            <Button disabled={!formData.name || !formData.baseUrl} onClick={handleSave} size="sm">
               {editingId ? "Update" : "Create Client"}
             </Button>
           </div>

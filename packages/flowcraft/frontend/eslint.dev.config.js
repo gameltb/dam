@@ -7,10 +7,11 @@ export default defineConfig([
   globalIgnores([
     "dist",
     "src/generated",
+    "spacetime-module/dist",
+    "spacetime-module/src/generated",
     ".gemini",
     "src/components/ui",
     "src/components/ai-elements",
-    "ai-elements",
   ]),
   {
     files: ["**/*.{ts,tsx}"],
@@ -26,6 +27,7 @@ export default defineConfig([
         project: [
           "./tsconfig.node.json",
           "./tsconfig.app.json",
+          "./tsconfig.scripts.json",
           "./spacetime-module/tsconfig.json",
         ],
         tsconfigRootDir: import.meta.dirname,

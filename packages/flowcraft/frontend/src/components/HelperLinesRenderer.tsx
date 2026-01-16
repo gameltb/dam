@@ -12,9 +12,7 @@ interface HelperLinesRendererProps {
  * Uses the internal React Flow transform to ensure lines stay aligned with nodes
  * during panning and zooming.
  */
-export const HelperLinesRenderer: React.FC<HelperLinesRendererProps> = ({
-  lines,
-}) => {
+export const HelperLinesRenderer: React.FC<HelperLinesRendererProps> = ({ lines }) => {
   // Access the current viewport transform directly from the store
   const transform = useStore((s) => s.transform);
   const [tx, ty, zoom] = transform;
@@ -32,9 +30,7 @@ export const HelperLinesRenderer: React.FC<HelperLinesRendererProps> = ({
         zIndex: 10,
       }}
     >
-      <g
-        transform={`translate(${tx.toString()}, ${ty.toString()}) scale(${zoom.toString()})`}
-      >
+      <g transform={`translate(${tx.toString()}, ${ty.toString()}) scale(${zoom.toString()})`}>
         {lines.vertical !== undefined && (
           <line
             stroke="var(--primary-color)"

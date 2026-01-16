@@ -1,21 +1,15 @@
 import { t, table } from "spacetimedb/server";
 
+import { Edge, Node, Viewport } from "../generated/generated_schema";
+
 export const nodes = table(
   {
     name: "nodes",
     public: true,
   },
   {
-    dataJson: t.string(),
-    height: t.f32(),
-    id: t.string().primaryKey(),
-    isSelected: t.bool(),
-    kind: t.u32(),
-    parentId: t.string(),
-    posX: t.f32(),
-    posY: t.f32(),
-    templateId: t.string(),
-    width: t.f32(),
+    nodeId: t.string().primaryKey(),
+    state: Node,
   },
 );
 
@@ -25,11 +19,8 @@ export const edges = table(
     public: true,
   },
   {
-    id: t.string().primaryKey(),
-    sourceHandle: t.string(),
-    sourceId: t.string(),
-    targetHandle: t.string(),
-    targetId: t.string(),
+    edgeId: t.string().primaryKey(),
+    state: Edge,
   },
 );
 
@@ -39,9 +30,7 @@ export const viewportState = table(
     public: true,
   },
   {
-    id: t.string().primaryKey(),
-    x: t.f32(),
-    y: t.f32(),
-    zoom: t.f32(),
+    id: t.string().primaryKey(), // "default"
+    state: Viewport,
   },
 );

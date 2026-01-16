@@ -1,17 +1,17 @@
 import { t, table } from "spacetimedb/server";
 
+import { ActionExecutionRequest, NodeSignal, TaskStatus, Value } from "../generated/generated_schema";
+
 export const tasks = table(
   {
     name: "tasks",
     public: true,
   },
   {
-    actionId: t.string(),
     id: t.string().primaryKey(),
-    nodeId: t.string(),
-    paramsJson: t.string(),
-    resultJson: t.string(),
-    status: t.string(),
+    request: ActionExecutionRequest, // Store full PB request
+    result: Value,
+    status: TaskStatus,
     timestamp: t.u64(),
   },
 );
@@ -24,8 +24,7 @@ export const nodeSignals = table(
   {
     id: t.string().primaryKey(),
     nodeId: t.string(),
-    payloadJson: t.string(),
-    signalCase: t.string(),
+    payload: NodeSignal.elements.payload, // Protobuf Enum/Union
     timestamp: t.u64(),
   },
 );
@@ -38,23 +37,8 @@ export const widgetValues = table(
   {
     id: t.string().primaryKey(),
     nodeId: t.string(),
-    valueJson: t.string(),
+    value: t.string(), // Keep string for simple values
     widgetId: t.string(),
-  },
-);
-
-export const operationLogs = table(
-  {
-    name: "operation_logs",
-    public: true,
-  },
-  {
-    id: t.string().primaryKey(),
-    clientIdentity: t.string(), // Hex string of ctx.sender
-    operationType: t.string(),  // e.g., "move_node", "add_chat_message"
-    payloadJson: t.string(),
-    taskId: t.string(),         // The originTaskId fetched from mapping
-    timestamp: t.u64(),
   },
 );
 
@@ -69,4 +53,17 @@ export const clientTaskAssignments = table(
   },
 );
 
-
+export const operationLogs = table(
+  {
+    name: "operation_logs",
+    public: true,
+  },
+  {
+    clientIdentity: t.string(),
+    id: t.string().primaryKey(),
+    operationType: t.string(),
+    payloadJson: t.string(),
+    taskId: t.string(),
+    timestamp: t.u64(),
+  },
+);

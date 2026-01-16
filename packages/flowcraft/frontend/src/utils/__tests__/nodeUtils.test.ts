@@ -31,9 +31,7 @@ describe("nodeUtils - dehydrateNode", () => {
       id: "1",
     });
     expect((result as Record<string, unknown>).onDrag).toBeUndefined();
-    expect(
-      ((result as Record<string, unknown>).data as Record<string, unknown>).fn,
-    ).toBeUndefined();
+    expect(((result as Record<string, unknown>).data as Record<string, unknown>).fn).toBeUndefined();
   });
 
   it("should recursively clean arrays", () => {

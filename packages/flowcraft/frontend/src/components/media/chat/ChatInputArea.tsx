@@ -1,9 +1,6 @@
 import { CheckIcon, GlobeIcon } from "lucide-react";
 import React, { useState } from "react";
 
-import { type InferenceConfigDiscoveryResponse } from "@/generated/flowcraft/v1/core/service_pb";
-import { useUiStore } from "@/store/uiStore";
-
 import {
   ModelSelector,
   ModelSelectorContent,
@@ -12,7 +9,7 @@ import {
   ModelSelectorList,
   ModelSelectorName,
   ModelSelectorTrigger,
-} from "../../ai-elements/model-selector";
+} from "@/components/ai-elements/model-selector";
 import {
   PromptInput,
   PromptInputActionAddAttachments,
@@ -28,26 +25,20 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
-} from "../../ai-elements/prompt-input";
-import { Suggestion, Suggestions } from "../../ai-elements/suggestion";
-import { type ChatStatus, type ContextNode } from "./types";
+} from "@/components/ai-elements/prompt-input";
+import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
+import { type InferenceConfigDiscoveryResponse } from "@/generated/flowcraft/v1/core/service_pb";
+import { useUiStore } from "@/store/uiStore";
 
-const SUGGESTIONS = [
-  "Explain how this graph works",
-  "Summarize current results",
-  "Optimize this workflow",
-];
+import { ChatStatus, type ContextNode } from "./types";
+
+const SUGGESTIONS = ["Explain how this graph works", "Summarize current results", "Optimize this workflow"];
 
 interface Props {
   droppedNodes: ContextNode[];
   inferenceConfig: InferenceConfigDiscoveryResponse | null;
   onModelChange: (m: string, endpoint?: string) => void;
-  onSubmit: (
-    msg: PromptInputMessage,
-    model: string,
-    endpoint: string,
-    search: boolean,
-  ) => void;
+  onSubmit: (msg: PromptInputMessage, model: string, endpoint: string, search: boolean) => void;
   onWebSearchChange: (v: boolean) => void;
   selectedEndpoint: string;
   selectedModel: string;
@@ -109,13 +100,11 @@ export const ChatInputArea: React.FC<Props> = ({
     return models;
   }, [inferenceConfig, localClients]);
 
-  const currentModel = allModels.find(
-    (m) => m.id === selectedModel && m.endpointId === selectedEndpoint,
-  );
+  const currentModel = allModels.find((m) => m.id === selectedModel && m.endpointId === selectedEndpoint);
   const currentModelName = currentModel?.name ?? selectedModel;
 
   const handleSubmit = (msg: PromptInputMessage) => {
-    if (status !== "ready") return;
+    if (status !== ChatStatus.READY) return;
     onSubmit(msg, selectedModel, selectedEndpoint, useWebSearch);
     setInputText("");
   };
@@ -149,13 +138,8 @@ export const ChatInputArea: React.FC<Props> = ({
             <Suggestion
               key={s}
               onClick={() => {
-                if (status !== "ready") return;
-                onSubmit(
-                  { files: [], text: s },
-                  selectedModel,
-                  selectedEndpoint,
-                  useWebSearch,
-                );
+                if (status !== ChatStatus.READY) return;
+                onSubmit({ files: [], text: s }, selectedModel, selectedEndpoint, useWebSearch);
               }}
               suggestion={s}
             />
@@ -164,19 +148,15 @@ export const ChatInputArea: React.FC<Props> = ({
 
         <div className="px-2 pb-2">
           <PromptInput onSubmit={handleSubmit}>
-            <PromptInputAttachments>
-              {(f) => <PromptInputAttachment data={f} key={f.id} />}
-            </PromptInputAttachments>
+            <PromptInputAttachments>{(f) => <PromptInputAttachment data={f} key={f.id} />}</PromptInputAttachments>
             <PromptInputBody>
               <PromptInputTextarea
                 className="min-h-[44px]"
-                disabled={status !== "ready"}
+                disabled={status !== ChatStatus.READY}
                 onChange={(e) => {
                   setInputText(e.target.value);
                 }}
-                placeholder={
-                  status === "ready" ? "Ask anything..." : "Please wait..."
-                }
+                placeholder={status === ChatStatus.READY ? "Ask anything..." : "Please wait..."}
                 value={inputText}
               />
             </PromptInputBody>
@@ -196,10 +176,7 @@ export const ChatInputArea: React.FC<Props> = ({
                 >
                   <GlobeIcon size={14} />
                 </PromptInputButton>
-                <ModelSelector
-                  onOpenChange={setModelSelectorOpen}
-                  open={modelSelectorOpen}
-                >
+                <ModelSelector onOpenChange={setModelSelectorOpen} open={modelSelectorOpen}>
                   <ModelSelectorTrigger asChild>
                     <PromptInputButton>
                       <span>{currentModelName}</span>
@@ -220,10 +197,9 @@ export const ChatInputArea: React.FC<Props> = ({
                               value={m}
                             >
                               <ModelSelectorName>{m}</ModelSelectorName>
-                              {selectedModel === m &&
-                                selectedEndpoint === e.id && (
-                                  <CheckIcon className="ml-auto size-3" />
-                                )}
+                              {selectedModel === m && selectedEndpoint === e.id && (
+                                <CheckIcon className="ml-auto size-3" />
+                              )}
                             </ModelSelectorItem>
                           ))}
                         </ModelSelectorGroup>
@@ -244,9 +220,7 @@ export const ChatInputArea: React.FC<Props> = ({
                               <ModelSelectorName>
                                 {c.name} ({c.model})
                               </ModelSelectorName>
-                              {selectedEndpoint === c.id && (
-                                <CheckIcon className="ml-auto size-3" />
-                              )}
+                              {selectedEndpoint === c.id && <CheckIcon className="ml-auto size-3" />}
                             </ModelSelectorItem>
                           ))}
                         </ModelSelectorGroup>
@@ -257,9 +231,9 @@ export const ChatInputArea: React.FC<Props> = ({
               </PromptInputTools>
               <PromptInputSubmit
                 status={
-                  status === "streaming"
+                  status === ChatStatus.STREAMING
                     ? "streaming"
-                    : status === "submitted"
+                    : status === ChatStatus.SUBMITTED
                       ? "submitted"
                       : "ready"
                 }

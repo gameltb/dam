@@ -19,10 +19,7 @@ interface Props {
   connectionStatus: SocketStatus;
   pendingAction: ActionTemplate | null;
   setPendingAction: (a: ActionTemplate | null) => void;
-  onExecuteAction: (
-    action: ActionTemplate,
-    params?: Record<string, unknown>,
-  ) => void;
+  onExecuteAction: (action: ActionTemplate, params?: Record<string, unknown>) => void;
 }
 
 export const AppOverlays: React.FC<Props> = ({
@@ -52,13 +49,7 @@ export const AppOverlays: React.FC<Props> = ({
       {activeEditorId &&
         nodes
           .filter((n) => n.id === activeEditorId)
-          .map((node) => (
-            <EditorPlaceholder
-              key={node.id}
-              node={node}
-              onClose={() => setActiveEditorId(null)}
-            />
-          ))}
+          .map((node) => <EditorPlaceholder key={node.id} node={node} onClose={() => setActiveEditorId(null)} />)}
       <TaskHistoryDrawer />
       <SideToolbar connectionStatus={connectionStatus} />
       <SettingsModal />

@@ -9,10 +9,12 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import Viewport from "./viewport_type";
+
 
 export default __t.row({
   id: __t.string().primaryKey(),
-  x: __t.f32(),
-  y: __t.f32(),
-  zoom: __t.f32(),
+  get state() {
+    return Viewport;
+  },
 });

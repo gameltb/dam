@@ -22,11 +22,7 @@ export class NodeErrorBoundary extends Component<Props, State> {
   }
 
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error(
-      `Error in Node [${this.props.nodeId ?? "unknown"}]:`,
-      error,
-      errorInfo,
-    );
+    console.error(`Error in Node [${this.props.nodeId ?? "unknown"}]:`, error, errorInfo);
   }
 
   public override render() {

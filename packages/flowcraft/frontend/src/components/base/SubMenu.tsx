@@ -88,13 +88,8 @@ export const GenericSubMenu: React.FC<{
                   onClick={() => {
                     onAdd(tpl);
                   }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      "rgba(100, 108, 255, 0.15)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor = "transparent")
-                  }
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(100, 108, 255, 0.15)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                   style={itemStyle}
                 >
                   + {node.label}
@@ -107,13 +102,8 @@ export const GenericSubMenu: React.FC<{
                 <div
                   key={action.id}
                   onClick={action.onClick}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      "rgba(100, 108, 255, 0.15)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor = "transparent")
-                  }
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(100, 108, 255, 0.15)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                   style={itemStyle}
                 >
                   ⚡ {node.label}
@@ -133,6 +123,4 @@ export const NodeSubMenu: React.FC<{
   label: string;
   nodes: MenuNode[];
   onAdd: (tpl: NodeTemplate) => void;
-}> = ({ depth = 0, label, nodes, onAdd }) => (
-  <GenericSubMenu depth={depth} label={label} nodes={nodes} onAdd={onAdd} />
-);
+}> = ({ depth = 0, label, nodes, onAdd }) => <GenericSubMenu depth={depth} label={label} nodes={nodes} onAdd={onAdd} />;

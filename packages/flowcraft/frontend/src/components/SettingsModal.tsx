@@ -9,16 +9,7 @@ import { GeneralSettings } from "./settings/GeneralSettings";
 import { ShortcutSettings } from "./settings/ShortcutSettings";
 
 export const SettingsModal: React.FC = () => {
-  const {
-    dragMode,
-    isOpen,
-    setDragMode,
-    setOpen,
-    setSettings,
-    setShortcut,
-    settings,
-    shortcuts,
-  } = useUiStore(
+  const { dragMode, isOpen, setDragMode, setOpen, setSettings, setShortcut, settings, shortcuts } = useUiStore(
     useShallow((s) => ({
       dragMode: s.dragMode,
       isOpen: s.isSettingsOpen,
@@ -31,9 +22,7 @@ export const SettingsModal: React.FC = () => {
     })),
   );
 
-  const [activeTab, setActiveTab] = useState<"ai" | "general" | "shortcuts">(
-    "general",
-  );
+  const [activeTab, setActiveTab] = useState<"ai" | "general" | "shortcuts">("general");
 
   if (!isOpen) return null;
 
@@ -112,10 +101,7 @@ export const SettingsModal: React.FC = () => {
               background: "none",
               border: "none",
               borderBottom: `2px solid ${activeTab === "general" ? "var(--primary-color)" : "transparent"}`,
-              color:
-                activeTab === "general"
-                  ? "var(--text-color)"
-                  : "var(--sub-text)",
+              color: activeTab === "general" ? "var(--text-color)" : "var(--sub-text)",
               cursor: "pointer",
               fontSize: "13px",
               fontWeight: 500,
@@ -132,8 +118,7 @@ export const SettingsModal: React.FC = () => {
               background: "none",
               border: "none",
               borderBottom: `2px solid ${activeTab === "ai" ? "var(--primary-color)" : "transparent"}`,
-              color:
-                activeTab === "ai" ? "var(--text-color)" : "var(--sub-text)",
+              color: activeTab === "ai" ? "var(--text-color)" : "var(--sub-text)",
               cursor: "pointer",
               fontSize: "13px",
               fontWeight: 500,
@@ -150,10 +135,7 @@ export const SettingsModal: React.FC = () => {
               background: "none",
               border: "none",
               borderBottom: `2px solid ${activeTab === "shortcuts" ? "var(--primary-color)" : "transparent"}`,
-              color:
-                activeTab === "shortcuts"
-                  ? "var(--text-color)"
-                  : "var(--sub-text)",
+              color: activeTab === "shortcuts" ? "var(--text-color)" : "var(--sub-text)",
               cursor: "pointer",
               fontSize: "13px",
               fontWeight: 500,
@@ -175,9 +157,7 @@ export const SettingsModal: React.FC = () => {
             />
           )}
           {activeTab === "ai" && <AiSettings />}
-          {activeTab === "shortcuts" && (
-            <ShortcutSettings setShortcut={setShortcut} shortcuts={shortcuts} />
-          )}
+          {activeTab === "shortcuts" && <ShortcutSettings setShortcut={setShortcut} shortcuts={shortcuts} />}
         </div>
       </div>
     </div>

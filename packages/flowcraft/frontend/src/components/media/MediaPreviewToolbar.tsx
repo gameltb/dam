@@ -1,12 +1,4 @@
-import {
-  Focus,
-  Maximize,
-  Minimize,
-  RotateCw,
-  X,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react";
+import { Focus, Maximize, Minimize, RotateCw, X, ZoomIn, ZoomOut } from "lucide-react";
 import React from "react";
 
 import { VideoMode } from "@/types";
@@ -87,26 +79,10 @@ export const MediaPreviewToolbar: React.FC<MediaPreviewToolbarProps> = ({
         >
           {isImage && (
             <>
-              <IconButton
-                icon={<ZoomIn size={18} />}
-                label="Zoom In"
-                onClick={onZoomIn}
-              />
-              <IconButton
-                icon={<ZoomOut size={18} />}
-                label="Zoom Out"
-                onClick={onZoomOut}
-              />
-              <IconButton
-                icon={<RotateCw size={18} />}
-                label="Rotate"
-                onClick={onRotate}
-              />
-              <IconButton
-                icon={<Focus size={18} />}
-                label="Reset View"
-                onClick={onReset}
-              />
+              <IconButton icon={<ZoomIn size={18} />} label="Zoom In" onClick={onZoomIn} />
+              <IconButton icon={<ZoomOut size={18} />} label="Zoom Out" onClick={onZoomOut} />
+              <IconButton icon={<RotateCw size={18} />} label="Rotate" onClick={onRotate} />
+              <IconButton icon={<Focus size={18} />} label="Reset View" onClick={onReset} />
             </>
           )}
           {isVideo && (

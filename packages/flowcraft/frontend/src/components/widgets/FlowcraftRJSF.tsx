@@ -1,10 +1,4 @@
-import type {
-  ObjectFieldTemplateProps,
-  RegistryWidgetsType,
-  RJSFSchema,
-  UiSchema,
-  WidgetProps,
-} from "@rjsf/utils";
+import type { ObjectFieldTemplateProps, RegistryWidgetsType, RJSFSchema, UiSchema, WidgetProps } from "@rjsf/utils";
 
 import { create } from "@bufbuild/protobuf";
 import Form from "@rjsf/core";
@@ -36,30 +30,27 @@ const PlainObjectFieldTemplate = (props: ObjectFieldTemplateProps) => {
 };
 
 import { useTable } from "spacetimedb/react";
+
 import { tables } from "@/generated/spacetime";
 
 const StreamingTextWidget = (props: WidgetProps) => {
   const { id, label, onChange } = props;
   const registry = props.registry;
   const value = props.value as string | undefined;
-  const formContext = registry.formContext as
-    | Record<string, unknown>
-    | undefined;
+  const formContext = registry.formContext as Record<string, unknown> | undefined;
   const nodeId = formContext?.nodeId as string | undefined;
   const widgetId = id.split("_").pop();
 
   const [stWidgetValues] = useTable(tables.widgetValues);
-  
+
   const streamedValue = React.useMemo(() => {
     if (!nodeId || !widgetId) return value ?? "";
-    const entry = stWidgetValues.find(
-      (wv) => wv.nodeId === nodeId && wv.widgetId === widgetId
-    );
+    const entry = stWidgetValues.find((wv) => wv.nodeId === nodeId && wv.widgetId === widgetId);
     if (entry) {
       try {
-        return JSON.parse(entry.valueJson) as string;
+        return JSON.parse(entry.value) as string;
       } catch {
-        return entry.valueJson;
+        return entry.value;
       }
     }
     return value ?? "";
@@ -73,9 +64,7 @@ const StreamingTextWidget = (props: WidgetProps) => {
 
   return (
     <div style={{ marginBottom: "10px" }}>
-      <label style={{ color: "var(--sub-text)", fontSize: "12px" }}>
-        {label}
-      </label>
+      <label style={{ color: "var(--sub-text)", fontSize: "12px" }}>{label}</label>
       <div
         style={{
           backgroundColor: "rgba(0,0,0,0.3)",
@@ -89,9 +78,7 @@ const StreamingTextWidget = (props: WidgetProps) => {
           whiteSpace: "pre-wrap",
         }}
       >
-        {streamedValue || (
-          <span style={{ opacity: 0.3 }}>Waiting for stream...</span>
-        )}
+        {streamedValue || <span style={{ opacity: 0.3 }}>Waiting for stream...</span>}
       </div>
     </div>
   );
@@ -100,9 +87,7 @@ const StreamingTextWidget = (props: WidgetProps) => {
 const SignalButtonWidget = (props: WidgetProps) => {
   const { id, label } = props;
   const registry = props.registry;
-  const formContext = registry.formContext as
-    | Record<string, unknown>
-    | undefined;
+  const formContext = registry.formContext as Record<string, unknown> | undefined;
   const nodeId = formContext?.nodeId as string;
   const widgetId = id.split("_").pop() ?? id;
   const sendWidgetSignal = useFlowStore((s) => s.sendWidgetSignal);
@@ -115,8 +100,8 @@ const SignalButtonWidget = (props: WidgetProps) => {
           create(WidgetSignalSchema, {
             nodeId: nodeId,
             payload: {
-              case: "dataJson",
-              value: JSON.stringify({ action: "trigger" }),
+              case: "data",
+              value: new Uint8Array([1]), // Signal as binary or structured data instead of JSON
             },
             widgetId: widgetId,
           }),
@@ -173,12 +158,7 @@ interface FlowcraftRJSFProps {
   schema: RJSFSchema;
 }
 
-export const FlowcraftRJSF: React.FC<FlowcraftRJSFProps> = ({
-  formData,
-  nodeId,
-  onChange,
-  schema,
-}) => {
+export const FlowcraftRJSF: React.FC<FlowcraftRJSFProps> = ({ formData, nodeId, onChange, schema }) => {
   const [renderError, setRenderError] = useState<null | string>(null);
 
   const uiSchema = React.useMemo(() => generateUiSchema(schema), [schema]);

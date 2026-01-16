@@ -13,7 +13,6 @@ import {
 export default __t.object("UpdateChatStream", {
   content: __t.string(),
   nodeId: __t.string(),
-  parentId: __t.string(),
   status: __t.string(),
 });
 

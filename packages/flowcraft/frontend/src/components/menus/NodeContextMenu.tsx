@@ -38,10 +38,7 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
   x,
   y,
 }) => {
-  const actionTree = useMemo(
-    () => buildActionTree(dynamicActions),
-    [dynamicActions],
-  );
+  const actionTree = useMemo(() => buildActionTree(dynamicActions), [dynamicActions]);
 
   return (
     <MenuContainer x={x} y={y}>
@@ -129,11 +126,7 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
           {actionTree.map((node, i) => {
             if (node.children && node.children.length > 0) {
               return (
-                <GenericSubMenu
-                  key={`action-${node.label}-${String(i)}`}
-                  label={node.label}
-                  nodes={node.children}
-                />
+                <GenericSubMenu key={`action-${node.label}-${String(i)}`} label={node.label} nodes={node.children} />
               );
             }
             if (node.action) {

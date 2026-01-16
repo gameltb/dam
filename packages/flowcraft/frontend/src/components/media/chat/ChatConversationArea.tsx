@@ -1,13 +1,10 @@
 import React from "react";
 
-import {
-  Conversation,
-  ConversationContent,
-  ConversationScrollButton,
-} from "../../ai-elements/conversation";
+import { Conversation, ConversationContent, ConversationScrollButton } from "@/components/ai-elements/conversation";
+
 import { ChatConversationMessage } from "./ChatConversationMessage";
 import { ChatStreamingMessage } from "./ChatStreamingMessage";
-import { type ChatMessage, type ChatStatus } from "./types";
+import { type ChatMessage, ChatStatus } from "./types";
 
 interface Props {
   errorMessage?: string;
@@ -38,11 +35,11 @@ export const ChatConversationArea: React.FC<Props> = ({
   const isLastMessageUser = lastMessage?.role === "user";
 
   const showStreamingOrPlaceholder =
-    status === "streaming" ||
-    status === "submitted" ||
+    status === ChatStatus.STREAMING ||
+    status === ChatStatus.SUBMITTED ||
     !!streamingContent ||
     !!errorMessage ||
-    (status === "ready" && isLastMessageUser);
+    (status === ChatStatus.READY && isLastMessageUser);
 
   return (
     <Conversation className="flex-1 overflow-hidden">

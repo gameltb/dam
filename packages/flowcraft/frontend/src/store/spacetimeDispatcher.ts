@@ -1,95 +1,55 @@
-import { toJson } from "@bufbuild/protobuf";
+import { create } from "@bufbuild/protobuf";
 
-import { NodeDataSchema } from "@/generated/flowcraft/v1/core/node_pb";
+import { NodeSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import { type GraphMutation } from "@/generated/flowcraft/v1/core/service_pb";
-import { type DbConnection } from "@/generated/spacetime";
+import { type PbConnection } from "@/utils/pb-client";
 
-/**
- * Helper types to extract oneof cases and values from Protobuf ES messages.
- */
-type MutationOp = GraphMutation["operation"];
 type MutationCase = NonNullable<MutationOp["case"]>;
-type MutationValue<K extends MutationCase> = Extract<
-  MutationOp,
-  { case: K }
->["value"];
+type MutationOp = GraphMutation["operation"];
+type MutationValue<K extends MutationCase> = Extract<MutationOp, { case: K }>["value"];
 
 /**
- * Exhaustive handler map for all graph mutations.
- * If a case is missing, TypeScript will throw an error.
+ * 直接映射 Mutation 到 PbConnection.reducers
+ * 使用 camelCase 命名以对齐官方 SDK 规范
  */
 const HANDLERS: {
-  [K in MutationCase]: (conn: DbConnection, val: MutationValue<K>) => void;
+  [K in MutationCase]: (conn: PbConnection, val: MutationValue<K>) => void;
 } = {
   addEdge: (conn, val) => {
-    conn.reducers.addEdge({
-      id: val.edge?.edgeId ?? "",
-      sourceHandle: val.edge?.sourceHandle ?? "",
-      sourceId: val.edge?.sourceNodeId ?? "",
-      targetHandle: val.edge?.targetHandle ?? "",
-      targetId: val.edge?.targetNodeId ?? "",
-    });
+    if (val.edge) conn.pbreducers.addEdgePb({ edge: val.edge });
   },
   addNode: (conn, val) => {
-    const node = val.node;
-    if (!node) return;
-    conn.reducers.createNode({
-      dataJson: JSON.stringify(toJson(NodeDataSchema, node.state!)),
-      height: node.presentation?.height ?? 0,
-      id: node.nodeId,
-      isSelected: node.isSelected,
-      kind: node.nodeKind,
-      parentId: node.presentation?.parentId ?? "",
-      posX: node.presentation?.position?.x ?? 0,
-      posY: node.presentation?.position?.y ?? 0,
-      templateId: node.templateId,
-      width: node.presentation?.width ?? 0,
-    });
+    if (val.node) conn.pbreducers.createNodePb({ node: val.node });
   },
   clearGraph: () => {
-    // Optionally implement global clear via a new reducer
-  },
-  removeEdge: (conn, val) => {
-    conn.reducers.removeEdge({ id: val.id });
-  },
-  removeNode: (conn, val) => {
-    conn.reducers.removeNode({ id: val.id });
+    // Implement if a clear_graph reducer exists
   },
   pathUpdate: () => {
-    // Implement path specific sync if needed in the future
+    // Handle path updates if needed
+  },
+  removeEdge: (conn, val) => {
+    if (val.id) conn.reducers.removeEdge({ id: val.id });
+  },
+  removeNode: (conn, val) => {
+    if (val.id) conn.reducers.removeNode({ id: val.id });
   },
   updateNode: (conn, val) => {
-    const p = val.presentation;
-    if (p) {
-      conn.reducers.updateNodeLayout({
-        height: p.height,
-        id: val.id,
-        width: p.width,
-        x: p.position?.x ?? 0,
-        y: p.position?.y ?? 0,
-      });
-    }
-    if (val.data) {
-      conn.reducers.updateNodeData({
-        dataJson: JSON.stringify(toJson(NodeDataSchema, val.data)),
-        id: val.id,
+    if (val.id) {
+      conn.pbreducers.updateNodePb({
+        node: create(NodeSchema, {
+          nodeId: val.id,
+          presentation: val.presentation,
+          state: val.data,
+        }),
       });
     }
   },
 };
 
-/**
- * Dispatches a generic GraphMutation to the appropriate SpacetimeDB reducer.
- */
-export const dispatchToSpacetime = (
-  conn: DbConnection,
-  mutation: GraphMutation,
-) => {
+export const dispatchToSpacetime = (conn: PbConnection, mutation: GraphMutation) => {
   const { case: opCase, value } = mutation.operation;
   if (!opCase) return;
 
-  const handler = HANDLERS[opCase] as (conn: DbConnection, v: any) => void;
-  if (handler) {
-    handler(conn, value);
-  }
+  const handler = HANDLERS[opCase] as (conn: PbConnection, v: unknown) => void;
+  handler(conn, value);
 };

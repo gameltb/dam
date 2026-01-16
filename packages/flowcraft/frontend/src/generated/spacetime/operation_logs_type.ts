@@ -11,8 +11,8 @@ import {
 } from "spacetimedb";
 
 export default __t.object("OperationLogs", {
-  id: __t.string(),
   clientIdentity: __t.string(),
+  id: __t.string(),
   operationType: __t.string(),
   payloadJson: __t.string(),
   taskId: __t.string(),

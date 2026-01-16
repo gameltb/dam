@@ -10,12 +10,7 @@ interface EdgeContextMenuProps {
   y: number;
 }
 
-export const EdgeContextMenu: React.FC<EdgeContextMenuProps> = ({
-  onClose,
-  onDelete,
-  x,
-  y,
-}) => (
+export const EdgeContextMenu: React.FC<EdgeContextMenuProps> = ({ onClose, onDelete, x, y }) => (
   <MenuContainer x={x} y={y}>
     <div className="fc-menu-section">
       <div

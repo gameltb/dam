@@ -1,16 +1,5 @@
-import {
-  Check,
-  Edit2,
-  ImagePlus,
-  MessageSquare,
-  RotateCcw,
-  X,
-} from "lucide-react";
+import { Check, Edit2, ImagePlus, MessageSquare, RotateCcw, X } from "lucide-react";
 import React, { useMemo, useState } from "react";
-
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
 
 import {
   Message,
@@ -27,12 +16,12 @@ import {
   MessageContent,
   MessageResponse,
   MessageToolbar,
-} from "../../ai-elements/message";
-import {
-  Reasoning,
-  ReasoningContent,
-  ReasoningTrigger,
-} from "../../ai-elements/reasoning";
+} from "@/components/ai-elements/message";
+import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
+
 import { type ChatMessage } from "./types";
 import { parseMessageContent } from "./utils";
 
@@ -45,9 +34,14 @@ interface ChatConversationMessageProps {
   onSwitchBranch: (messageId: string) => void;
 }
 
-export const ChatConversationMessage: React.FC<
-  ChatConversationMessageProps
-> = ({ index, message: m, onDelete, onEdit, onRegenerate, onSwitchBranch }) => {
+export const ChatConversationMessage: React.FC<ChatConversationMessageProps> = ({
+  index,
+  message: m,
+  onDelete,
+  onEdit,
+  onRegenerate,
+  onSwitchBranch,
+}) => {
   const [editingId, setEditingId] = useState<null | string>(null);
   const [editContent, setEditContent] = useState("");
   const [editAttachments, setEditAttachments] = useState<string[]>([]);
@@ -61,8 +55,7 @@ export const ChatConversationMessage: React.FC<
 
     m.parts?.forEach((p) => {
       if (p.part.case === "text") {
-        const { content: parsedContent, reasoning: parsedReasoning } =
-          parseMessageContent(p.part.value);
+        const { content: parsedContent, reasoning: parsedReasoning } = parseMessageContent(p.part.value);
 
         text += parsedContent;
 
@@ -89,17 +82,11 @@ export const ChatConversationMessage: React.FC<
 
   const handleStartEdit = () => {
     setEditingId(m.id);
-    const rawText =
-      m.parts
-        ?.map((p) => (p.part.case === "text" ? p.part.value : ""))
-        .join("\n") ??
-      m.content ??
-      "";
+    const rawText = m.parts?.map((p) => (p.part.case === "text" ? p.part.value : "")).join("\n") ?? m.content ?? "";
     setEditContent(rawText);
     setEditAttachments(
-      m.parts
-        ?.filter((p) => p.part.case === "media")
-        .map((p) => (p.part.case === "media" ? p.part.value.url : "")) ?? [],
+      m.parts?.filter((p) => p.part.case === "media").map((p) => (p.part.case === "media" ? p.part.value.url : "")) ??
+        [],
     );
   };
 
@@ -187,9 +174,7 @@ export const ChatConversationMessage: React.FC<
                         <button
                           className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={() => {
-                            setEditAttachments((prev) =>
-                              prev.filter((_, idx) => idx !== i),
-                            );
+                            setEditAttachments((prev) => prev.filter((_, idx) => idx !== i));
                           }}
                         >
                           <X size={10} />
@@ -214,23 +199,13 @@ export const ChatConversationMessage: React.FC<
                     size="sm"
                     variant="ghost"
                   >
-                    <ImagePlus className="mr-1" size={14} />{" "}
-                    {isUploading ? "Uploading..." : "Add Image"}
+                    <ImagePlus className="mr-1" size={14} /> {isUploading ? "Uploading..." : "Add Image"}
                   </Button>
                   <div className="flex gap-2">
-                    <Button
-                      className="h-7 px-2"
-                      onClick={handleCancelEdit}
-                      size="sm"
-                      variant="ghost"
-                    >
+                    <Button className="h-7 px-2" onClick={handleCancelEdit} size="sm" variant="ghost">
                       <X className="mr-1" size={14} /> Cancel
                     </Button>
-                    <Button
-                      className="h-7 px-2"
-                      onClick={handleSaveEdit}
-                      size="sm"
-                    >
+                    <Button className="h-7 px-2" onClick={handleSaveEdit} size="sm">
                       <Check className="mr-1" size={14} /> Branch & Save
                     </Button>
                   </div>
@@ -247,28 +222,18 @@ export const ChatConversationMessage: React.FC<
                 {images.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2">
                     {images.map((url, i) => (
-                      <img
-                        alt={`Image ${String(i)}`}
-                        className="max-h-[200px] rounded border"
-                        key={i}
-                        src={url}
-                      />
+                      <img alt={`Image ${String(i)}`} className="max-h-[200px] rounded border" key={i} src={url} />
                     ))}
                   </div>
                 )}
-                <MessageResponse className="prose prose-sm dark:prose-invert max-w-none">
-                  {content}
-                </MessageResponse>
+                <MessageResponse className="prose prose-sm dark:prose-invert max-w-none">{content}</MessageResponse>
               </>
             )}
 
             {!editingId && (
               <MessageToolbar>
                 <MessageActions>
-                  <MessageAction
-                    onClick={handleStartEdit}
-                    tooltip="Edit & Branch"
-                  >
+                  <MessageAction onClick={handleStartEdit} tooltip="Edit & Branch">
                     <Edit2 size={12} />
                   </MessageAction>
                   {m.role === "assistant" && (
@@ -298,18 +263,14 @@ export const ChatConversationMessage: React.FC<
                         if (!siblings) return;
                         const currentSiblings = [m.id, ...siblings].sort();
                         const currentIndex = currentSiblings.indexOf(m.id);
-                        const prevIndex =
-                          (currentIndex - 1 + currentSiblings.length) %
-                          currentSiblings.length;
+                        const prevIndex = (currentIndex - 1 + currentSiblings.length) % currentSiblings.length;
                         const target = currentSiblings[prevIndex];
                         if (target) onSwitchBranch(target);
                       }}
                     />
                     <MessageBranchPage>
-                      {(
-                        [m.id, ...m.siblingIds].sort().indexOf(m.id) + 1
-                      ).toString()}{" "}
-                      / {(m.siblingIds.length + 1).toString()}
+                      {([m.id, ...m.siblingIds].sort().indexOf(m.id) + 1).toString()} /{" "}
+                      {(m.siblingIds.length + 1).toString()}
                     </MessageBranchPage>
                     <MessageBranchNext
                       onClick={() => {
@@ -317,8 +278,7 @@ export const ChatConversationMessage: React.FC<
                         if (!siblings) return;
                         const currentSiblings = [m.id, ...siblings].sort();
                         const currentIndex = currentSiblings.indexOf(m.id);
-                        const nextIndex =
-                          (currentIndex + 1) % currentSiblings.length;
+                        const nextIndex = (currentIndex + 1) % currentSiblings.length;
                         const target = currentSiblings[nextIndex];
                         if (target) onSwitchBranch(target);
                       }}

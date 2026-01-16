@@ -11,9 +11,5 @@ export function useTemporalStore<T>(
   selector: (state: TemporalState<RFState>) => T,
   equality?: (a: T, b: T) => boolean,
 ): T {
-  return useStoreWithEqualityFn(
-    useStore.temporal,
-    (state) => selector(state),
-    equality,
-  );
+  return useStoreWithEqualityFn(useStore.temporal, (state) => selector(state), equality);
 }

@@ -10,10 +10,7 @@ import {
   type MutationList,
   type NodeEvent,
 } from "@/generated/flowcraft/v1/core/service_pb";
-import {
-  type NodeSignal,
-  type WidgetSignal,
-} from "@/generated/flowcraft/v1/core/signals_pb";
+import { type NodeSignal, type WidgetSignal } from "@/generated/flowcraft/v1/core/signals_pb";
 import { toProtoEdge, toProtoNode } from "@/utils/protoAdapter";
 
 import { eventBus, serverGraph, serverVersion } from "./PersistenceService";
@@ -40,22 +37,17 @@ export async function* watchGraph(_req: unknown, ctx: { signal: AbortSignal }) {
   }
 
   const queue: FlowMessage[] = [];
-  let waitingPromise: null | { promise: Promise<void>; resolve: () => void } =
-    null;
+  let waitingPromise: null | { promise: Promise<void>; resolve: () => void } = null;
 
   const pushToQueue = <K extends NonNullable<FlowMessage["payload"]>["case"]>(
     type: K,
     payload: Extract<NonNullable<FlowMessage["payload"]>, { case: K }>["value"],
   ) => {
-    console.log(
-      `[GraphWatcher] Pushing message to client queue: ${String(type)}`,
-    );
+    console.log(`[GraphWatcher] Pushing message to client queue: ${String(type)}`);
     queue.push(
       create(FlowMessageSchema, {
         messageId: uuidv4(),
-        payload: { case: type, value: payload } as NonNullable<
-          FlowMessage["payload"]
-        >,
+        payload: { case: type, value: payload } as NonNullable<FlowMessage["payload"]>,
         timestamp: BigInt(Date.now()),
       }),
     );
@@ -106,10 +98,7 @@ export async function* watchGraph(_req: unknown, ctx: { signal: AbortSignal }) {
         });
         waitingPromise = { promise, resolve };
       }
-      await Promise.race([
-        waitingPromise.promise,
-        new Promise((r) => setTimeout(r, 10000)),
-      ]);
+      await Promise.race([waitingPromise.promise, new Promise((r) => setTimeout(r, 10000))]);
     }
   } finally {
     eventBus.off("mutations", onMutations);

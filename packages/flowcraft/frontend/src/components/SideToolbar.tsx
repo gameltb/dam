@@ -40,9 +40,7 @@ const getStatusText = (status: SocketStatus) => {
   }
 };
 
-export const SideToolbar: React.FC<SideToolbarProps> = ({
-  connectionStatus,
-}) => {
+export const SideToolbar: React.FC<SideToolbarProps> = ({ connectionStatus }) => {
   const setSettingsOpen = useUiStore((s) => s.setSettingsOpen);
 
   const statusColor = getStatusColor(connectionStatus);
@@ -70,10 +68,7 @@ export const SideToolbar: React.FC<SideToolbarProps> = ({
             connectionStatus !== SocketStatus.DISCONNECTED
               ? `radial-gradient(circle, ${statusColor} 0%, transparent 80%)`
               : "none",
-          color:
-            connectionStatus === SocketStatus.CONNECTED
-              ? "var(--primary-color)"
-              : "var(--sub-text)",
+          color: connectionStatus === SocketStatus.CONNECTED ? "var(--primary-color)" : "var(--sub-text)",
         }}
         title={`Settings (${statusText})`}
       >

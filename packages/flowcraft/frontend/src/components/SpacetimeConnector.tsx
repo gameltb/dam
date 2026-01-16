@@ -4,11 +4,7 @@ import { SpacetimeDBProvider } from "spacetimedb/react";
 import { DbConnection } from "@/generated/spacetime";
 import { useUiStore } from "@/store/uiStore";
 
-export const SpacetimeConnector = ({
-  children,
-}: {
-  children: React.ReactNode;
-}) => {
+export const SpacetimeConnector = ({ children }: { children: React.ReactNode }) => {
   const { serverAddress } = useUiStore((state) => state.settings);
 
   const builder = useMemo(() => {
@@ -25,15 +21,8 @@ export const SpacetimeConnector = ({
 
     console.log("[SpacetimeConnector] Connecting to:", uri);
 
-    return DbConnection.builder()
-      .withUri(uri)
-      .withModuleName("flowcraft")
-      .withToken("");
+    return DbConnection.builder().withUri(uri).withModuleName("flowcraft").withToken("");
   }, [serverAddress]);
 
-  return (
-    <SpacetimeDBProvider connectionBuilder={builder}>
-      {children}
-    </SpacetimeDBProvider>
-  );
+  return <SpacetimeDBProvider connectionBuilder={builder}>{children}</SpacetimeDBProvider>;
 };

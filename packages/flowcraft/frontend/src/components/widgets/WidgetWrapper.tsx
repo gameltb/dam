@@ -27,9 +27,7 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
   // 监听是否有连线连接到该隐式端口
   const isConnected = useStore((s) => {
     if (!inputPortId || !nodeId) return false;
-    return s.edges.some(
-      (e) => e.target === nodeId && e.targetHandle === inputPortId,
-    );
+    return s.edges.some((e) => e.target === nodeId && e.targetHandle === inputPortId);
   });
 
   const handleSelect = () => {

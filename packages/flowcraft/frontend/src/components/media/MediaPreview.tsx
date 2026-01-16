@@ -14,11 +14,7 @@ interface MediaPreviewProps {
   onClose: () => void;
 }
 
-export const MediaPreview: React.FC<MediaPreviewProps> = ({
-  initialIndex,
-  node,
-  onClose,
-}) => {
+export const MediaPreview: React.FC<MediaPreviewProps> = ({ initialIndex, node, onClose }) => {
   const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -40,12 +36,10 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
   // Video Modes
   const [videoMode, setVideoMode] = useState<VideoMode>(VideoMode.FIT);
 
-  const media = node.type === AppNodeType.DYNAMIC ? node.data.media : null;
+  const media = node.type === AppNodeType.DYNAMIC ? (node.data as any).media : null;
   const items = useMemo(() => {
     if (!media) return [];
-    return [media.url, ...(media.galleryUrls ?? [])].filter(
-      Boolean,
-    ) as string[];
+    return [media.url, ...(media.galleryUrls ?? [])].filter(Boolean) as string[];
   }, [media]);
 
   const currentUrl = items[activeIndex];
@@ -58,8 +52,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
       img.src = url;
     };
 
-    const nextUrl =
-      activeIndex < items.length - 1 ? items[activeIndex + 1] : undefined;
+    const nextUrl = activeIndex < items.length - 1 ? items[activeIndex + 1] : undefined;
     const prevUrl = activeIndex > 0 ? items[activeIndex - 1] : undefined;
 
     if (nextUrl) preload(nextUrl);
@@ -133,7 +126,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
         activeIndex={activeIndex}
         isImage={isImage}
         isVideo={isVideo}
-        label={node.data.label ?? "Untitled Node"}
+        label={node.data.displayName ?? "Untitled Node"}
         onClose={(e) => {
           e.stopPropagation();
           onClose();
@@ -244,8 +237,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
                 height: videoMode === VideoMode.ORIGINAL ? "auto" : "85vh",
                 maxHeight: "100%",
                 maxWidth: "100%",
-                objectFit:
-                  videoMode === VideoMode.ORIGINAL ? "none" : "contain",
+                objectFit: videoMode === VideoMode.ORIGINAL ? "none" : "contain",
                 width: videoMode === VideoMode.ORIGINAL ? "auto" : "90vw",
               }}
             />

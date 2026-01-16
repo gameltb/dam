@@ -9,12 +9,15 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import NodeSignalPayload from "./node_signal_payload_type";
+
 
 export default __t.object("NodeSignals", {
   id: __t.string(),
   nodeId: __t.string(),
-  payloadJson: __t.string(),
-  signalCase: __t.string(),
+  get payload() {
+    return __t.option(NodeSignalPayload);
+  },
   timestamp: __t.u64(),
 });
 

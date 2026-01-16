@@ -1,29 +1,24 @@
+import { toJson } from "@bufbuild/protobuf";
+import { ValueSchema } from "@bufbuild/protobuf/wkt";
 import { useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 import { type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
 import { useFlowStore } from "@/store/flowStore";
 import { useTaskStore } from "@/store/taskStore";
-import {
-  type AppNode,
-  AppNodeType,
-  FlowEvent,
-  isDynamicNode,
-  MediaType,
-  MutationSource,
-} from "@/types";
+import { type AppNode, AppNodeType, FlowEvent, isDynamicNode, MediaType, MutationSource, type NodeId, type TaskId } from "@/types";
 
 export interface ContextMenuData {
   galleryItemType?: MediaType;
   galleryItemUrl?: string;
-  nodeId: string;
+  nodeId: NodeId;
   x: number;
   y: number;
 }
 
 export interface PreviewData {
   index: number;
-  nodeId: string;
+  nodeId: NodeId;
 }
 
 interface NodeEventListenerProps {
@@ -51,11 +46,7 @@ export function useNodeEventListener({
   const lastProcessedEventTimestamp = useRef<number>(0);
 
   useEffect(() => {
-    if (
-      !lastNodeEvent ||
-      lastNodeEvent.timestamp === lastProcessedEventTimestamp.current
-    )
-      return;
+    if (!lastNodeEvent || lastNodeEvent.timestamp === lastProcessedEventTimestamp.current) return;
 
     lastProcessedEventTimestamp.current = lastNodeEvent.timestamp;
 
@@ -70,7 +61,7 @@ export function useNodeEventListener({
       setContextMenu({
         galleryItemType: payload.mediaType,
         galleryItemUrl: payload.url,
-        nodeId: payload.nodeId,
+        nodeId: payload.nodeId as NodeId,
         x: payload.x,
         y: payload.y,
       });
@@ -80,7 +71,10 @@ export function useNodeEventListener({
         nodeId: string;
       };
       setTimeout(() => {
-        setPreviewData(payload);
+        setPreviewData({
+          ...payload,
+          nodeId: payload.nodeId as NodeId,
+        });
       }, 0);
     } else if (lastNodeEvent.type === FlowEvent.OPEN_EDITOR) {
       const payload = lastNodeEvent.payload as { nodeId: string };
@@ -95,28 +89,25 @@ export function useNodeEventListener({
       const node = nodes.find((n) => n.id === nodeId);
       if (node && isDynamicNode(node) && node.data.widgets) {
         const widget = node.data.widgets.find((w) => w.id === widgetId);
-        if (widget && typeof widget.value === "string") {
-          const val = widget.value;
+        const val = widget?.value ? (toJson(ValueSchema, widget.value) as string) : "";
+        if (val && typeof val === "string") {
           if (val.startsWith("task:")) {
             const taskType = val.split(":")[1];
             if (!taskType) return;
-            const taskId = uuidv4();
+            const taskId = uuidv4() as TaskId;
             const position = {
               x: node.position.x + 300,
               y: node.position.y,
             };
             const placeholderNode: AppNode = {
               data: {
-                label: `Running ${taskType}...`,
-                onCancel: (tid: string) => {
-                  cancelTask(tid);
-                },
+                displayName: `Running ${taskType}...`,
                 taskId,
               },
-              id: `task-${taskId}`,
+              id: `task-${taskId}` as NodeId,
               position,
               type: AppNodeType.PROCESSING,
-            } as AppNode;
+            } as any;
             addNodeToStore(placeholderNode);
             useTaskStore.getState().registerTask({
               label: `Running ${taskType}...`,

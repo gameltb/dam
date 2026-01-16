@@ -1,24 +1,11 @@
 import { create, toBinary } from "@bufbuild/protobuf";
 
 import { MutationSource } from "@/generated/flowcraft/v1/core/base_pb";
-import {
-  TaskStatus,
-  TaskUpdateSchema,
-} from "@/generated/flowcraft/v1/core/node_pb";
-import {
-  type GraphMutation,
-  GraphMutationSchema,
-  MutationListSchema,
-} from "@/generated/flowcraft/v1/core/service_pb";
+import { TaskStatus, TaskUpdateSchema } from "@/generated/flowcraft/v1/core/node_pb";
+import { type GraphMutation, GraphMutationSchema, MutationListSchema } from "@/generated/flowcraft/v1/core/service_pb";
 
 import { executeMutation } from "./MutationExecutor";
-import {
-  eventBus,
-  incrementVersion,
-  logMutation,
-  serverGraph,
-  serverVersion,
-} from "./PersistenceService";
+import { eventBus, incrementVersion, logMutation, serverGraph, serverVersion } from "./PersistenceService";
 
 export abstract class BaseInstance {
   public readonly nodeId?: string;
@@ -41,20 +28,13 @@ export abstract class BaseInstance {
     await Promise.resolve();
   }
 
-  protected emitMutation(
-    operation: GraphMutation["operation"],
-    source: MutationSource = MutationSource.SOURCE_USER,
-  ) {
+  protected emitMutation(operation: GraphMutation["operation"], source: MutationSource = MutationSource.SOURCE_USER) {
     const mutation = create(GraphMutationSchema, {
       operation: operation,
       originTaskId: this.taskId,
     });
 
-    logMutation(
-      mutation.operation.case ?? "unknown",
-      toBinary(GraphMutationSchema, mutation),
-      source,
-    );
+    logMutation(mutation.operation.case ?? "unknown", toBinary(GraphMutationSchema, mutation), source);
 
     executeMutation(mutation, serverGraph);
 

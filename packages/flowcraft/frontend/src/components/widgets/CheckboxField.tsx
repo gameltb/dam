@@ -6,16 +6,9 @@ export interface CheckboxFieldProps {
   value: boolean;
 }
 
-export const CheckboxField: React.FC<CheckboxFieldProps> = ({
-  label,
-  onChange,
-  value,
-}) => {
+export const CheckboxField: React.FC<CheckboxFieldProps> = ({ label, onChange, value }) => {
   return (
-    <div
-      className="widget checkbox-field"
-      style={{ alignItems: "center", display: "flex", gap: "8px" }}
-    >
+    <div className="widget checkbox-field" style={{ alignItems: "center", display: "flex", gap: "8px" }}>
       <input
         checked={value}
         className="nodrag"

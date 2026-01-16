@@ -9,13 +9,18 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import ActionExecutionRequest from "./action_execution_request_type";
+import TaskStatus from "./task_status_type";
+
 
 export default __t.row({
-  actionId: __t.string(),
   id: __t.string().primaryKey(),
-  nodeId: __t.string(),
-  paramsJson: __t.string(),
-  resultJson: __t.string(),
-  status: __t.string(),
+  get request() {
+    return ActionExecutionRequest;
+  },
+  result: __t.string(),
+  get status() {
+    return TaskStatus;
+  },
   timestamp: __t.u64(),
 });

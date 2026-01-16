@@ -1,7 +1,8 @@
 import type { FileUIPart } from "ai";
 
 import type { ChatMessagePart } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
-import { type ChatStatus } from "@/types";
+
+import { ChatStatus } from "@/types";
 
 export interface ChatMessage {
   attachments?: FileUIPart[];
@@ -23,4 +24,4 @@ export interface ContextNode {
   typeId?: string;
 }
 
-export type { ChatStatus };
+export { ChatStatus };

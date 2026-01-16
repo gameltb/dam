@@ -11,12 +11,7 @@ interface GeneralSettingsProps {
   settings: UISettings;
 }
 
-export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
-  dragMode,
-  setDragMode,
-  setSettings,
-  settings,
-}) => {
+export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ dragMode, setDragMode, setSettings, settings }) => {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* Server Address */}
@@ -81,16 +76,10 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
             }}
             style={{
               alignItems: "center",
-              backgroundColor:
-                dragMode === DragMode.PAN
-                  ? "rgba(100, 108, 255, 0.1)"
-                  : "rgba(255,255,255,0.03)",
+              backgroundColor: dragMode === DragMode.PAN ? "rgba(100, 108, 255, 0.1)" : "rgba(255,255,255,0.03)",
               border: `1px solid ${dragMode === DragMode.PAN ? "var(--primary-color)" : "var(--node-border)"}`,
               borderRadius: "8px",
-              color:
-                dragMode === DragMode.PAN
-                  ? "var(--primary-color)"
-                  : "var(--text-color)",
+              color: dragMode === DragMode.PAN ? "var(--primary-color)" : "var(--text-color)",
               cursor: "pointer",
               display: "flex",
               flex: 1,
@@ -101,9 +90,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
             }}
           >
             <MousePointer2 size={20} />
-            <span style={{ fontSize: "12px", fontWeight: 500 }}>
-              Panning (Left Click)
-            </span>
+            <span style={{ fontSize: "12px", fontWeight: 500 }}>Panning (Left Click)</span>
           </button>
           <button
             onClick={() => {
@@ -111,16 +98,10 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
             }}
             style={{
               alignItems: "center",
-              backgroundColor:
-                dragMode === DragMode.SELECT
-                  ? "rgba(100, 108, 255, 0.1)"
-                  : "rgba(255,255,255,0.03)",
+              backgroundColor: dragMode === DragMode.SELECT ? "rgba(100, 108, 255, 0.1)" : "rgba(255,255,255,0.03)",
               border: `1px solid ${dragMode === DragMode.SELECT ? "var(--primary-color)" : "var(--node-border)"}`,
               borderRadius: "8px",
-              color:
-                dragMode === DragMode.SELECT
-                  ? "var(--primary-color)"
-                  : "var(--text-color)",
+              color: dragMode === DragMode.SELECT ? "var(--primary-color)" : "var(--text-color)",
               cursor: "pointer",
               display: "flex",
               flex: 1,
@@ -131,9 +112,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
             }}
           >
             <Keyboard size={20} />
-            <span style={{ fontSize: "12px", fontWeight: 500 }}>
-              Selection (Left Click)
-            </span>
+            <span style={{ fontSize: "12px", fontWeight: 500 }}>Selection (Left Click)</span>
           </button>
         </div>
       </div>
@@ -158,16 +137,10 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
             }}
             style={{
               alignItems: "center",
-              backgroundColor:
-                settings.theme === Theme.DARK
-                  ? "rgba(100, 108, 255, 0.1)"
-                  : "rgba(255,255,255,0.03)",
+              backgroundColor: settings.theme === Theme.DARK ? "rgba(100, 108, 255, 0.1)" : "rgba(255,255,255,0.03)",
               border: `1px solid ${settings.theme === Theme.DARK ? "var(--primary-color)" : "var(--node-border)"}`,
               borderRadius: "8px",
-              color:
-                settings.theme === Theme.DARK
-                  ? "var(--primary-color)"
-                  : "var(--text-color)",
+              color: settings.theme === Theme.DARK ? "var(--primary-color)" : "var(--text-color)",
               cursor: "pointer",
               display: "flex",
               flex: 1,
@@ -186,16 +159,10 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
             }}
             style={{
               alignItems: "center",
-              backgroundColor:
-                settings.theme === Theme.LIGHT
-                  ? "rgba(100, 108, 255, 0.1)"
-                  : "rgba(255,255,255,0.03)",
+              backgroundColor: settings.theme === Theme.LIGHT ? "rgba(100, 108, 255, 0.1)" : "rgba(255,255,255,0.03)",
               border: `1px solid ${settings.theme === Theme.LIGHT ? "var(--primary-color)" : "var(--node-border)"}`,
               borderRadius: "8px",
-              color:
-                settings.theme === Theme.LIGHT
-                  ? "var(--primary-color)"
-                  : "var(--text-color)",
+              color: settings.theme === Theme.LIGHT ? "var(--primary-color)" : "var(--text-color)",
               cursor: "pointer",
               display: "flex",
               flex: 1,
@@ -206,9 +173,7 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
             }}
           >
             <Sun size={18} />
-            <span style={{ fontSize: "12px", fontWeight: 500 }}>
-              Light Mode
-            </span>
+            <span style={{ fontSize: "12px", fontWeight: 500 }}>Light Mode</span>
           </button>
         </div>
       </div>

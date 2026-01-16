@@ -8,10 +8,7 @@ interface EditorPlaceholderProps {
   onClose: () => void;
 }
 
-export const EditorPlaceholder: React.FC<EditorPlaceholderProps> = ({
-  node,
-  onClose,
-}) => {
+export const EditorPlaceholder: React.FC<EditorPlaceholderProps> = ({ node, onClose }) => {
   if (!isDynamicNode(node)) return null;
   const media = node.data.media;
 
@@ -42,13 +39,10 @@ export const EditorPlaceholder: React.FC<EditorPlaceholderProps> = ({
         }}
       >
         <div style={{ fontSize: "48px", marginBottom: "20px" }}>🎨</div>
-        <h2 style={{ margin: "0 0 10px 0" }}>
-          {media?.type === MediaType.MEDIA_VIDEO ? "Video" : "Image"} Editor
-        </h2>
+        <h2 style={{ margin: "0 0 10px 0" }}>{media?.type === MediaType.MEDIA_VIDEO ? "Video" : "Image"} Editor</h2>
         <p style={{ lineHeight: "1.5", opacity: 0.6 }}>
-          This is a placeholder for the advanced web-based {media?.type} editor.
-          Soon you will be able to crop, filter, and modify your assets directly
-          here.
+          This is a placeholder for the advanced web-based {media?.type} editor. Soon you will be able to crop, filter,
+          and modify your assets directly here.
         </p>
         <div style={{ color: "#646cff", fontSize: "13px", marginTop: "30px" }}>
           Target NODE_ID:{" "}

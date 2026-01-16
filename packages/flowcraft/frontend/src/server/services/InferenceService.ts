@@ -12,17 +12,13 @@ class InferenceService {
     model?: string;
     stream?: boolean;
   }) {
-    logger.info(
-      `chatCompletion called for model: ${params.model}, endpoint: ${params.endpointId}`,
-    );
+    logger.info(`chatCompletion called for model: ${String(params.model)}, endpoint: ${String(params.endpointId)}`);
     const endpointId = params.endpointId ?? INFERENCE_CONFIG.defaultEndpointId;
     const model = params.model ?? INFERENCE_CONFIG.defaultModel;
 
     try {
       const client = this.getClient(endpointId);
-      logger.info(
-        `Client obtained for endpoint ${endpointId}. Starting request...`,
-      );
+      logger.info(`Client obtained for endpoint ${endpointId}. Starting request...`);
 
       const response = await client.chat.completions.create({
         messages: params.messages,
@@ -49,9 +45,7 @@ class InferenceService {
     const existing = this.clients.get(endpointId);
     if (existing) return existing;
 
-    const endpoint = INFERENCE_CONFIG.endpoints.find(
-      (e) => e.id === endpointId,
-    );
+    const endpoint = INFERENCE_CONFIG.endpoints.find((e) => e.id === endpointId);
     if (!endpoint) {
       throw new Error(`Endpoint ${endpointId} not found`);
     }

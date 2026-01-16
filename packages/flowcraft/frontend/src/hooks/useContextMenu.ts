@@ -4,16 +4,16 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
 
 import { useFlowStore } from "@/store/flowStore";
-import { FlowEvent, type MediaType } from "@/types";
+import { FlowEvent, type MediaType, type NodeId, type EdgeId } from "@/types";
 
 export const useContextMenu = (): {
   closeContextMenu: () => void;
   closeContextMenuAndClear: () => void;
   contextMenu: null | {
-    edgeId?: string;
+    edgeId?: EdgeId;
     galleryItemType?: MediaType;
     galleryItemUrl?: string;
-    nodeId?: string;
+    nodeId?: NodeId;
     x: number;
     y: number;
   };
@@ -25,10 +25,10 @@ export const useContextMenu = (): {
   onSelectionContextMenu: (event: ReactMouseEvent) => void;
   setContextMenu: React.Dispatch<
     React.SetStateAction<null | {
-      edgeId?: string;
+      edgeId?: EdgeId;
       galleryItemType?: MediaType;
       galleryItemUrl?: string;
-      nodeId?: string;
+      nodeId?: NodeId;
       x: number;
       y: number;
     }>
@@ -36,10 +36,10 @@ export const useContextMenu = (): {
 } => {
   const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
   const [contextMenu, setContextMenu] = useState<null | {
-    edgeId?: string;
+    edgeId?: EdgeId;
     galleryItemType?: MediaType;
     galleryItemUrl?: string;
-    nodeId?: string;
+    nodeId?: NodeId;
     x: number;
     y: number;
   }>(null);
@@ -63,54 +63,43 @@ export const useContextMenu = (): {
     };
   }, [contextMenu]);
 
-  const onPaneContextMenu = useCallback(
-    (event: MouseEvent | ReactMouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
-        event.stopPropagation();
-        return;
-      }
+  const onPaneContextMenu = useCallback((event: MouseEvent | ReactMouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+      event.stopPropagation();
+      return;
+    }
 
-      event.preventDefault();
-      const clientX =
-        "clientX" in event ? event.clientX : (event as MouseEvent).clientX;
-      const clientY =
-        "clientY" in event ? event.clientY : (event as MouseEvent).clientY;
-      setContextMenu({
-        x: clientX,
-        y: clientY,
-      });
-    },
-    [],
-  );
+    event.preventDefault();
+    const clientX = "clientX" in event ? event.clientX : (event as MouseEvent).clientX;
+    const clientY = "clientY" in event ? event.clientY : (event as MouseEvent).clientY;
+    setContextMenu({
+      x: clientX,
+      y: clientY,
+    });
+  }, []);
 
-  const onNodeContextMenu = useCallback(
-    (event: ReactMouseEvent, node: Node) => {
-      const target = event.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
-        event.stopPropagation();
-        return;
-      }
+  const onNodeContextMenu = useCallback((event: ReactMouseEvent, node: Node) => {
+    const target = event.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+      event.stopPropagation();
+      return;
+    }
 
-      event.preventDefault();
-      setContextMenu({ nodeId: node.id, x: event.clientX, y: event.clientY });
-    },
-    [],
-  );
+    event.preventDefault();
+    setContextMenu({ nodeId: node.id as NodeId, x: event.clientX, y: event.clientY });
+  }, []);
 
-  const onEdgeContextMenu = useCallback(
-    (event: ReactMouseEvent, edge: Edge) => {
-      const target = event.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
-        event.stopPropagation();
-        return;
-      }
+  const onEdgeContextMenu = useCallback((event: ReactMouseEvent, edge: Edge) => {
+    const target = event.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+      event.stopPropagation();
+      return;
+    }
 
-      event.preventDefault();
-      setContextMenu({ edgeId: edge.id, x: event.clientX, y: event.clientY });
-    },
-    [],
-  );
+    event.preventDefault();
+    setContextMenu({ edgeId: edge.id as EdgeId, x: event.clientX, y: event.clientY });
+  }, []);
 
   const onSelectionContextMenu = useCallback((event: ReactMouseEvent) => {
     const target = event.target as HTMLElement;

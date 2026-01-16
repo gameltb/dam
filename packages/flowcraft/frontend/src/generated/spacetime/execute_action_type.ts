@@ -11,10 +11,8 @@ import {
 } from "spacetimedb";
 
 export default __t.object("ExecuteAction", {
-  actionId: __t.string(),
   id: __t.string(),
-  nodeId: __t.string(),
-  paramsJson: __t.string(),
+  request: __t.byteArray(),
 });
 
 

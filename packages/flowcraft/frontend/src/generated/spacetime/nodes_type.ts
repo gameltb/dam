@@ -9,18 +9,14 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
+import Node from "./node_type";
+
 
 export default __t.object("Nodes", {
-  dataJson: __t.string(),
-  height: __t.f32(),
-  id: __t.string(),
-  isSelected: __t.bool(),
-  kind: __t.u32(),
-  parentId: __t.string(),
-  posX: __t.f32(),
-  posY: __t.f32(),
-  templateId: __t.string(),
-  width: __t.f32(),
+  nodeId: __t.string(),
+  get state() {
+    return Node;
+  },
 });
 
 

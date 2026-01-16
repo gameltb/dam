@@ -20,10 +20,7 @@ export const MARKDOWN_RENDERER_CONFIG = {
   minWidth: 240,
 };
 
-export const MEDIA_CONFIGS: Record<
-  number,
-  { minHeight: number; minWidth: number }
-> = {
+export const MEDIA_CONFIGS: Record<number, { minHeight: number; minWidth: number }> = {
   [MediaType.MEDIA_AUDIO]: AUDIO_RENDERER_CONFIG,
   [MediaType.MEDIA_IMAGE]: IMAGE_RENDERER_CONFIG,
   [MediaType.MEDIA_MARKDOWN]: MARKDOWN_RENDERER_CONFIG,

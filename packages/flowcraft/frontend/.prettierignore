@@ -2,4 +2,7 @@ dist
 node_modules
 src/generated
 package-lock.json
-public/mockServiceWorker.js
+spacetime-module/dist
+spacetime-module/node_modules
+spacetime-module/src/generated
+spacetime-module/package-lock.json

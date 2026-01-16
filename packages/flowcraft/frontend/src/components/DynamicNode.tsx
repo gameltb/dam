@@ -1,9 +1,5 @@
-import { create as createProto } from "@bufbuild/protobuf";
-import {
-  type NodeProps,
-  NodeResizer,
-  type ResizeDragEvent,
-} from "@xyflow/react";
+import { create } from "@bufbuild/protobuf";
+import { type NodeProps, NodeResizer, type ResizeDragEvent } from "@xyflow/react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import React, { memo, useCallback } from "react";
 
@@ -13,13 +9,8 @@ import { useNodeHandlers } from "@/hooks/useNodeHandlers";
 import { cn } from "@/lib/utils";
 import { useFlowStore } from "@/store/flowStore";
 import { useTaskStore } from "@/store/taskStore";
-import {
-  type DynamicNodeData,
-  type DynamicNodeType,
-  OverflowMode,
-  TaskStatus,
-} from "@/types";
-import { toProtoNodeData } from "@/utils/protoAdapter";
+import { type DynamicNodeData, type DynamicNodeType, OverflowMode, TaskStatus } from "@/types";
+import { appNodeDataToProto } from "@/utils/nodeProtoUtils";
 
 import { BaseNode } from "./base/BaseNode";
 import { NodeErrorBoundary } from "./base/NodeErrorBoundary";
@@ -47,15 +38,7 @@ const RenderMedia: React.FC<{
   const nodeWidth = layoutProps.width ?? layoutProps.measured?.width ?? 240;
   const nodeHeight = layoutProps.height ?? layoutProps.measured?.height ?? 180;
 
-  return (
-    <MediaContent
-      data={data}
-      height={nodeHeight}
-      id={id}
-      onOverflowChange={onOverflowChange}
-      width={nodeWidth}
-    />
-  );
+  return <MediaContent data={data} height={nodeHeight} id={id} onOverflowChange={onOverflowChange} width={nodeWidth} />;
 };
 
 const RenderWidgets: React.FC<{
@@ -66,26 +49,11 @@ const RenderWidgets: React.FC<{
 }> = (props) => {
   const { data, id, onToggleMode, selected } = props;
 
-  return (
-    <WidgetContent
-      data={data}
-      id={id}
-      onToggleMode={onToggleMode}
-      selected={selected}
-    />
-  );
+  return <WidgetContent data={data} id={id} onToggleMode={onToggleMode} selected={selected} />;
 };
 
 export const DynamicNode = memo(
-  ({
-    data,
-    id,
-    positionAbsoluteX,
-    positionAbsoluteY,
-    selected,
-    type,
-    ...rest
-  }: NodeProps<DynamicNodeType>) => {
+  ({ data, id, positionAbsoluteX, positionAbsoluteY, selected, type, ...rest }: NodeProps<DynamicNodeType>) => {
     const {
       containerStyle,
       minHeight,
@@ -95,21 +63,17 @@ export const DynamicNode = memo(
     } = useNodeHandlers(data, selected, positionAbsoluteX, positionAbsoluteY);
 
     const hasError = useTaskStore((s) =>
-      Object.values(s.tasks).some(
-        (t) => t.nodeId === id && t.status === TaskStatus.TASK_FAILED,
-      ),
+      Object.values(s.tasks).some((t) => t.nodeId === id && t.status === TaskStatus.TASK_FAILED),
     );
 
     const isProcessing = useTaskStore((s) =>
-      Object.values(s.tasks).some(
-        (t) => t.nodeId === id && t.status === TaskStatus.TASK_PROCESSING,
-      ),
+      Object.values(s.tasks).some((t) => t.nodeId === id && t.status === TaskStatus.TASK_PROCESSING),
     );
 
     const handleResizeEnd = useCallback(
       (_event: ResizeDragEvent, params: { height: number; width: number }) => {
         const { applyMutations } = useFlowStore.getState();
-        const presentation = createProto(PresentationSchema, {
+        const presentation = create(PresentationSchema, {
           height: params.height,
           isInitialized: true,
           position: { x: positionAbsoluteX, y: positionAbsoluteY },
@@ -117,11 +81,11 @@ export const DynamicNode = memo(
         });
 
         applyMutations([
-          createProto(GraphMutationSchema, {
+          create(GraphMutationSchema, {
             operation: {
               case: "updateNode",
               value: {
-                data: toProtoNodeData(data),
+                data: appNodeDataToProto(data),
                 id: id,
                 presentation,
               },
@@ -136,10 +100,8 @@ export const DynamicNode = memo(
       <div
         className={cn(
           "custom-node relative transition-shadow duration-300",
-          hasError &&
-            "ring-2 ring-destructive ring-offset-2 ring-offset-background",
-          isProcessing &&
-            "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse",
+          hasError && "ring-2 ring-destructive ring-offset-2 ring-offset-background",
+          isProcessing && "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse",
         )}
         style={{
           ...containerStyle,
@@ -186,7 +148,7 @@ export const DynamicNode = memo(
             renderMedia={RenderMedia}
             renderWidgets={RenderWidgets}
             selected={selected}
-            type={data.typeId ?? type}
+            type={data.templateId ?? type}
             updateNodeData={updateNodeData}
             x={positionAbsoluteX}
             y={positionAbsoluteY}

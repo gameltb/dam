@@ -89,8 +89,6 @@ describe("Task Traceability", () => {
       status: TaskStatus.TASK_COMPLETED,
     });
 
-    expect(useTaskStore.getState().tasks[taskId]?.status).toBe(
-      TaskStatus.TASK_COMPLETED,
-    );
+    expect(useTaskStore.getState().tasks[taskId]?.status).toBe(TaskStatus.TASK_COMPLETED);
   });
 });

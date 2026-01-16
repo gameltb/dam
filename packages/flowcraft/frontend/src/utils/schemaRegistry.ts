@@ -42,10 +42,7 @@ export const DYNAMIC_TEMPLATE_IDS = ["dynamic-node", "dynamic-action"];
 /**
  * 获取指定模板的 Schema
  */
-export function getSchemaForTemplate(
-  templateId: string,
-  dynamicSchema?: Record<string, unknown>,
-): null | RJSFSchema {
+export function getSchemaForTemplate(templateId: string, dynamicSchema?: Record<string, unknown>): null | RJSFSchema {
   // 1. 优先查找本地静态注册表
   if (STATIC_SCHEMAS[templateId]) {
     return STATIC_SCHEMAS[templateId] as RJSFSchema;

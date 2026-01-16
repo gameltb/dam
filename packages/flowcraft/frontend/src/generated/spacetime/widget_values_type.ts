@@ -13,7 +13,7 @@ import {
 export default __t.object("WidgetValues", {
   id: __t.string(),
   nodeId: __t.string(),
-  valueJson: __t.string(),
+  value: __t.string(),
   widgetId: __t.string(),
 });
 

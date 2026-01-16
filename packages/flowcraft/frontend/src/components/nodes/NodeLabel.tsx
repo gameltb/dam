@@ -11,134 +11,129 @@ interface NodeLabelProps {
   selected?: boolean;
 }
 
-export const NodeLabel: React.FC<NodeLabelProps> = memo(
-  ({ id, label, onChange: _onChange, selected }) => {
-    const { updateNodeData } = useFlowSocket({ disablePolling: true });
+export const NodeLabel: React.FC<NodeLabelProps> = memo(({ id, label, onChange: _onChange, selected }) => {
+  const { updateNodeData } = useFlowSocket({ disablePolling: true });
 
-    const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
-    const [localLabel, setLocalLabel] = useState(label);
+  const [localLabel, setLocalLabel] = useState(label);
 
-    const [prevLabel, setPrevLabel] = useState(label);
+  const [prevLabel, setPrevLabel] = useState(label);
 
-    const [prevSelected, setPrevSelected] = useState(selected);
+  const [prevSelected, setPrevSelected] = useState(selected);
 
-    // Adjust state when props change (React recommendation instead of useEffect for sync)
+  // Adjust state when props change (React recommendation instead of useEffect for sync)
 
-    if (label !== prevLabel && !isEditing) {
-      setPrevLabel(label);
+  if (label !== prevLabel && !isEditing) {
+    setPrevLabel(label);
 
-      setLocalLabel(label);
-    }
+    setLocalLabel(label);
+  }
 
-    if (selected !== prevSelected) {
-      setPrevSelected(selected);
+  if (selected !== prevSelected) {
+    setPrevSelected(selected);
 
-      if (!selected && isEditing) {
-        setIsEditing(false);
-
-        if (localLabel !== label) {
-          updateNodeData(
-            id,
-            create(NodeDataSchema, { displayName: localLabel }),
-          );
-        }
-      }
-    }
-
-    const handleBlur = () => {
+    if (!selected && isEditing) {
       setIsEditing(false);
 
       if (localLabel !== label) {
         updateNodeData(id, create(NodeDataSchema, { displayName: localLabel }));
       }
-    };
+    }
+  }
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") {
-        e.currentTarget.blur();
-      } else if (e.key === "Escape") {
-        setLocalLabel(label);
+  const handleBlur = () => {
+    setIsEditing(false);
 
-        setIsEditing(false);
-      }
-    };
+    if (localLabel !== label) {
+      updateNodeData(id, create(NodeDataSchema, { displayName: localLabel }));
+    }
+  };
 
-    return (
-      <div
-        onDoubleClick={() => {
-          setIsEditing(true);
-        }}
-        style={{
-          alignItems: "center",
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.currentTarget.blur();
+    } else if (e.key === "Escape") {
+      setLocalLabel(label);
 
-          backgroundColor: "rgba(0,0,0,0.05)",
+      setIsEditing(false);
+    }
+  };
 
-          borderBottom: "1px solid var(--node-border)",
+  return (
+    <div
+      onDoubleClick={() => {
+        setIsEditing(true);
+      }}
+      style={{
+        alignItems: "center",
 
-          borderRadius: "8px 8px 0 0",
+        backgroundColor: "rgba(0,0,0,0.05)",
 
-          cursor: "text",
+        borderBottom: "1px solid var(--node-border)",
 
-          display: "flex",
+        borderRadius: "8px 8px 0 0",
 
-          justifyContent: "space-between",
+        cursor: "text",
 
-          padding: "8px 12px",
-        }}
-      >
-        {isEditing ? (
-          <input
-            autoFocus
-            className="nodrag"
-            onBlur={handleBlur}
-            onChange={(e) => {
-              setLocalLabel(e.target.value);
-            }}
-            onKeyDown={handleKeyDown}
-            style={{
-              background: "rgba(255,255,255,0.1)",
+        display: "flex",
 
-              border: "1px solid var(--primary-color)",
+        justifyContent: "space-between",
 
-              borderRadius: "4px",
+        padding: "8px 12px",
+      }}
+    >
+      {isEditing ? (
+        <input
+          autoFocus
+          className="nodrag"
+          onBlur={handleBlur}
+          onChange={(e) => {
+            setLocalLabel(e.target.value);
+          }}
+          onKeyDown={handleKeyDown}
+          style={{
+            background: "rgba(255,255,255,0.1)",
 
-              color: "white",
+            border: "1px solid var(--primary-color)",
 
-              fontSize: "12px",
+            borderRadius: "4px",
 
-              fontWeight: "bold",
+            color: "white",
 
-              outline: "none",
+            fontSize: "12px",
 
-              padding: "2px 4px",
+            fontWeight: "bold",
 
-              width: "100%",
-            }}
-            value={localLabel}
-          />
-        ) : (
-          <div
-            style={{
-              color: selected ? "var(--primary-color)" : "white",
+            outline: "none",
 
-              fontSize: "12px",
+            padding: "2px 4px",
 
-              fontWeight: "bold",
+            width: "100%",
+          }}
+          value={localLabel}
+        />
+      ) : (
+        <div
+          style={{
+            color: selected ? "var(--primary-color)" : "white",
 
-              maxWidth: "100%",
+            fontSize: "12px",
 
-              overflow: "hidden",
+            fontWeight: "bold",
 
-              textOverflow: "ellipsis",
+            maxWidth: "100%",
 
-              whiteSpace: "nowrap",
-            }}
-          >
-            {label}
-          </div>
-        )}
-      </div>
-    );
-  },
-);
+            overflow: "hidden",
+
+            textOverflow: "ellipsis",
+
+            whiteSpace: "nowrap",
+          }}
+        >
+          {label}
+        </div>
+      )}
+    </div>
+  );
+});

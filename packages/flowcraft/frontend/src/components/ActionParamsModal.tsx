@@ -14,11 +14,7 @@ interface ActionParamsModalProps {
   onConfirm: (params: Record<string, unknown>) => void;
 }
 
-export const ActionParamsModal: React.FC<ActionParamsModalProps> = ({
-  action,
-  onCancel,
-  onConfirm,
-}) => {
+export const ActionParamsModal: React.FC<ActionParamsModalProps> = ({ action, onCancel, onConfirm }) => {
   const schema = React.useMemo(() => {
     return getSchemaForTemplate(action.id, action.paramsSchema);
   }, [action]);
@@ -75,17 +71,10 @@ export const ActionParamsModal: React.FC<ActionParamsModalProps> = ({
           width: "500px",
         }}
       >
-        <h3 style={{ color: "var(--primary-color)", marginTop: 0 }}>
-          {action.label}
-        </h3>
+        <h3 style={{ color: "var(--primary-color)", marginTop: 0 }}>{action.label}</h3>
 
         <div className="rjsf-container" style={{ margin: "20px 0" }}>
-          <Form
-            onSubmit={handleSubmit}
-            schema={schema}
-            uiSchema={uiSchema}
-            validator={validator}
-          >
+          <Form onSubmit={handleSubmit} schema={schema} uiSchema={uiSchema} validator={validator}>
             <div
               style={{
                 display: "flex",

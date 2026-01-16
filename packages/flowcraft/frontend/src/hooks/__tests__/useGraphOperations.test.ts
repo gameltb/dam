@@ -62,17 +62,14 @@ describe("useGraphOperations - Auto Layout", () => {
 
     expect(mockApplyMutations).toHaveBeenCalled();
     const calls = mockApplyMutations.mock.calls;
-     
-    const mutations = (calls[0]?.[0] as GraphMutation[]) ?? [];
+    if (!calls[0]) throw new Error("Expected mockApplyMutations to be called");
+
+    const mutations = calls[0][0] as GraphMutation[];
 
     const firstUpdate = mutations.find(
-      (m: GraphMutation) =>
-        m.operation.case === "updateNode" && m.operation.value.id === "1",
+      (m: GraphMutation) => m.operation.case === "updateNode" && m.operation.value.id === "1",
     );
-    const opVal =
-      firstUpdate?.operation.case === "updateNode"
-        ? firstUpdate.operation.value
-        : null;
+    const opVal = firstUpdate?.operation.case === "updateNode" ? firstUpdate.operation.value : null;
     expect(opVal?.presentation).toHaveProperty("width", 200);
     expect(opVal?.presentation).toHaveProperty("height", 100);
   });
@@ -88,8 +85,10 @@ describe("useGraphOperations - Auto Layout", () => {
     result.current.autoLayout();
 
     const calls = mockApplyMutations.mock.calls;
-     
-    const mutations = (calls[0]?.[0] as GraphMutation[]) ?? [];
+    if (!calls[0]) throw new Error("Expected mockApplyMutations to be called");
+
+    const mutations = calls[0][0] as GraphMutation[];
+
     const op = mutations[0]?.operation;
     if (op?.case === "updateNode") {
       expect(op.value.presentation?.width).toBe(300);

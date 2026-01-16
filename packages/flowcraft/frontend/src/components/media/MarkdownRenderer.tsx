@@ -5,10 +5,7 @@ interface MarkdownRendererProps {
   onEdit?: (newContent: string) => void;
 }
 
-export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
-  content,
-  onEdit,
-}) => {
+export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, onEdit }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState(content);
 
