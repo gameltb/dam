@@ -9,12 +9,12 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
-import InferenceConfigDiscoveryResponse from "./inference_config_discovery_response_type";
+import ServicesInferenceConfigDiscoveryResponse from "./services_inference_config_discovery_response_type";
 
 
 export default __t.row({
   configId: __t.string().primaryKey(),
   get state() {
-    return InferenceConfigDiscoveryResponse;
+    return ServicesInferenceConfigDiscoveryResponse;
   },
 });

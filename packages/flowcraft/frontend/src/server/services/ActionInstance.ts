@@ -1,4 +1,4 @@
-import { TaskStatus } from "@/generated/flowcraft/v1/core/node_pb";
+import { TaskStatus } from "@/generated/flowcraft/v1/core/kernel_pb";
 
 import { BaseInstance } from "./BaseInstance";
 
@@ -15,15 +15,15 @@ export class ActionInstance extends BaseInstance {
   }
 
   async start(params: unknown): Promise<void> {
-    this.updateStatus(TaskStatus.TASK_PROCESSING, "Executing action...");
+    this.updateStatus(TaskStatus.RUNNING, "Executing action...");
     try {
       await this.handler({
         ...(params as Record<string, unknown>),
         taskId: this.taskId,
       });
-      this.updateStatus(TaskStatus.TASK_COMPLETED, "Action completed", 100);
+      this.updateStatus(TaskStatus.COMPLETED, "Action completed", 100);
     } catch (err: unknown) {
-      this.updateStatus(TaskStatus.TASK_FAILED, err instanceof Error ? err.message : String(err));
+      this.updateStatus(TaskStatus.FAILED, err instanceof Error ? err.message : String(err));
     }
   }
 

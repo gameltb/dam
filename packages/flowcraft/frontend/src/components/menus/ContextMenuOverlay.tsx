@@ -29,6 +29,7 @@ interface Props {
   onDeleteEdge: (id: string) => void;
   onDeleteNode: (id: string) => void;
   onDuplicate: () => void;
+  onEnterScope: (id: string) => void;
   onExecuteAction: (a: ActionTemplate) => void;
   onGroup: () => void;
   onOpenEditor: (id: string) => void;
@@ -50,7 +51,7 @@ export const ContextMenuOverlay: React.FC<Props> = (props) => {
             onClick: () => {
               props.onExecuteAction(a);
             },
-            path: a.path,
+            path: a.menuPath,
           }))}
           nodeId={contextMenu.nodeId ?? ""}
           onClose={props.onClose}
@@ -82,6 +83,9 @@ export const ContextMenuOverlay: React.FC<Props> = (props) => {
             props.onClose();
           }}
           onDuplicate={props.onDuplicate}
+          onEnterScope={() => {
+            props.onEnterScope(contextMenu.nodeId ?? "");
+          }}
           onFocus={() => {
             /* empty */
           }}

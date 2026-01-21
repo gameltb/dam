@@ -1,5 +1,4 @@
 import { type PbConnection } from "../utils/pb-client";
-
 import { type TaskPayloads, type TaskQueue } from "./task-protocol";
 
 export class TaskDispatcher {

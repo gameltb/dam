@@ -1,135 +1,69 @@
 import { type NodeProps } from "@xyflow/react";
-import { Position } from "@xyflow/react";
+import { Loader2, Terminal, XCircle } from "lucide-react";
 import { memo } from "react";
 
-import { useFlowSocket } from "@/hooks/useFlowSocket";
-import { useTaskStore } from "@/store/taskStore";
-import { type ProcessingNodeData, type ProcessingNodeType, TaskStatus } from "@/types";
+import { TaskStatus } from "@/generated/flowcraft/v1/core/kernel_pb";
+import { cn } from "@/lib/utils";
+import { type ProcessingNodeType } from "@/types";
 
 import { BaseNode } from "./base/BaseNode";
-import { Handle } from "./base/Handle";
-import { NodeErrorBoundary } from "./base/NodeErrorBoundary";
+import { Button } from "./ui/button";
+import { Progress } from "./ui/progress";
 
-const ProcessingContent: React.FC<{
-  data: ProcessingNodeData;
-  id: string;
-}> = ({ data }) => {
-  const { displayName, taskId } = data;
-  const { cancelTask } = useFlowSocket({ disablePolling: true });
-  const taskState = useTaskStore((state) => state.tasks[taskId]);
-
-  const progress = taskState?.progress ?? 0;
-  const status = taskState?.status ?? TaskStatus.TASK_PENDING;
-  const message = taskState?.message ?? "Initializing...";
-
-  const getStatusLabel = (s: TaskStatus) => {
-    switch (s) {
-      case TaskStatus.TASK_CANCELLED:
-        return "CANCELLED";
-      case TaskStatus.TASK_COMPLETED:
-        return "COMPLETED";
-      case TaskStatus.TASK_FAILED:
-        return "FAILED";
-      case TaskStatus.TASK_PENDING:
-        return "PENDING";
-      case TaskStatus.TASK_PROCESSING:
-        return "PROCESSING";
-      default:
-        return "UNKNOWN";
-    }
-  };
+export const ProcessingNode = memo(({ data, selected: _selected }: NodeProps<ProcessingNodeType>) => {
+  const isFailed = data.status === TaskStatus.FAILED;
+  const isCancelled = data.status === TaskStatus.CANCELLED;
+  const isPending = data.status === TaskStatus.PENDING;
+  const isRunning = data.status === TaskStatus.RUNNING;
 
   return (
-    <div
-      style={{
-        boxSizing: "border-box",
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        justifyContent: "center",
-        padding: "16px",
-      }}
+    <BaseNode
+      className={cn(
+        "min-w-[280px] border-2",
+        isRunning && "border-primary shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]",
+        isFailed && "border-destructive",
+        isCancelled && "border-muted-foreground/50",
+      )}
     >
-      <div style={{ fontWeight: "bold", marginBottom: "8px" }}>{displayName}</div>
+      <div className="p-4 flex flex-col gap-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {isRunning ? (
+              <Loader2 className="w-4 h-4 text-primary animate-spin" />
+            ) : (
+              <Terminal className="w-4 h-4 text-muted-foreground" />
+            )}
+            <span className="text-xs font-bold uppercase tracking-tight truncate max-w-[180px]">
+              {data.displayName || "Processing..."}
+            </span>
+          </div>
+          {isFailed && <XCircle className="w-4 h-4 text-destructive" />}
+        </div>
 
-      <div style={{ color: "#cbd5e0", fontSize: "12px", marginBottom: "4px" }}>{getStatusLabel(status)}</div>
+        {/* Progress & Message */}
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between items-end text-[10px]">
+            <span className="text-muted-foreground font-mono uppercase italic">
+              {isPending ? "Waiting..." : isRunning ? "In Progress" : "Done"}
+            </span>
+            <span className="font-bold text-primary">{Math.round(data.progress || 0)}%</span>
+          </div>
+          <Progress className="h-1.5" value={data.progress} />
+          <p className="text-[10px] text-muted-foreground italic line-clamp-2 min-h-[2.5em]">
+            {data.message || "Initializing task pipeline..."}
+          </p>
+        </div>
 
-      <div
-        style={{
-          background: "#4a5568",
-          borderRadius: "3px",
-          height: "6px",
-          marginBottom: "8px",
-          overflow: "hidden",
-          width: "100%",
-        }}
-      >
-        <div
-          style={{
-            background: status === TaskStatus.TASK_FAILED ? "#e53e3e" : "#4299e1",
-            height: "100%",
-            transition: "width 0.3s ease",
-            width: `${String(Math.round(progress))}%`,
-          }}
-        />
-      </div>
-
-      <div style={{ color: "#a0aec0", fontSize: "10px", marginBottom: "12px" }}>{message}</div>
-
-      {status !== TaskStatus.TASK_COMPLETED &&
-        status !== TaskStatus.TASK_CANCELLED &&
-        status !== TaskStatus.TASK_FAILED && (
-          <button
-            className="nodrag"
-            onClick={() => {
-              cancelTask(taskId);
-            }}
-            style={{
-              background: "transparent",
-              border: "1px solid #e53e3e",
-              borderRadius: "4px",
-              color: "#e53e3e",
-              cursor: "pointer",
-              fontSize: "10px",
-              padding: "4px 8px",
-            }}
-          >
-            Cancel
-          </button>
+        {/* Footer Actions */}
+        {(isRunning || isPending) && (
+          <div className="flex justify-end pt-2 border-t border-border/50">
+            <Button className="h-7 text-[10px] text-destructive hover:bg-destructive/10" size="sm" variant="ghost">
+              Cancel Task
+            </Button>
+          </div>
         )}
-    </div>
+      </div>
+    </BaseNode>
   );
-};
-
-const ProcessingNode: React.FC<NodeProps<ProcessingNodeType>> = (props) => {
-  const { id, positionAbsoluteX, positionAbsoluteY, selected } = props;
-
-  return (
-    <div
-      className={selected ? "fc-node fc-node-selected" : "fc-node"}
-      style={{
-        minWidth: "200px",
-        overflow: "visible", // For floating panel
-        textAlign: "center",
-      }}
-    >
-      <NodeErrorBoundary nodeId={id}>
-        <BaseNode<ProcessingNodeType>
-          {...props}
-          handles={
-            <>
-              <Handle position={Position.Top} type="target" />
-              <Handle position={Position.Bottom} type="source" />
-            </>
-          }
-          renderWidgets={ProcessingContent}
-          type="processing"
-          x={positionAbsoluteX}
-          y={positionAbsoluteY}
-        />
-      </NodeErrorBoundary>
-    </div>
-  );
-};
-
-export default memo(ProcessingNode);
+});

@@ -1,11 +1,11 @@
-import { type JsonObject, create, fromJson, toJson } from "@bufbuild/protobuf";
+import { fromJson, type JsonObject, toJson } from "@bufbuild/protobuf";
 import { ValueSchema } from "@bufbuild/protobuf/wkt";
 import { memo } from "react";
 
 import { PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
-import { PortStyle, WidgetSchema, type Widget } from "@/generated/flowcraft/v1/core/node_pb";
-import { useFlowSocket } from "@/hooks/useFlowSocket";
+import { PortStyle, type Widget } from "@/generated/flowcraft/v1/core/node_pb";
 import { useNodeHandlers } from "@/hooks/useNodeHandlers";
+import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
 import { type DynamicNodeData } from "@/types";
 import { getSchemaForTemplate } from "@/utils/schemaRegistry";
@@ -26,26 +26,18 @@ interface WidgetRendererProps {
   widget: Widget;
 }
 
-const WidgetRenderer: React.FC<WidgetRendererProps> = memo(({ nodeId, onClick, onValueChange, widget }) => {
-  const { updateWidget } = useFlowSocket({ disablePolling: true });
-
-  const handleValueChange = (val: unknown) => {
-    onValueChange(val);
-    updateWidget(nodeId, widget.id, String(val));
-  };
-
+const WidgetRenderer: React.FC<WidgetRendererProps> = memo(({ onClick, onValueChange, widget }) => {
   const Component = WIDGET_COMPONENTS[widget.type];
   if (!Component) return null;
 
-  // Convert PB Value to JS value for the component
   const jsValue = widget.value ? toJson(ValueSchema, widget.value) : undefined;
 
   return (
     <Component
       config={widget.config as any}
       label={widget.label}
-      nodeId={nodeId}
-      onChange={handleValueChange}
+      nodeId=""
+      onChange={onValueChange}
       onClick={onClick}
       options={widget.options}
       value={jsValue}
@@ -53,14 +45,27 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = memo(({ nodeId, onClick, o
   );
 });
 
-export const WidgetContent: React.FC<{
+import { useShallow } from "zustand/react/shallow";
+
+const WidgetContentComponent: React.FC<{
   data: DynamicNodeData;
   id: string;
   onToggleMode: () => void;
   selected?: boolean;
 }> = memo(({ data, id, onToggleMode, selected }) => {
   const { onChange, onWidgetClick } = useNodeHandlers(data, selected);
-  const { activeChatNodeId, chatViewMode } = useUiStore();
+  const { activeChatNodeId, chatViewMode } = useUiStore(
+    useShallow((s) => ({
+      activeChatNodeId: s.activeChatNodeId,
+      chatViewMode: s.chatViewMode,
+    })),
+  );
+  const { allNodes, nodeDraft } = useFlowStore(
+    useShallow((s) => ({
+      allNodes: s.allNodes,
+      nodeDraft: s.nodeDraft,
+    })),
+  );
 
   const isChatNode = data.templateId?.toLowerCase().includes("chat");
   const isSidebarMode = activeChatNodeId === id && chatViewMode === "sidebar";
@@ -89,7 +94,7 @@ export const WidgetContent: React.FC<{
 
       <div className="flex flex-col gap-2 px-3 py-2 relative">
         {(() => {
-          const schema = getSchemaForTemplate(data.templateId ?? "", data.widgetsSchema);
+          const schema = getSchemaForTemplate(data.templateId ?? "");
           if (!schema) return null;
           return (
             <div className="nodrag nopan">
@@ -97,7 +102,13 @@ export const WidgetContent: React.FC<{
                 formData={data.widgetsValues ?? {}}
                 nodeId={id}
                 onChange={(val) => {
-                  onChange(id, { widgetsValues: val as JsonObject });
+                  const node = allNodes.find((n) => n.id === id);
+                  if (node) {
+                    const res = nodeDraft(node);
+                    if (res.ok) {
+                      (res.value.data as any).widgetsValues = val as JsonObject;
+                    }
+                  }
                 }}
                 schema={schema}
               />
@@ -119,7 +130,7 @@ export const WidgetContent: React.FC<{
           </div>
         )}
 
-        {data.widgets?.map((w) => (
+        {data.widgets?.map((w: any) => (
           <WidgetWrapper
             inputPortId={w.inputPortId}
             isSwitchable={isSwitchable}
@@ -142,18 +153,20 @@ export const WidgetContent: React.FC<{
               <WidgetRenderer
                 nodeId={id}
                 onClick={() => {
-                  onWidgetClick(id, w.id);
+                  onWidgetClick?.(id, w.id);
                 }}
-                onValueChange={(val) => {
-                  const updated = data.widgets.map((item) =>
-                    item.id === w.id
-                      ? create(WidgetSchema, {
-                          ...item,
-                          value: fromJson(ValueSchema, val as any),
-                        })
-                      : item,
-                  );
-                  onChange(id, { widgets: updated });
+                onValueChange={(val: any) => {
+                  const node = allNodes.find((n) => n.id === id);
+                  if (!node) return;
+
+                  const res = nodeDraft(node);
+                  if (res.ok) {
+                    const draft = res.value;
+                    const idx = (draft.data.widgets as any[]).findIndex((item: any) => item.id === w.id);
+                    if (idx !== -1) {
+                      (draft.data.widgets as any[])[idx].value = fromJson(ValueSchema, val);
+                    }
+                  }
                 }}
                 widget={w}
               />
@@ -163,4 +176,8 @@ export const WidgetContent: React.FC<{
       </div>
     </div>
   );
+});
+
+export const WidgetContent = Object.assign(WidgetContentComponent, {
+  minSize: { height: 150, width: 200 },
 });

@@ -5,29 +5,25 @@ import { TaskStatus } from "@/types";
 
 export const StatusBadge: React.FC<{ status: TaskStatus }> = ({ status }) => {
   const config: Record<number, { color: string; label: string }> = {
-    [TaskStatus.TASK_CANCELLED]: {
+    [TaskStatus.CANCELLED]: {
       color: "bg-muted text-muted-foreground border-border",
       label: "Cancelled",
     },
-    [TaskStatus.TASK_COMPLETED]: {
+    [TaskStatus.COMPLETED]: {
       color: "bg-green-500/10 text-green-500 border-green-500/20",
       label: "Completed",
     },
-    [TaskStatus.TASK_FAILED]: {
+    [TaskStatus.FAILED]: {
       color: "bg-destructive/10 text-destructive border-destructive/20",
       label: "Failed",
     },
-    [TaskStatus.TASK_PENDING]: {
+    [TaskStatus.PENDING]: {
       color: "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
       label: "Pending",
     },
-    [TaskStatus.TASK_PROCESSING]: {
+    [TaskStatus.RUNNING]: {
       color: "bg-primary/10 text-primary border-primary/20",
       label: "Processing",
-    },
-    [TaskStatus.TASK_RESTARTING]: {
-      color: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-      label: "Restarting",
     },
   };
 
@@ -45,12 +41,11 @@ export const StatusBadge: React.FC<{ status: TaskStatus }> = ({ status }) => {
 
 export const StatusDot: React.FC<{ status: TaskStatus }> = ({ status }) => {
   const colors: Record<number, string> = {
-    [TaskStatus.TASK_CANCELLED]: "bg-muted-foreground",
-    [TaskStatus.TASK_COMPLETED]: "bg-green-500",
-    [TaskStatus.TASK_FAILED]: "bg-destructive",
-    [TaskStatus.TASK_PENDING]: "bg-yellow-500",
-    [TaskStatus.TASK_PROCESSING]: "bg-primary animate-pulse",
-    [TaskStatus.TASK_RESTARTING]: "bg-blue-500 animate-bounce",
+    [TaskStatus.CANCELLED]: "bg-muted-foreground",
+    [TaskStatus.COMPLETED]: "bg-green-500",
+    [TaskStatus.FAILED]: "bg-destructive",
+    [TaskStatus.PENDING]: "bg-yellow-500",
+    [TaskStatus.RUNNING]: "bg-primary animate-pulse",
   };
 
   return <div className={cn("w-1.5 h-1.5 rounded-full", colors[status] ?? "bg-muted")} />;

@@ -52,7 +52,7 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 
 ## Building and Running
 
-- **Development:** `npm run dev` starts all components concurrently:
+- **Development:** `npm run dev` starts all components concurrently. **Note:** A persistent development server is typically already running in the background and accessible at `http://localhost:5173/`.
   - **Vite (Port 5173)**: Frontend HMR.
   - **SpacetimeDB (Port 3000)**: Backend database.
   - **Node.js (Port 3001)**: Worker and Metadata provider.
@@ -106,19 +106,24 @@ Always use `convertStdbToPb` (from `@/utils/pb-client`) to ingest data from Spac
 
 ## Quality & Development Workflow
 
-To maintain high code quality and prevent regressions, follow this iterative process for every feature or bug fix:
+### 1. Design Principles
+- **Fail-Fast & No Fallbacks**: For "impossible" or unsupported scenarios (e.g., missing metadata mappings, invalid Protobuf states, unsupported render modes), **prohibit any silent fallback logic**. Throw explicit `Error` objects immediately with clear descriptions. If a component or handler cannot fulfill its contract, it must fail loud to prevent data corruption or UI inconsistency.
+- **Static-Type Friendly**: Leverage Protobuf v2 `$typeName` fields for native type narrowing. Use `switch (input.$typeName)` for mutations and signals to enable native TypeScript exhaustiveness checking and auto-completion. Minimize `as any`. Perform generic operations through type guards or the schema registry (`SCHEMA_MAP`).
+- **Contract-First Logic**: UI components and stores must consume generated Protobuf types directly, ensuring that any schema changes are caught during the compilation phase.
 
+### 2. Iterative Development Process
+Follow this process for every feature or bug fix:
 1.  **Analyze & Reproduce:** Understand the requirement or bug.
 2.  **Write Tests First (or during):** Create a test file in `__tests__/` that explicitly describes the **Problem** and the **Requirement** in a header comment.
-3.  **Implement Fix:** Code the solution.
-4.  **One-Click Verification:** Run `npm run verify` to execute the full pipeline:
-    - `lint:fix`: Auto-fix linting issues (Excludes `src/components/ui` and `src/components/ai-elements` from mandatory manual refactoring).
-    - `test`: Run all unit and integration tests.
-    - `build`: Perform type-checking (`tsc`) and production build.
-    - `format`: Finalize code formatting.
-5.  **Debugging Tests:** To debug tests using the Gemini CLI `node-debugger` tool:
-    - **Step 1:** Start the test in the background using `run_shell_command`:
-      `node node_modules/vitest/vitest.mjs --inspect-brk=9229 --no-file-parallelism run <path_to_test> &`
-    - **Step 2:** Attach to the worker's debug port using `attach_debugger` (usually port `9229` as specified in the command).
-      _Note: Using `start_node_process` on the CLI directly causes a "double-pause" (once for the CLI, once for the worker). Using the shell to start the worker directly is more efficient._
-6.  **Commit:** Ensure the test remains as a permanent artifact to prevent future regressions.
+3.  **Implement Fix:** Code the solution following the design principles above.
+4.  **Verification**:
+    - **Primary (dev:build)**: Use `npm run dev:build` (lint + tsc) as the standard feedback loop during development.
+    - **Full Pipeline (verify)**: Run `npm run verify` only when explicitly requested or during final pre-release audits.
+5.  **Commit:** Ensure the test remains as a permanent artifact to prevent future regressions.
+
+### 3. Debugging Tests
+To debug tests using the Gemini CLI `node-debugger` tool:
+- **Step 1:** Start the test in the background using `run_shell_command`:
+  `node node_modules/vitest/vitest.mjs --inspect-brk=9229 --no-file-parallelism run <path_to_test> &`
+- **Step 2:** Attach to the worker's debug port using `attach_debugger` (usually port `9229` as specified in the command).
+  _Note: Using the shell to start the worker directly is more efficient than using `start_node_process`._

@@ -1,10 +1,16 @@
 import { create } from "zustand";
 
+export enum NotificationType {
+  ERROR = "error",
+  INFO = "info",
+  SUCCESS = "success",
+}
+
 export interface Notification {
   id: number;
   message: string;
   timestamp: Date;
-  type: "error" | "info" | "success";
+  type: NotificationType;
 }
 
 interface NotificationState {

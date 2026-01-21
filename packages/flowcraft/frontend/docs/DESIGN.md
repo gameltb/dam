@@ -50,18 +50,20 @@ The system implements a strict, semantic port system.
 
 ## Communication & State
 
-### Unified Protocol (Protobuf)
+### Unified Protocol (Protobuf v2)
 
-The frontend communicates with the backend via a single unified "Envelope" protocol (`FlowMessage`):
+The system utilizes a pure generic and type-guarded architecture based on Protobuf v2:
 
-- **Incremental Mutations**: Updates are sent as atomic operations (`addNode`, `updateNode`, `removeNode`, `addEdge`).
-- **State Hydration**: Uses `nodeUtils.ts` to re-attach complex client-side behavior to raw Protobuf data objects.
+- **Direct Message Passing**: Instead of wrapping every operation in a generic "Envelope", the frontend dispatches raw Request messages (e.g., `AddNodeRequest`, `UpdateNodeRequest`) directly to the store and backend.
+- **Hierarchical Packages**: All Protobuf definitions are organized into hierarchical namespaces (e.g., `flowcraft.v1.core`, `flowcraft.v1.services`), ensuring a scalable and collision-free schema.
+- **Type Narrowing**: Uses native TypeScript Discriminated Unions via the Protobuf `$typeName` field. Reducers and handlers use `switch (input.$typeName)` for efficient, type-safe processing without redundant casting.
 
 ### State Management & Synchronization
 
-- **`flowStore` (Zustand + SpacetimeDB)**: The central store that manages the UI state (React Flow nodes/edges).
-  - **SpacetimeDB** serves as the Source of Truth for the graph and task status.
-  - The store uses `applyMutations` to push local changes to SpacetimeDB and handles differential updates from the database.
+- **`flowStore` (Zustand + SpacetimeDB)**: The central store managing UI state.
+  - **SpacetimeDB** is the authoritative Source of Truth for Nodes, Edges, and Tasks.
+  - **Atomic Mutations**: Local changes are applied via `applyMutations`, which routes requests through a middleware pipeline (logging, validation) before updating local state and dispatching to SpacetimeDB.
+  - **Fail-Fast Policy**: Any inconsistency in metadata mappings or illegal Protobuf states results in immediate explicit errors to prevent silent data corruption.
 - **Event Bus**: Centralized event bus in `flowStore` for signals like `open-preview` or `open-editor`. **All event names must be defined in a centralized Enum.** Uses a `timestamp` approach to prevent cascading renders in React 19.
 
 ### Task System & Optimistic UI

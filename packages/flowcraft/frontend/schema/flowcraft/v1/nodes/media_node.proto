@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package flowcraft_proto.v1;
+package flowcraft.v1.nodes;
 
 message VisualNodeState {
   string url = 1;

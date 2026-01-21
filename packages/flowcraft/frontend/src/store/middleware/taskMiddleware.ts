@@ -1,13 +1,15 @@
+import { create, toJsonString } from "@bufbuild/protobuf";
 import { v4 as uuidv4 } from "uuid";
 
 import { MutationSource } from "@/generated/flowcraft/v1/core/base_pb";
+import { getSchemaForMessage } from "@/utils/schemaRegistry";
 
 import { useTaskStore } from "../taskStore";
 import { type GraphMiddleware, type GraphMutationEvent } from "./types";
 
 /**
  * TaskMiddleware
- * 负责记录变更到任务日志中，并确保关联的任务存在
+ * 负责记录变更到任务日志中（以 JSON 文本形式）
  */
 export const taskMiddleware: GraphMiddleware = (event: GraphMutationEvent, next) => {
   const { context, mutations } = event;
@@ -23,18 +25,36 @@ export const taskMiddleware: GraphMiddleware = (event: GraphMutationEvent, next)
     });
   }
 
-  // 2. 添加变更日志
+  // 2. 将 MutationInput 列表转为 JSON 字符串
+  const mutationsJson = JSON.stringify(
+    mutations.map((m) => {
+      const schema = getSchemaForMessage(m.$typeName);
+      if (schema) {
+        try {
+          // 防御性：确保 m 是一个真正的 Message 实例
+          const msg = create(schema, m);
+          return JSON.parse(toJsonString(schema, msg));
+        } catch (e) {
+          console.error(`[TaskMiddleware] Failed to serialize mutation ${m.$typeName}:`, e);
+          return { error: "Serialization failed", type: m.$typeName };
+        }
+      }
+      return m; // 非 PB 消息回退
+    }),
+  );
+
+  // 3. 添加变更日志
   const logId = uuidv4();
   useTaskStore.getState().addMutationLog({
     description: context.description ?? "Graph updated",
     id: logId,
-    mutations,
+    mutationsJson,
     source: source,
     taskId,
     timestamp: Date.now(),
   });
 
-  // 3. 将日志链接到任务
+  // 4. 将日志链接到任务
   useTaskStore.getState().linkMutationToTask(taskId, logId);
 
   next(event);

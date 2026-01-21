@@ -1,7 +1,7 @@
-import { create, type MessageShape } from "@bufbuild/protobuf";
+import { create } from "@bufbuild/protobuf";
 import { type Edge } from "@xyflow/react";
 
-import { NodeKind, PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
+import { NodeKind, PositionSchema, PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import {
   EdgeSchema,
   NodeDataSchema,
@@ -11,6 +11,14 @@ import {
   type NodeData as ProtoNodeData,
 } from "@/generated/flowcraft/v1/core/node_pb";
 import { type AppNode, AppNodeType, type DynamicNodeData } from "@/types";
+
+import { getConstraintsForTemplate } from "./nodeRegistry";
+
+const KIND_MAPPING: Record<string, NodeKind> = {
+  [AppNodeType.DYNAMIC]: NodeKind.DYNAMIC,
+  [AppNodeType.GROUP]: NodeKind.GROUP,
+  [AppNodeType.PROCESSING]: NodeKind.PROCESS,
+};
 
 export function appEdgeToProto(edge: Edge): ProtoEdge {
   return create(EdgeSchema, {
@@ -28,51 +36,53 @@ export function appEdgeToProto(edge: Edge): ProtoEdge {
  */
 export function appNodeDataToProto(data?: DynamicNodeData): ProtoNodeData {
   if (!data) return create(NodeDataSchema, {});
-
-  // Defense against non-primitive values in enum fields that can cause serialization errors
-  const cleanedData = { ...data };
-  if (Array.isArray(cleanedData.availableModes)) {
-    cleanedData.availableModes = cleanedData.availableModes.map((m: any) => {
-      if (typeof m === "object" && m !== null) {
-        return typeof m.mode === "number" ? m.mode : (Number(m) || 0);
-      }
-      return typeof m === "number" ? m : (Number(m) || 0);
-    });
-  }
-  if (typeof cleanedData.activeMode === "object" && cleanedData.activeMode !== null) {
-    const m = cleanedData.activeMode as any;
-    cleanedData.activeMode = typeof m.mode === "number" ? m.mode : (Number(m) || 0);
-  }
-
-  return create(NodeDataSchema, cleanedData as unknown as MessageShape<typeof NodeDataSchema>);
+  return create(NodeDataSchema, data as any);
 }
 
 /**
  * Converts a client AppNode to a Protobuf Node message.
  */
 export function appNodeToProto(node: AppNode): ProtoNode {
+  const templateId = (node.data as any).templateId || "unknown";
+  const constraints = getConstraintsForTemplate(templateId);
+
+  const getDimension = (dim: "height" | "width"): number => {
+    let val = 0;
+    if (node.measured?.[dim] !== undefined && node.measured[dim] > 0) val = node.measured[dim]!;
+    else if (node[dim] !== undefined && node[dim] > 0) val = node[dim];
+    else {
+      const styleVal = node.style?.[dim];
+      if (typeof styleVal === "number") val = styleVal;
+      else if (typeof styleVal === "string") {
+        const parsed = parseFloat(styleVal);
+        val = isNaN(parsed) ? 0 : parsed;
+      }
+    }
+
+    const minVal = dim === "width" ? constraints.minWidth : constraints.minHeight;
+    return minVal ? Math.max(val, minVal) : val;
+  };
+
   const presentation = create(PresentationSchema, {
-    height: node.measured?.height ?? 0,
+    height: getDimension("height"),
     isInitialized: true,
+    isSelected: !!node.selected,
     parentId: node.parentId ?? "",
-    position: node.position,
-    width: node.measured?.width ?? 0,
+    position: create(PositionSchema, {
+      x: isNaN(node.position.x) ? 0 : node.position.x,
+      y: isNaN(node.position.y) ? 0 : node.position.y,
+    }),
+    width: getDimension("width"),
   });
 
-  const nodeKind =
-    node.type === AppNodeType.GROUP
-      ? NodeKind.GROUP
-      : node.type === AppNodeType.PROCESSING
-        ? NodeKind.PROCESS
-        : NodeKind.DYNAMIC;
+  const nodeKind = KIND_MAPPING[node.type || ""] ?? NodeKind.DYNAMIC;
 
   return create(NodeSchema, {
-    isSelected: !!node.selected,
     nodeId: node.id,
     nodeKind,
     presentation,
     state: node.type === AppNodeType.DYNAMIC ? appNodeDataToProto(node.data as DynamicNodeData) : undefined,
-    templateId: (node.data.templateId as string) ?? "unknown",
+    templateId: (node.data as any).templateId ?? "unknown",
   });
 }
 

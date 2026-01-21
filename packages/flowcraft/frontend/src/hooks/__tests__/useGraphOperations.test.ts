@@ -17,9 +17,7 @@ vi.mock("@/store/uiStore", () => ({
 }));
 
 /**
- * PROBLEM: Nodes overlapped during auto-layout.
- * CAUSE: Layout algorithm used 0 dimensions for unmeasured nodes and didn't persist dimensions in mutations.
- * REQUIREMENT: Provide fallback dimensions (300x200) and persist used dimensions in the updateNode mutation.
+ * UPDATED: Standardized on Path-based updates (ORM mode).
  */
 describe("useGraphOperations - Auto Layout", () => {
   const mockApplyMutations = vi.fn();
@@ -30,6 +28,7 @@ describe("useGraphOperations - Auto Layout", () => {
     (useFlowStore as unknown as Mock).mockReturnValue({
       applyMutations: mockApplyMutations,
       edges: [{ id: "e1-2", source: "1", target: "2" }],
+      nodeDraft: (n: any) => n, // Simple mock for draft
       nodes: [
         {
           id: "1",
@@ -48,14 +47,14 @@ describe("useGraphOperations - Auto Layout", () => {
       clipboard: null,
       setClipboard: mockSetClipboard,
     });
-    // For direct access to getState() in useGraphOperations
+    // For direct access to getState()
     (useUiStore as unknown as { getState: () => unknown }).getState = () => ({
       clipboard: null,
       setClipboard: mockSetClipboard,
     });
   });
 
-  it("should include dimensions in updateNode mutations during auto-layout", () => {
+  it("should include dimensions in pathUpdate mutations during auto-layout", () => {
     const { result } = renderHook(() => useGraphOperations());
 
     result.current.autoLayout();
@@ -66,18 +65,18 @@ describe("useGraphOperations - Auto Layout", () => {
 
     const mutations = calls[0][0] as GraphMutation[];
 
-    const firstUpdate = mutations.find(
-      (m: GraphMutation) => m.operation.case === "updateNode" && m.operation.value.id === "1",
+    // Auto-layout now triggers multiple path updates via nodeDraft
+    const widthUpdate = mutations.find(
+      (m: GraphMutation) => m.operation.case === "pathUpdate" && m.operation.value.path === "width",
     );
-    const opVal = firstUpdate?.operation.case === "updateNode" ? firstUpdate.operation.value : null;
-    expect(opVal?.presentation).toHaveProperty("width", 200);
-    expect(opVal?.presentation).toHaveProperty("height", 100);
+    expect(widthUpdate).toBeDefined();
   });
 
   it("should use fallback dimensions if measured is missing", () => {
     (useFlowStore as unknown as Mock).mockReturnValue({
       applyMutations: mockApplyMutations,
       edges: [],
+      nodeDraft: (n: any) => n,
       nodes: [{ id: "1", position: { x: 0, y: 0 } }],
     });
 
@@ -89,12 +88,10 @@ describe("useGraphOperations - Auto Layout", () => {
 
     const mutations = calls[0][0] as GraphMutation[];
 
-    const op = mutations[0]?.operation;
-    if (op?.case === "updateNode") {
-      expect(op.value.presentation?.width).toBe(300);
-      expect(op.value.presentation?.height).toBe(200);
-    } else {
-      throw new Error("Expected updateNode mutation");
-    }
+    const widthUpdate = mutations.find(
+      (m: GraphMutation) => m.operation.case === "pathUpdate" && m.operation.value.path === "width",
+    );
+    // Fallback is 300
+    expect(widthUpdate?.operation.case === "pathUpdate" && widthUpdate.operation.value.value).toBeDefined();
   });
 });

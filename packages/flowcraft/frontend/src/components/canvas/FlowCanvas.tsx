@@ -1,27 +1,31 @@
-import type {
-  ColorMode,
-  OnConnect,
-  OnConnectEnd,
-  OnConnectStart,
-  OnEdgesChange,
-  OnMoveEnd,
-  OnNodesChange,
-  ReactFlowInstance,
-  Edge as RFEdge,
+import {
+  Background,
+  BackgroundVariant,
+  type ColorMode,
+  Controls,
+  MiniMap,
+  type OnConnect,
+  type OnConnectEnd,
+  type OnConnectStart,
+  type OnEdgesChange,
+  type OnMoveEnd,
+  type OnNodesChange,
+  ReactFlow,
+  type ReactFlowInstance,
+  type Edge as RFEdge,
+  SelectionMode,
 } from "@xyflow/react";
-
-import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, SelectionMode } from "@xyflow/react";
 import React from "react";
 
 import { defaultEdgeOptions, edgeTypes, nodeTypes, snapGrid } from "@/flowConfig";
 import { type HelperLines } from "@/hooks/useHelperLines";
-import { type AppNode } from "@/types";
+import { type AppNode, DragMode, Theme } from "@/types";
 
 import { HelperLinesRenderer } from "../HelperLinesRenderer";
 import { Notifications } from "../Notifications";
 
 interface FlowCanvasProps {
-  dragMode: "pan" | "select";
+  dragMode: DragMode;
   edges: RFEdge[];
   helperLines: HelperLines;
   nodes: AppNode[];
@@ -38,17 +42,18 @@ interface FlowCanvasProps {
   onNodesChange: OnNodesChange<AppNode>;
   onPaneContextMenu: (e: MouseEvent | React.MouseEvent) => void;
   onSelectionContextMenu: (e: React.MouseEvent, nodes: AppNode[]) => void;
-  theme: string;
+  theme: Theme;
 }
 
 export const FlowCanvas: React.FC<FlowCanvasProps> = (props) => {
   return (
-    <ReactFlow
+    <ReactFlow<AppNode>
       colorMode={props.theme as ColorMode}
       defaultEdgeOptions={defaultEdgeOptions}
       edges={props.edges}
       edgeTypes={edgeTypes}
-      fitView
+      maxZoom={2.5}
+      minZoom={0.1}
       nodes={props.nodes}
       nodeTypes={nodeTypes}
       onConnect={props.onConnect}
@@ -64,12 +69,14 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = (props) => {
       onNodesChange={props.onNodesChange}
       onPaneContextMenu={props.onPaneContextMenu}
       onSelectionContextMenu={props.onSelectionContextMenu}
-      panOnDrag={props.dragMode === "pan" ? [0, 1] : [1]}
+      panOnDrag={props.dragMode === DragMode.PAN ? [0, 1] : [1]}
       selectionMode={SelectionMode.Partial}
-      selectionOnDrag={props.dragMode === "select"}
+      selectionOnDrag={props.dragMode === DragMode.SELECT}
       selectNodesOnDrag={false}
       snapGrid={snapGrid}
       snapToGrid={false}
+      zoomOnPinch={true}
+      zoomOnScroll={true}
     >
       <Background gap={15} size={1} variant={BackgroundVariant.Dots} />
       <Controls />

@@ -1,14 +1,69 @@
 import { type ReducerCtx, t } from "spacetimedb/server";
 
 import { ViewportSchema } from "../generated/flowcraft/v1/core/base_pb";
-import { Viewport as ProtoViewport } from "../generated/flowcraft/v1/core/base_pb";
-import { Edge as ProtoEdge, Node as ProtoNode } from "../generated/flowcraft/v1/core/node_pb";
+import type { Viewport as ProtoViewport } from "../generated/flowcraft/v1/core/base_pb";
 import { EdgeSchema, NodeSchema } from "../generated/flowcraft/v1/core/node_pb";
-import { Edge as StdbEdge, Node as StdbNode, Viewport as StdbViewport } from "../generated/generated_schema";
+import type { Edge as ProtoEdge, Node as ProtoNode } from "../generated/flowcraft/v1/core/node_pb";
+import { 
+  ReparentNodeRequestSchema as ServiceReparentSchema,
+  PathUpdateRequestSchema,
+} from "../generated/flowcraft/v1/core/service_pb";
+import type { 
+  ReparentNodeRequest as ProtoReparent,
+  PathUpdateRequest as ProtoPathUpdate,
+} from "../generated/flowcraft/v1/core/service_pb";
+import { core_Edge as StdbEdge, core_Node as StdbNode, core_Viewport as StdbViewport } from "../generated/generated_schema";
 import { pbToStdb } from "../generated/proto-stdb-bridge";
+import { applyPathToObj, unwrapPbValue } from "../utils/path-utils";
+import { validateValueByPath } from "../utils/type-validator";
 import { type AppSchema } from "../schema";
 
 export const nodeReducers = {
+  /**
+   * 核心：增量路径更新 Reducer
+   */
+  path_update_pb: {
+    args: { req: PathUpdateRequestSchema },
+    handler: (ctx: ReducerCtx<AppSchema>, { req }: { req: ProtoPathUpdate }) => {
+      const nodeRow = ctx.db.nodes.nodeId.find(req.targetId);
+      if (nodeRow) {
+        const updated = { ...nodeRow };
+        const pathParts = req.path.split('.');
+        
+        // 1. 校验路径与类型
+        validateValueByPath(NodeSchema, pathParts, req.value);
+
+        // 2. 解包
+        const realValue = unwrapPbValue(req.value);
+
+        // 3. 应用补丁 (Zero-Mapping: 路径直接对齐)
+        updated.state = applyPathToObj(updated.state, pathParts, realValue, req.type, NodeSchema);
+
+        // 4. 持久化
+        ctx.db.nodes.nodeId.update(updated);
+      }
+    },
+  },
+
+  reparent_node_pb: {
+    args: { req: ServiceReparentSchema },
+    handler: (ctx: ReducerCtx<AppSchema>, { req }: { req: ProtoReparent }) => {
+      const nodeRow = ctx.db.nodes.nodeId.find(req.nodeId);
+      if (nodeRow) {
+        const updated = { ...nodeRow };
+        const state = updated.state;
+        if (state.presentation) {
+          state.presentation.parentId = req.newParentId;
+          if (req.newPosition && state.presentation.position) {
+            state.presentation.position.x = req.newPosition.x;
+            state.presentation.position.y = req.newPosition.y;
+          }
+        }
+        ctx.db.nodes.nodeId.update(updated);
+      }
+    },
+  },
+
   add_edge_pb: {
     args: { edge: EdgeSchema },
     handler: (ctx: ReducerCtx<AppSchema>, { edge }: { edge: ProtoEdge }) => {
@@ -29,22 +84,6 @@ export const nodeReducers = {
     },
   },
 
-  move_node: {
-    args: { id: t.string(), x: t.f64(), y: t.f64() },
-    handler: (ctx: ReducerCtx<AppSchema>, { id, x, y }: { id: string; x: number; y: number }) => {
-      const nodeRow = ctx.db.nodes.nodeId.find(id);
-      if (nodeRow?.state.presentation?.position) {
-        const updated = { ...nodeRow };
-        const presentation = updated.state.presentation;
-        if (presentation?.position) {
-          presentation.position.x = x;
-          presentation.position.y = y;
-          ctx.db.nodes.nodeId.update(updated);
-        }
-      }
-    },
-  },
-
   remove_edge: {
     args: { id: t.string() },
     handler: (ctx: ReducerCtx<AppSchema>, { id }: { id: string }) => {
@@ -56,7 +95,6 @@ export const nodeReducers = {
     args: { id: t.string() },
     handler: (ctx: ReducerCtx<AppSchema>, { id }: { id: string }) => {
       ctx.db.nodes.nodeId.delete(id);
-      // Clean up connected edges
       const edges = [...ctx.db.edges.iter()];
       for (const edge of edges) {
         const edgeState = edge.state;
@@ -67,25 +105,9 @@ export const nodeReducers = {
     },
   },
 
-  update_node_pb: {
-    args: { node: NodeSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { node }: { node: ProtoNode }) => {
-      const existing = ctx.db.nodes.nodeId.find(node.nodeId);
-      if (existing) {
-        ctx.db.nodes.nodeId.update({
-          nodeId: node.nodeId,
-          state: pbToStdb(NodeSchema, StdbNode, node) as StdbNode,
-        });
-      }
-    },
-  },
-
   update_viewport: {
     args: { id: t.string(), viewport: ViewportSchema },
-    handler: (
-      ctx: ReducerCtx<AppSchema>,
-      { id, viewport }: { id: string; viewport: ProtoViewport },
-    ) => {
+    handler: (ctx: ReducerCtx<AppSchema>, { id, viewport }: { id: string; viewport: ProtoViewport }) => {
       const existing = ctx.db.viewportState.id.find(id);
       if (existing) {
         ctx.db.viewportState.id.update({
@@ -97,22 +119,6 @@ export const nodeReducers = {
           id,
           state: pbToStdb(ViewportSchema, StdbViewport, viewport) as StdbViewport,
         });
-      }
-    },
-  },
-
-  update_widget_value: {
-    args: { nodeId: t.string(), value: t.string(), widgetId: t.string() },
-    handler: (
-      ctx: ReducerCtx<AppSchema>,
-      { nodeId, value, widgetId }: { nodeId: string; value: string; widgetId: string },
-    ) => {
-      const id = `${nodeId}_${widgetId}`;
-      const existing = ctx.db.widgetValues.id.find(id);
-      if (existing) {
-        ctx.db.widgetValues.id.update({ id, nodeId, value, widgetId });
-      } else {
-        ctx.db.widgetValues.insert({ id, nodeId, value, widgetId });
       }
     },
   },

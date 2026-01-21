@@ -1,5 +1,6 @@
 import { type ActionExecutionRequest, type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
-import { type NodeTemplate, type TaskUpdate } from "@/generated/flowcraft/v1/core/node_pb";
+import { type TaskUpdate } from "@/generated/flowcraft/v1/core/kernel_pb";
+import { type NodeTemplate } from "@/generated/flowcraft/v1/core/node_pb";
 import { type MutationList, type NodeEvent } from "@/generated/flowcraft/v1/core/service_pb";
 import { type NodeSignal } from "@/generated/flowcraft/v1/core/signals_pb";
 import { type AppNode } from "@/types";

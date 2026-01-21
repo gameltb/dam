@@ -9,13 +9,13 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
-import ChatMessage from "./chat_message_type";
+import ServicesChatMessage from "./services_chat_message_type";
 
 
 export default __t.object("ChatMessages", {
   id: __t.string(),
   get state() {
-    return ChatMessage;
+    return ServicesChatMessage;
   },
 });
 

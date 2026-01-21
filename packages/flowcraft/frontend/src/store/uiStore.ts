@@ -26,10 +26,12 @@ export interface UISettings {
 
 interface UIState {
   activeChatNodeId: null | string;
+  activeScopeId: null | string; // null represents the root canvas
   addLocalClient: (client: Omit<LocalLLMClientConfig, "id">) => void;
-  chatViewMode: ChatViewMode;
 
+  chatViewMode: ChatViewMode;
   clipboard: null | { edges: Edge[]; nodes: AppNode[] };
+
   connectionStartHandle: null | {
     handleId: string;
     itemType: string;
@@ -38,13 +40,18 @@ interface UIState {
     type: string;
   };
   dragMode: DragMode;
+
+  getViewportForScope: (scopeId: null | string) => null | { x: number; y: number; zoom: number };
   isChatFullscreen: boolean;
   // Transient state
   isSettingsOpen: boolean;
   isSidebarOpen: boolean;
   removeLocalClient: (id: string) => void;
+  saveViewportForScope: (scopeId: null | string, viewport: { x: number; y: number; zoom: number }) => void;
+  scopedViewports: Record<string, { x: number; y: number; zoom: number }>;
   setActiveChat: (nodeId: null | string, mode?: ChatViewMode) => void;
   setActiveLocalClient: (id: null | string) => void;
+  setActiveScope: (id: null | string) => void;
   setChatFullscreen: (fullscreen: boolean) => void;
 
   setClipboard: (content: null | { edges: Edge[]; nodes: AppNode[] }) => void;
@@ -99,6 +106,7 @@ export const useUiStore = create<UIState>()(
   persist(
     (set, get) => ({
       activeChatNodeId: null,
+      activeScopeId: null,
       addLocalClient: (client) => {
         const id = crypto.randomUUID();
         set((state) => ({
@@ -112,6 +120,7 @@ export const useUiStore = create<UIState>()(
       clipboard: null,
       connectionStartHandle: null,
       dragMode: DragMode.SELECT,
+      getViewportForScope: (scopeId) => get().scopedViewports[scopeId ?? "root"] || null,
       isChatFullscreen: false,
       isSettingsOpen: false,
       isSidebarOpen: false,
@@ -124,6 +133,14 @@ export const useUiStore = create<UIState>()(
           },
         }));
       },
+      saveViewportForScope: (scopeId, viewport) =>
+        set((state) => ({
+          scopedViewports: {
+            ...state.scopedViewports,
+            [scopeId ?? "root"]: viewport,
+          },
+        })),
+      scopedViewports: {},
       setActiveChat: (nodeId, mode = ChatViewMode.SIDEBAR) =>
         set({
           activeChatNodeId: nodeId,
@@ -136,6 +153,7 @@ export const useUiStore = create<UIState>()(
           settings: { ...state.settings, activeLocalClientId: id },
         }));
       },
+      setActiveScope: (id) => set({ activeScopeId: id }),
       setChatFullscreen: (fullscreen) => set({ isChatFullscreen: fullscreen }),
       setClipboard: (content) => set({ clipboard: content }),
 
@@ -176,37 +194,12 @@ export const useUiStore = create<UIState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.shortcuts = state.settings.hotkeys;
-
-          // Migration for old localLLM settings
-          const settings = state.settings as UISettings & {
-            localLLM?: {
-              apiKey: string;
-              baseUrl: string;
-              enabled: boolean;
-              model: string;
-            };
-          };
-          if (settings.localLLM) {
-            if (
-              settings.localLLM.enabled &&
-              state.settings.localClients.length === 1 &&
-              state.settings.localClients[0]?.id === "default-local"
-            ) {
-              state.settings.localClients[0] = {
-                apiKey: settings.localLLM.apiKey,
-                baseUrl: settings.localLLM.baseUrl,
-                id: "default-local",
-                model: settings.localLLM.model,
-                name: "Imported Local",
-              };
-              state.settings.activeLocalClientId = "default-local";
-            }
-            delete settings.localLLM;
-          }
         }
       },
       partialize: (state) => ({
+        activeScopeId: state.activeScopeId,
         dragMode: state.dragMode,
+        scopedViewports: state.scopedViewports,
         settings: state.settings,
       }),
       storage: createJSONStorage(() => localStorage),

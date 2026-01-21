@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package flowcraft.v1.core;
+
+import "google/protobuf/struct.proto";
+
+enum TaskStatus {
+  TASK_STATUS_PENDING = 0;
+  TASK_STATUS_CLAIMED = 1;
+  TASK_STATUS_RUNNING = 2;
+  TASK_STATUS_COMPLETED = 3;
+  TASK_STATUS_FAILED = 4;
+  TASK_STATUS_CANCELLED = 5;
+}
+
+message TaskUpdate {
+  string task_id = 1;
+  TaskStatus status = 2;
+  double progress = 3;
+  string message = 4;
+  google.protobuf.Value result = 5;
+  string node_id = 6;
+  string display_label = 7;
+  string type = 8;
+}
+
+message NodeRuntimeState {
+  string node_id = 1;
+  string status = 2; // "idle" | "busy" | "error"
+  uint32 progress = 3;
+  string message = 4;
+  string error = 5;
+  uint64 last_updated = 6;
+  string active_user_id = 7;
+}
+
+enum WorkerLanguage {
+  WORKER_LANG_TS = 0;
+  WORKER_LANG_PYTHON = 1;
+  WORKER_LANG_RUST = 2;
+}
+
+message WorkerSelector {
+  string required_capability = 1;
+  string preferred_worker_id = 2;
+  map<string, string> match_tags = 3;
+}
+
+message TaskDefinition {
+  string task_id = 1;
+  string node_id = 2;
+  string task_type = 3;
+  bytes params_payload = 4;
+  WorkerSelector selector = 5;
+  int64 created_at = 6;
+}
+
+message WorkerInfo {
+  string worker_id = 1;
+  WorkerLanguage lang = 2;
+  repeated string capabilities = 3;
+  map<string, string> tags = 4;
+  int64 last_heartbeat = 5;
+}
+
+message TaskAuditLog {
+  string id = 1;
+  string task_id = 2;
+  string node_id = 3;
+  string event_type = 4; // "error", "info", "retry"
+  string message = 5;
+  int64 timestamp = 6;
+}

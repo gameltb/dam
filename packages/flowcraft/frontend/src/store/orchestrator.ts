@@ -11,6 +11,5 @@ export function initStoreOrchestrator() {
   // Initialize Mutation Pipeline
   pipeline.clear().use(taskMiddleware);
 
-  // Currently, most cross-store sync is handled via Middlewares in flowStore.ts
-  // You can add non-mutation related listeners here (e.g., UI specific triggers)
+  return pipeline;
 }

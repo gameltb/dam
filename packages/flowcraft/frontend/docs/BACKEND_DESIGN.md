@@ -13,34 +13,29 @@ The frontend communicates with this mock service via an in-memory `routerTranspo
 
 ## State Management
 
-The "Server" state is held in `src/mocks/db.ts`:
+SpacetimeDB serves as the primary Source of Truth for the application state:
 
-- `serverGraph`: Stores the list of nodes, edges, and the current viewport.
-- `serverVersion`: A monotonic counter used for conflict detection and version matching.
+- **Tables**: Managed via `spacetime-module/src/tables/`, using Protobuf-derived schemas.
+- **Persistence**: Real-time synchronization between the Node.js worker and the React frontend.
 
 ## Protocol & Implementation
 
-### 1. FlowService Implementation
+### 1. Direct Message Reducers
 
-The core logic is implemented in `src/mocks/flowServiceImpl.ts`. This implementation handles:
+The backend implementation uses direct Reducers for individual operations, eliminating the need for complex multiplexing:
 
-- **watchGraph**: A server-streaming RPC that sends an initial snapshot and then streams incremental mutations, task updates, and widget signals.
-- **applyMutations**: Pushes graph changes from the client to the server.
-- **executeAction**: Triggers long-running background tasks.
-- **updateNode/updateWidget**: Specialized mutations for frequent updates.
+- **createNodePb**: Handles atomic node creation.
+- **updateNodePb**: Handles differential updates to node state or presentation.
+- **addEdgePb**: Manages connection establishment.
+- **executeAction**: Dispatches tasks to the worker pool.
 
-### 2. Event Bus (`mockEventBus.ts`)
+### 2. Protobuf Schema
 
-Since multiple RPC calls (like `applyMutations` and `watchGraph`) need to coordinate, a central `mockEventBus` is used to broadcast events within the mock backend environment.
+All data structures are strictly defined in `schema/flowcraft/v1/` using hierarchical packages:
 
-### 3. Protobuf Schema (`schema/`)
-
-All data structures are strictly defined in `.proto` files.
-Key Definitions:
-
-- `FlowService`: The service definition with all RPC methods.
-- `NodeSchema`: The schema-driven definition of a node's capabilities.
-- `GraphMutation`: Atomic operations for graph synchronization.
+- `flowcraft.v1.core`: Fundamental types (Node, Edge, Port).
+- `flowcraft.v1.services`: Service definitions and Request/Response messages.
+- `flowcraft.v1.nodes`: Domain-specific node states (Chat, Media).
 
 ## Node Definitions (JSON/Proto)
 

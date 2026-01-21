@@ -1,8 +1,8 @@
-import { create } from "@bufbuild/protobuf";
+import { create as createProto } from "@bufbuild/protobuf";
 import { beforeEach, describe, expect, it } from "vitest";
 import { beforeAll } from "vitest";
 
-import { GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
+import { ClearGraphRequestSchema } from "@/generated/flowcraft/v1/core/service_pb";
 import { MutationSource, TaskStatus } from "@/types";
 
 import { useFlowStore } from "../flowStore";
@@ -32,14 +32,7 @@ describe("Task Traceability", () => {
     });
 
     // 2. Apply mutations with task context
-    const mutations = [
-      create(GraphMutationSchema, {
-        operation: {
-          case: "clearGraph",
-          value: {},
-        },
-      }),
-    ];
+    const mutations = [createProto(ClearGraphRequestSchema, {})];
 
     flowStore.applyMutations(mutations, {
       description: "AI result applied",
@@ -53,6 +46,10 @@ describe("Task Traceability", () => {
     expect(logs[0]?.taskId).toBe(taskId);
     expect(logs[0]?.source).toBe(MutationSource.SOURCE_REMOTE_TASK);
 
+    // 验证 JSON 文本
+    expect(typeof logs[0]?.mutationsJson).toBe("string");
+    expect(logs[0]?.mutationsJson).toContain("ClearGraphRequest");
+
     const task = useTaskStore.getState().tasks[taskId];
     expect(task?.mutationIds.length).toBe(1);
     expect(task?.mutationIds[0]).toBe(logs[0]?.id);
@@ -61,14 +58,7 @@ describe("Task Traceability", () => {
   it("should record user-initiated actions as anonymous logs if no taskId", () => {
     const flowStore = useFlowStore.getState();
 
-    flowStore.applyMutations(
-      [
-        create(GraphMutationSchema, {
-          operation: { case: "clearGraph", value: {} },
-        }),
-      ],
-      { description: "User cleared canvas" },
-    );
+    flowStore.applyMutations([createProto(ClearGraphRequestSchema, {})], { description: "User cleared canvas" });
 
     const logs = useTaskStore.getState().mutationLogs;
     expect(logs.length).toBe(1);
@@ -86,9 +76,9 @@ describe("Task Traceability", () => {
     store.registerTask({ label: "Test", taskId });
     store.updateTask(taskId, {
       progress: 100,
-      status: TaskStatus.TASK_COMPLETED,
+      status: TaskStatus.COMPLETED,
     });
 
-    expect(useTaskStore.getState().tasks[taskId]?.status).toBe(TaskStatus.TASK_COMPLETED);
+    expect(useTaskStore.getState().tasks[taskId]?.status).toBe(TaskStatus.COMPLETED);
   });
 });

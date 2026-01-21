@@ -1,4 +1,4 @@
-import { TaskStatus } from "@/generated/flowcraft/v1/core/node_pb";
+import { TaskStatus } from "@/generated/flowcraft/v1/core/kernel_pb";
 
 import { BaseInstance } from "./BaseInstance";
 import { syncToDB } from "./PersistenceService";
@@ -7,7 +7,7 @@ export abstract class NodeInstance extends BaseInstance {
   abstract handleSignal(payload: unknown): Promise<void>;
 
   async start(params: unknown): Promise<void> {
-    this.updateStatus(TaskStatus.TASK_PROCESSING, "Node instance active");
+    this.updateStatus(TaskStatus.RUNNING, "Node instance active");
     await this.onReady(params);
   }
   protected flushPersistence(): void {

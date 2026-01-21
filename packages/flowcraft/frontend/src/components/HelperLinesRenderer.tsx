@@ -15,7 +15,12 @@ interface HelperLinesRendererProps {
 export const HelperLinesRenderer: React.FC<HelperLinesRendererProps> = ({ lines }) => {
   // Access the current viewport transform directly from the store
   const transform = useStore((s) => s.transform);
-  const [tx, ty, zoom] = transform;
+  let [tx, ty, zoom] = transform;
+
+  // Defensive checks for NaN in transform
+  if (isNaN(tx)) tx = 0;
+  if (isNaN(ty)) ty = 0;
+  if (isNaN(zoom)) zoom = 1;
 
   return (
     <svg

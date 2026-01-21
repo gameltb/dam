@@ -1,73 +1,43 @@
-import { toBinary as pbToBinary, type MessageShape, type DescMessage } from "@bufbuild/protobuf";
+import { create, type DescMessage, type MessageShape, toBinary as pbToBinary } from "@bufbuild/protobuf";
 import { type GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { stdbToPb } from "./proto-stdb-bridge";
 
-/**
- * 类型工具：将参数对象中的特定字段替换为 PB 消息类型
- */
-export type TransformPbParams<P, PbMapping> = {
-  [K in keyof P]: K extends keyof PbMapping 
-    ? (PbMapping[K] extends { schema: GenMessage<infer S> } 
-        ? (S extends DescMessage ? MessageShape<S> : any) 
-        : any)
-    : P[K];
-};
+import { stdbToPb } from "./proto-stdb-bridge";
 
 /**
  * 类型工具：基于元数据映射生成 PB 增强版 Reducers 类型
  */
 export type PbReducersProjection<R, M> = {
   [K in keyof R]: R[K] extends (params: infer P) => void
-    ? (params: TransformPbParams<P, K extends keyof M ? M[K] : {}>) => void
+    ? (params: TransformPbParams<P, K extends keyof M ? M[K] : Record<string, never>>) => void
     : R[K];
 };
 
 /**
- * 创建 PB 代理实现逻辑
+ * 类型工具：将参数对象中的特定字段替换为 PB 消息类型
  */
-export function createPbProxy(
-  target: any,
-  pbMetadata: Record<string, Record<string, { schema: any }>>
-) {
-  return new Proxy(target, {
-    get(t, prop: string) {
-      const original = t[prop];
-      if (typeof original !== 'function') return original;
-
-      const fieldMapping = pbMetadata[prop];
-      if (!fieldMapping) return original;
-
-      return (params: any) => {
-        const wrapped = { ...params };
-        for (const [field, meta] of Object.entries(fieldMapping)) {
-          const val = wrapped[field];
-          if (val && typeof val === 'object' && !(val instanceof Uint8Array)) {
-            try {
-              wrapped[field] = pbToBinary(meta.schema as any, val);
-            } catch (e) {
-              console.error(`[PbClient] Serialization failed for ${prop}.${field}:`, e);
-            }
-          }
-        }
-        return original(wrapped);
-      };
-    }
-  });
-}
+export type TransformPbParams<P, PbMapping> = {
+  [K in keyof P]: K extends keyof PbMapping
+    ? PbMapping[K] extends { schema: GenMessage<infer S> }
+      ? S extends DescMessage
+        ? MessageShape<S>
+        : unknown
+      : unknown
+    : P[K];
+};
 
 /**
  * 核心转换工具实现
  * 根据用户调试观察到的结构：rowType.elements[i].name 和 algebraicType
  */
 export function convertStdbToPbInternal(
-  tableName: string, 
-  row: any, 
-  tablesMap: any, 
-  tableToProto: Record<string, { schema: any, field: string }>
+  tableName: string,
+  row: any,
+  tablesMap: any,
+  tableToProto: Record<string, { field: string; schema: any }>,
 ): any {
   const meta = tableToProto[tableName];
   if (!meta) throw new Error("No mapping found for table " + tableName);
-  
+
   const table = tablesMap[tableName];
   if (!table) throw new Error("No table accessor found for " + tableName);
 
@@ -89,6 +59,38 @@ export function convertStdbToPbInternal(
 
   // 使用找到的 colElement.algebraicType 进行转换
   return stdbToPb(meta.schema, colElement.algebraicType, row[meta.field]);
+}
+
+/**
+ * 创建 PB 代理实现逻辑
+ */
+export function createPbProxy(target: any, pbMetadata: Record<string, Record<string, { schema: any }>>) {
+  return new Proxy(target, {
+    get(t, prop: string) {
+      const original = t[prop];
+      if (typeof original !== "function") return original;
+
+      const fieldMapping = pbMetadata[prop];
+      if (!fieldMapping) return original;
+
+      return (params: any) => {
+        const wrapped = { ...params };
+        for (const [field, meta] of Object.entries(fieldMapping)) {
+          const val = wrapped[field];
+          if (val && typeof val === "object" && !(val instanceof Uint8Array)) {
+            try {
+              // Ensure the object is a message instance before serialization
+              const msg = create(meta.schema, val);
+              wrapped[field] = pbToBinary(meta.schema, msg);
+            } catch (e) {
+              console.error(`[PbClient] Serialization failed for ${prop}.${field}:`, e);
+            }
+          }
+        }
+        return original(wrapped);
+      };
+    },
+  });
 }
 
 /**

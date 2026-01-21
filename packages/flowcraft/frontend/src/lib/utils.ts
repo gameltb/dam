@@ -1,9 +1,10 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+/**
+ * Rust-like Result type for explicit error handling.
+ */
+export type Result<T, E = Error> = { error: E; ok: false } | { ok: true; value: T };
 
 /**
  * Ensures exhaustive matching in switch/if-else blocks.
@@ -13,10 +14,9 @@ export function assertNever(x: never): never {
   throw new Error(`Unreachable code reached with value: ${JSON.stringify(x)}`);
 }
 
-/**
- * Rust-like Result type for explicit error handling.
- */
-export type Result<T, E = Error> = { ok: true; value: T } | { ok: false; error: E };
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 export const Ok = <T>(value: T): Result<T, never> => ({ ok: true, value });
-export const Err = <E>(error: E): Result<never, E> => ({ ok: false, error });
+export const Err = <E>(error: E): Result<never, E> => ({ error, ok: false });

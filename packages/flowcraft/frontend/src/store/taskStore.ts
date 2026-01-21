@@ -54,7 +54,7 @@ export const useTaskStore = create<TaskState>((set) => ({
           nodeId: task.nodeId,
           progress: task.progress ?? 0,
           source: task.source ?? MutationSource.SOURCE_SYSTEM,
-          status: task.status ?? TaskStatus.TASK_PENDING,
+          status: task.status ?? TaskStatus.PENDING,
           taskId: task.taskId,
           type: task.type ?? TaskType.UNKNOWN,
           updatedAt: Date.now(),

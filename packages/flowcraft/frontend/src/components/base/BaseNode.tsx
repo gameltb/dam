@@ -1,115 +1,77 @@
-import { type Node as RFNode } from "@xyflow/react";
-import React, { useState } from "react";
+import { AlertCircle, Loader2, RefreshCcw } from "lucide-react";
+import React from "react";
 
-import { RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
+import { useNodeController } from "@/hooks/useNodeController";
 import { cn } from "@/lib/utils";
-import { type DynamicNodeData, OverflowMode } from "@/types";
-import { mapToRenderMode } from "@/utils/nodeUtils";
 
-import { NodeInfoPanel } from "./NodeInfoPanel";
-
-export interface BaseNodeProps<T extends RFNode> {
-  data: T["data"];
-  handles?: React.ReactNode;
-  height?: number;
-  id: string;
-  initialMode?: RenderMode;
-  measured?: { height?: number; width?: number };
-  onOverflowChange?: (overflow: OverflowMode) => void;
-  renderChat?: React.ComponentType<any>;
-  renderMedia?: React.ComponentType<{
-    data: T["data"];
-    id: string;
-    onOverflowChange: (overflow: OverflowMode) => void;
-  }>;
-  renderWidgets?: React.ComponentType<{
-    data: T["data"];
-    id: string;
-    onToggleMode: () => void;
-  }>;
-  selected?: boolean;
+export interface BaseNodeProps {
+  children?: React.ReactNode;
+  className?: string;
+  nodeId?: string; // Optional: enable controller integration
   style?: React.CSSProperties;
-  type?: string;
-  updateNodeData?: (nodeId: string, data: Partial<DynamicNodeData>) => void;
-  width?: number;
-  wrapperStyle?: React.CSSProperties;
-  x?: number;
-  y?: number;
 }
 
-export function BaseNode<T extends RFNode>({
-  data,
-  handles,
-  height,
-  id,
-  initialMode = RenderMode.MODE_WIDGETS,
-  measured,
-  onOverflowChange,
-  renderChat: RenderChat,
-  renderMedia: RenderMedia,
-  renderWidgets: RenderWidgets,
-  selected,
-  type,
-  updateNodeData,
-  width,
-  wrapperStyle,
-  x,
-  y,
-  ...rest
-}: BaseNodeProps<T>) {
-  const [internalMode, setInternalMode] = useState<RenderMode>(initialMode);
-  // Default to visible so handles are never cut off
-  const [overflow, setOverflow] = useState<OverflowMode>(OverflowMode.VISIBLE);
-
-  const mode = mapToRenderMode((data as DynamicNodeData).activeMode ?? internalMode);
-  const isMedia = mode === RenderMode.MODE_MEDIA;
-  const isChat = mode === RenderMode.MODE_CHAT;
-  const nodeType = type ?? "node";
-
-  const toggleMode = () => {
-    const nextMode = mode === RenderMode.MODE_WIDGETS ? RenderMode.MODE_MEDIA : RenderMode.MODE_WIDGETS;
-    if (updateNodeData) {
-      updateNodeData(id, { activeMode: nextMode });
-    } else {
-      setInternalMode(nextMode);
-    }
-  };
-
-  const handleOverflowChange = (newOverflow: OverflowMode) => {
-    setOverflow(newOverflow);
-    onOverflowChange?.(newOverflow);
-  };
+/**
+ * BaseNode
+ * A consistent container for all node types with built-in runtime feedback.
+ */
+export const BaseNode: React.FC<BaseNodeProps> = ({ children, className, nodeId, style }) => {
+  const controller = nodeId ? useNodeController(nodeId) : null;
+  const isBusy = controller?.status === "busy";
+  const isError = controller?.status === "error";
 
   return (
-    <>
-      {selected && (
-        <NodeInfoPanel
-          height={measured?.height ?? height ?? 0}
-          nodeId={id}
-          templateId={nodeType}
-          width={measured?.width ?? width ?? 0}
-          x={x ?? 0}
-          y={y ?? 0}
-        />
+    <div
+      className={cn(
+        "relative w-full h-full rounded-xl bg-background border border-node-border shadow-md flex flex-col transition-all",
+        isBusy && "border-primary/50 shadow-lg",
+        isError && "border-destructive/50",
+        className,
       )}
-      <div
-        className={cn("w-full h-full flex flex-col box-border rounded-[inherit]", isMedia ? "p-0" : "p-0")}
-        style={{
-          overflow: overflow,
-          ...wrapperStyle,
-        }}
-      >
-        {isMedia && RenderMedia && (
-          <RenderMedia data={data as DynamicNodeData} id={id} {...rest} onOverflowChange={handleOverflowChange} />
-        )}
-        {isChat && RenderChat && updateNodeData && (
-          <RenderChat data={data as DynamicNodeData} id={id} updateNodeData={updateNodeData} />
-        )}
-        {!isMedia && !isChat && RenderWidgets && (
-          <RenderWidgets data={data as DynamicNodeData} id={id} {...rest} onToggleMode={toggleMode} />
-        )}
-      </div>
-      {handles}
-    </>
+      style={{
+        overflow: "visible",
+        ...style,
+      }}
+    >
+      {children}
+
+      {/* Synchronized Status Overlay */}
+      {(isBusy || isError) && (
+        <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center rounded-[inherit] bg-background/60 backdrop-blur-[2px] p-4 text-center animate-in fade-in duration-200">
+          {isBusy ? (
+            <>
+              <Loader2 className="w-6 h-6 text-primary animate-spin mb-2" />
+              <div className="text-[10px] font-bold text-primary uppercase tracking-wider mb-1">
+                {controller.message || "Processing..."}
+              </div>
+              <div className="w-2/3 h-1 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-300 ease-out"
+                  style={{ width: `${controller.progress}%` }}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <AlertCircle className="w-6 h-6 text-destructive mb-2" />
+              <div className="text-[10px] font-bold text-destructive uppercase mb-1">Execution Failed</div>
+              <div className="text-[9px] text-muted-foreground line-clamp-2 px-2 italic">
+                {controller.error || "Unknown runtime error"}
+              </div>
+              <button
+                className="mt-3 flex items-center gap-1.5 px-3 py-1.5 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-full text-[10px] font-medium transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  controller.reset();
+                }}
+              >
+                <RefreshCcw className="w-3 h-3" />
+                Force Reset
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
-}
+};

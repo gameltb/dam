@@ -1,6 +1,7 @@
 /** AUTO-GENERATED - DO NOT EDIT **/
 /* eslint-disable */
-import { NodeSchema, EdgeSchema, TaskUpdateSchema, NodeTemplateSchema } from "@/generated/flowcraft/v1/core/node_pb";
+import { NodeSchema, EdgeSchema, NodeTemplateSchema } from "@/generated/flowcraft/v1/core/node_pb";
+import { TaskUpdateSchema } from "@/generated/flowcraft/v1/core/kernel_pb";
 import { ViewportSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import { InferenceConfigDiscoveryResponseSchema } from "@/generated/flowcraft/v1/core/service_pb";
 

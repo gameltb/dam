@@ -1,26 +1,21 @@
 import {
   create,
-  type DescEnum,
   type DescField,
   type DescMessage,
-  fromJsonString,
+  fromJson,
   type Message,
   type MessageShape,
-  toJsonString,
+  toJson,
 } from "@bufbuild/protobuf";
-import { reflect } from "@bufbuild/protobuf/reflect";
 import { type AlgebraicType } from "spacetimedb";
 
 /**
- * 能够提供 AlgebraicType 的包装对象（如 ProductBuilder, SumBuilder）
+ * 能够提供 AlgebraicType 的包装对象
  */
 interface HasAlgebraicType {
   algebraicType: AlgebraicType;
 }
 
-/**
- * 允许传入原始代数类型或 Builder 对象
- */
 type StdbTypeArg = AlgebraicType | HasAlgebraicType;
 
 /**
@@ -30,56 +25,50 @@ export function pbToStdb(pbSchema: DescMessage, stdbType: StdbTypeArg, message: 
   if (message === null || message === undefined) return null;
 
   if (isWkt(pbSchema.typeName)) {
-    return toJsonString(pbSchema, message as Message);
+    const finalized = isMessage(message) ? message : fromJson(pbSchema, message as any);
+    return JSON.stringify(toJson(pbSchema, finalized));
   }
-
-  // Ensure message is a valid Message instance
-  let msgInstance = message as Message | Record<string, unknown>;
-  if (msgInstance && typeof msgInstance === "object" && "message" in msgInstance && "desc" in msgInstance) {
-    // It seems we received a ReflectMessageImpl, unwrap it
-    msgInstance = (msgInstance as unknown as { message: Message }).message;
-  }
-
-  // reflect() requires a Message instance, but nested fields from create() with plain objects might be plain objects.
-  const finalizedInstance = create(pbSchema, msgInstance as MessageShape<DescMessage>);
-
-  const rMessage = reflect(pbSchema, finalizedInstance);
-  const result: Record<string, unknown> = {};
 
   const algType = extractAlgebraicType(stdbType);
   if (algType.tag !== "Product") {
-    throw new Error(`Expected Product type for message ${pbSchema.typeName}, got ${algType.tag}`);
+    throw new Error(`[Bridge] Protocol mismatch for ${pbSchema.typeName}: Expected Product, got ${algType.tag}`);
   }
 
   const stdbElements = algType.value.elements;
+  const pbObj = message as Record<string, any>;
+  const result: Record<string, unknown> = {};
 
   for (const field of pbSchema.fields) {
-    const stdbElement = stdbElements.find((e) => e.name === field.localName);
-    if (!stdbElement) continue;
-
-    const targetStdbType = stdbElement.algebraicType;
-
-    if (!rMessage.isSet(field)) {
-      const targetAlgType = extractAlgebraicType(targetStdbType);
-      result[field.localName] = targetAlgType.tag === "Array" ? [] : undefined;
-      continue;
-    }
-
-    const val = rMessage.get(field);
-
     if (field.oneof) {
-      const selected = rMessage.oneofCase(field.oneof);
-      if (selected === field) {
-        // Use { tag, value } format for SumTypes (Oneofs)
+      const oneofValue = pbObj[field.oneof.localName];
+      if (oneofValue?.case === field.localName) {
+        const stdbElement = stdbElements.find((e) => e.name === field.oneof!.localName);
+        if (!stdbElement) throw new Error(`[Bridge] Oneof column '${field.oneof.localName}' missing in STDB`);
+
+        const oneofAlgType = extractAlgebraicType(stdbElement.algebraicType);
+        if (oneofAlgType.tag !== "Sum") throw new Error(`[Bridge] Expected Sum for oneof '${field.oneof.localName}'`);
+
+        const variant = oneofAlgType.value.variants.find((v) => v.name === field.localName);
+        if (!variant) throw new Error(`[Bridge] Variant '${field.localName}' not found in Sum`);
+
         result[field.oneof.localName] = {
           tag: field.localName,
-          value: transformValue(field, targetStdbType, val, true),
+          value: transformValue(field, variant.algebraicType, oneofValue.value, true),
         };
       }
       continue;
     }
 
-    result[field.localName] = transformValue(field, targetStdbType, val, true);
+    const stdbElement = stdbElements.find((e) => e.name === field.localName);
+    if (!stdbElement) continue;
+
+    const val = pbObj[field.localName];
+    if (val === undefined || val === null) {
+      const targetAlgType = extractAlgebraicType(stdbElement.algebraicType);
+      result[field.localName] = targetAlgType.tag === "Array" ? [] : undefined;
+    } else {
+      result[field.localName] = transformValue(field, stdbElement.algebraicType, val, true);
+    }
   }
   return result;
 }
@@ -89,61 +78,102 @@ export function pbToStdb(pbSchema: DescMessage, stdbType: StdbTypeArg, message: 
  */
 export function stdbToPb<T extends DescMessage>(pbSchema: T, stdbType: StdbTypeArg, stdbObj: unknown): MessageShape<T> {
   if (isWkt(pbSchema.typeName) && typeof stdbObj === "string") {
-    return fromJsonString(pbSchema, stdbObj) as MessageShape<T>;
+    return fromJson(pbSchema, JSON.parse(stdbObj)) as MessageShape<T>;
   }
 
-  const pbObj = create(pbSchema) as MessageShape<T>;
-  if (stdbObj === null || stdbObj === undefined) return pbObj;
+  if (stdbObj === null || stdbObj === undefined) {
+    return create(pbSchema) as MessageShape<T>;
+  }
 
   const algType = extractAlgebraicType(stdbType);
   if (algType.tag !== "Product") {
-    throw new Error(`Expected Product type for message ${pbSchema.typeName}, got ${algType.tag}`);
+    throw new Error(`[Bridge] Protocol mismatch for ${pbSchema.typeName}`);
   }
 
   const stdbElements = algType.value.elements;
-  const rawStdb = stdbObj as Record<string, unknown>;
+  const rawStdb = stdbObj as Record<string, any>;
+  const result: Record<string, any> = {};
 
   for (const field of pbSchema.fields) {
-    const stdbElement = stdbElements.find((e) => e.name === field.localName);
-    if (!stdbElement) continue;
-
-    const targetStdbType = stdbElement.algebraicType;
-    const stdbVal = rawStdb[field.localName];
-
     if (field.oneof) {
-      const oneofObj = rawStdb[field.oneof.localName] as undefined | { tag: string; value: unknown };
-      // Handle { tag, value } format for Oneofs
-      if (oneofObj?.tag === field.localName) {
-        (pbObj as Record<string, unknown>)[field.oneof.localName] = {
+      const snakeOneofName = field.oneof.name;
+      const oneofData = (
+        rawStdb[field.oneof.localName] !== undefined ? rawStdb[field.oneof.localName] : rawStdb[snakeOneofName]
+      ) as undefined | { tag: string; value: unknown };
+
+      if (oneofData?.tag === field.localName) {
+        const stdbElement = stdbElements.find((e) => e.name === field.oneof!.localName);
+        if (!stdbElement) throw new Error(`[Bridge] Oneof column '${field.oneof.localName}' missing in STDB`);
+
+        const oneofAlgType = extractAlgebraicType(stdbElement.algebraicType);
+        if (oneofAlgType.tag !== "Sum") throw new Error(`[Bridge] Expected Sum for oneof '${field.oneof.localName}'`);
+
+        const variant = oneofAlgType.value.variants.find((v) => v.name === field.localName);
+        if (!variant) throw new Error(`[Bridge] Variant '${field.localName}' not found in Sum`);
+
+        result[field.oneof.localName] = {
           case: field.localName,
-          value: transformValue(field, targetStdbType, oneofObj.value, false),
+          value: transformValue(field, variant.algebraicType, oneofData.value, false),
         };
+        // Also set the field name directly for better compatibility
+        result[field.localName] = result[field.oneof.localName].value;
       }
       continue;
     }
 
-    if (stdbVal === undefined || stdbVal === null) continue;
-    (pbObj as Record<string, unknown>)[field.localName] = transformValue(field, targetStdbType, stdbVal, false);
+    const stdbElement = stdbElements.find((e) => e.name === field.localName);
+    if (!stdbElement) continue;
+
+    const snakeName = field.name; // original proto name usually snake_case
+    const stdbVal = rawStdb[field.localName] !== undefined ? rawStdb[field.localName] : rawStdb[snakeName];
+
+    if (stdbVal !== undefined && stdbVal !== null) {
+      result[field.localName] = transformValue(field, stdbElement.algebraicType, stdbVal, false);
+    }
   }
-  return pbObj;
+
+  const finalResult = create(pbSchema, result as any) as MessageShape<T>;
+  if (pbSchema.name === "NodeData" || pbSchema.name === "ChatMessage") {
+    console.log(
+      `[Bridge] Converted ${pbSchema.name}:`,
+      JSON.stringify(result, (_, v) => (typeof v === "bigint" ? v.toString() : v)),
+    );
+  }
+  return finalResult;
 }
 
 /**
- * 辅助函数：安全地提取原始 AlgebraicType
+ * 从 google.protobuf.Value 结构中提取原始 JS 值
  */
+export function unwrapPbValue(v: any): any {
+  if (v && typeof v === "object" && "kind" in v && v.kind) {
+    const kind = v.kind;
+    if (kind.case === "boolValue") return kind.value;
+    if (kind.case === "numberValue") return kind.value;
+    if (kind.case === "stringValue") return kind.value;
+    if (kind.case === "nullValue") return null;
+    if (kind.case === "structValue") return kind.value;
+    if (kind.case === "listValue") return kind.value.values?.map(unwrapPbValue);
+  }
+  return v;
+}
+
 function extractAlgebraicType(arg: StdbTypeArg): AlgebraicType {
   const alg = (arg as HasAlgebraicType).algebraicType || (arg as AlgebraicType);
-
-  // 处理 t.option 包装
   if (alg.tag === "Sum" && alg.value.variants.length === 2) {
     const v = alg.value.variants;
-    const v0 = v[0];
-    const v1 = v[1];
-    if (v0?.name === "some" && v1?.name === "none") {
-      return extractAlgebraicType(v0.algebraicType);
+    const n0 = v[0]?.name?.toLowerCase();
+    const n1 = v[1]?.name?.toLowerCase();
+    if ((n0 === "some" && n1 === "none") || (n0 === "none" && n1 === "some")) {
+      const someVariant = n0 === "some" ? v[0] : v[1];
+      if (someVariant) return extractAlgebraicType(someVariant.algebraicType);
     }
   }
   return alg;
+}
+
+function isMessage(val: unknown): val is Message {
+  return val !== null && typeof val === "object" && "$typeName" in val;
 }
 
 function isWkt(typeName: string): boolean {
@@ -157,100 +187,84 @@ function isWkt(typeName: string): boolean {
 function transformSingleValue(pbField: DescField, stdbType: AlgebraicType, val: unknown, toStdb: boolean): unknown {
   const algType = extractAlgebraicType(stdbType);
 
-  // Handle Enums
   if (pbField.fieldKind === "enum" || (pbField.fieldKind === "list" && pbField.listKind === "enum")) {
-    const pbEnum = (pbField as { enum: DescEnum }).enum;
-    if (!pbEnum) return val;
-
+    const pbEnum = pbField.enum;
+    if (!pbEnum) throw new Error(`[Bridge] Missing enum descriptor for field ${(pbField as any).localName}`);
     if (toStdb) {
       const enumVal = pbEnum.values.find((v) => v.number === val);
-      if (!enumVal) throw new Error(`Enum value ${String(val)} not found for ${pbField.name}`);
+      if (!enumVal) throw new Error(`[Bridge] Invalid enum value ${val} for ${pbEnum.name}`);
       return { tag: enumVal.name, value: {} };
     } else {
-      const variantName = (val as { tag: string }).tag;
-      const enumVal = pbEnum.values.find((v) => v.name === variantName);
-      if (!enumVal) throw new Error(`Enum tag ${variantName} not found for ${pbField.name}`);
+      const tag = (val as any).tag;
+      if (!tag) throw new Error(`[Bridge] Missing tag in STDB enum for field ${(pbField as any).localName}`);
+      const enumVal = pbEnum.values.find((v) => v.name === tag);
+      if (!enumVal) throw new Error(`[Bridge] Invalid enum tag ${tag} for ${pbEnum.name}`);
       return enumVal.number;
     }
   }
 
-  // Handle Messages
   if (pbField.fieldKind === "message" || (pbField.fieldKind === "list" && pbField.listKind === "message")) {
-    const pbMessage = (pbField as { message: DescMessage }).message;
-    if (!pbMessage) return val;
+    const pbMessage = pbField.message;
+    if (!pbMessage) throw new Error(`[Bridge] Missing message descriptor for field ${(pbField as any).localName}`);
+    if (toStdb) return pbToStdb(pbMessage, algType, val);
+    return stdbToPb(pbMessage, algType, val);
+  }
 
-    if (isWkt(pbMessage.typeName) && algType.tag === "String") {
-      let valToUse = val;
-      if (valToUse && typeof valToUse === "object" && "message" in valToUse && "desc" in valToUse) {
-        valToUse = (valToUse as unknown as { message: Message }).message;
+  // 严格的标量校验
+  if (pbField.fieldKind === "scalar" && !toStdb) {
+    const unwrapped = unwrapPbValue(val);
+    if (pbField.scalar === 1 || pbField.scalar === 2) {
+      // Double/Float
+      const num = Number(unwrapped);
+      if (isNaN(num)) {
+        throw new Error(
+          `[Bridge] Data Corruption: Field '${(pbField as any).localName}' is NaN. Raw value: ${JSON.stringify(val)}`,
+        );
       }
-      return toStdb ? toJsonString(pbMessage, valToUse as Message) : fromJsonString(pbMessage, val as string);
+      return num;
     }
-    return toStdb ? pbToStdb(pbMessage, algType, val) : stdbToPb(pbMessage, algType, val);
+    return unwrapped;
   }
 
   return val;
 }
 
 function transformValue(pbField: DescField, stdbType: AlgebraicType, val: unknown, toStdb: boolean): unknown {
-  if (val === null || val === undefined) {
-    if (toStdb && pbField.fieldKind === "list") return [];
-    return val;
-  }
-
   const algType = extractAlgebraicType(stdbType);
 
-  // 1. Handle Lists
   if (pbField.fieldKind === "list") {
-    if (algType.tag !== "Array") {
-      throw new Error(`Type mismatch: PB field '${pbField.name}' is a list, but STDB type is '${algType.tag}'`);
+    if (algType.tag !== "Array" || !Array.isArray(val)) {
+      throw new Error(`[Bridge] Type mismatch for list field ${(pbField as any).localName}`);
     }
-    const list = Array.from(val as Iterable<unknown>);
-    const innerStdbType = algType.value;
-    return list.map((item) => transformSingleValue(pbField, innerStdbType, item, toStdb));
+    return val.map((item) => transformSingleValue(pbField, algType.value, item, toStdb));
   }
 
-  // 2. Map Support
   if (pbField.fieldKind === "map") {
-    if (algType.tag !== "Array") {
-      throw new Error(`Type mismatch: PB field '${pbField.name}' is a map, but STDB type is '${algType.tag}'`);
-    }
-    const entryStdbType = algType.value;
-    const unwrappedEntryType = extractAlgebraicType(entryStdbType);
-    if (unwrappedEntryType.tag !== "Product") {
-      throw new Error(`Expected Product for map entry, got ${unwrappedEntryType.tag}`);
-    }
-    const keyType = unwrappedEntryType.value.elements.find((e) => e.name === "key")?.algebraicType;
-    const valueType = unwrappedEntryType.value.elements.find((e) => e.name === "value")?.algebraicType;
+    if (algType.tag !== "Array") throw new Error(`[Bridge] Type mismatch for map field ${(pbField as any).localName}`);
+    const entryStdbType = extractAlgebraicType(algType.value);
+    if (entryStdbType.tag !== "Product") throw new Error(`[Bridge] Invalid map entry structure`);
 
-    if (!keyType || !valueType) {
-      throw new Error(`Map entry product missing key or value fields`);
-    }
+    const keyElement = entryStdbType.value.elements.find((e) => e.name === "key");
+    const valueElement = entryStdbType.value.elements.find((e) => e.name === "value");
+    if (!keyElement || !valueElement) throw new Error(`[Bridge] Map missing elements`);
 
     if (toStdb) {
-      const map = val as Map<unknown, unknown> | Record<string, unknown>;
-      const result: unknown[] = [];
-      const entries =
-        typeof (map as Iterable<unknown>)[Symbol.iterator] === "function"
-          ? Array.from(map as Iterable<[unknown, unknown]>)
-          : Object.entries(map as Record<string, unknown>);
-
-      for (const [key, value] of entries) {
-        if (key === "$typeName") continue;
-        result.push({
-          key: transformSingleValue(pbField, keyType, key, true),
-          value: transformSingleValue(pbField, valueType, value, true),
-        });
-      }
-      return result;
+      const entries = isMessage(val)
+        ? Object.entries(toJson(pbField.parent as any, val) as any)
+        : Object.entries(val as Record<string, any>);
+      return entries.map(([k, v]) => ({
+        key: transformSingleValue(pbField, keyElement.algebraicType, k, true),
+        value: transformSingleValue(pbField, valueElement.algebraicType, v, true),
+      }));
     } else {
-      const entries = val as { key: unknown; value: unknown }[];
-      const result: Record<string, unknown> = {};
-      for (const entry of entries) {
-        const key = transformSingleValue(pbField, keyType, entry.key, false);
-        const value = transformSingleValue(pbField, valueType, entry.value, false);
-        result[String(key)] = value;
-      }
+      if (!Array.isArray(val))
+        throw new Error(`[Bridge] Expected array from STDB for map ${(pbField as any).localName}`);
+      const result: Record<string, any> = {};
+      val.forEach((entry) => {
+        const k = transformSingleValue(pbField, keyElement.algebraicType, entry.key, false);
+        const v = transformSingleValue(pbField, valueElement.algebraicType, entry.value, false);
+        result[String(k)] = v;
+      });
       return result;
     }
   }

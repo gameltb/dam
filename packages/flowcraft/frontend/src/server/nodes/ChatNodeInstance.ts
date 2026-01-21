@@ -1,9 +1,8 @@
 import { create } from "@bufbuild/protobuf";
 import { v4 as uuidv4 } from "uuid";
 
-import { MutationSource } from "@/generated/flowcraft/v1/core/base_pb";
-import { NodeDataSchema, TaskStatus } from "@/generated/flowcraft/v1/core/node_pb";
-import { NodeEventSchema, UpdateNodeSchema } from "@/generated/flowcraft/v1/core/service_pb";
+import { TaskStatus } from "@/generated/flowcraft/v1/core/kernel_pb";
+import { NodeEventSchema } from "@/generated/flowcraft/v1/core/service_pb";
 import { type NodeSignal } from "@/generated/flowcraft/v1/core/signals_pb";
 import { type AppNode, isChatNode, NodeSignalCase } from "@/types";
 import { mapHistoryToOpenAI } from "@/utils/chatUtils";
@@ -38,7 +37,6 @@ export class ChatNodeInstance extends NodeInstance {
 
     if (!isChatNode(node)) return;
 
-    // In SpacetimeDB TS Server SDK, extensions are flattened into tags
     const extension = nodeData.extension as any;
     if (!extension) return;
     const chatData = extension.chat || (extension.value && extension.tag === "chat" ? extension.value : undefined);
@@ -47,7 +45,6 @@ export class ChatNodeInstance extends NodeInstance {
     const handlers: Partial<Record<NodeSignalCase, () => Promise<void> | void>> = {
       [NodeSignalCase.CHAT_EDIT]: () => {
         if (signal.case !== "chatEdit") return;
-        // Simplified
       },
       [NodeSignalCase.CHAT_GENERATE]: async () => {
         if (signal.case !== "chatGenerate") return;
@@ -67,15 +64,12 @@ export class ChatNodeInstance extends NodeInstance {
       },
       [NodeSignalCase.CHAT_SWITCH]: () => {
         if (signal.case !== "chatSwitch") return;
-        this.updateNodeHead(this.treeId, signal.value.targetMessageId);
+        this.updateNodeHead(signal.value.targetMessageId);
       },
       [NodeSignalCase.CHAT_SYNC]: async () => {
         if (signal.case !== "chatSync") return;
-        // Simplified
       },
-      [NodeSignalCase.RESTART_INSTANCE]: () => {
-        // Handled by runNodeSignal before reaching here
-      },
+      [NodeSignalCase.RESTART_INSTANCE]: () => {},
     };
 
     const caseKey = signal.case as NodeSignalCase;
@@ -113,13 +107,13 @@ export class ChatNodeInstance extends NodeInstance {
         }
       }
     }
-    this.updateStatus(TaskStatus.TASK_PROCESSING, "Chat Instance Ready");
+    this.updateStatus(TaskStatus.RUNNING, "Chat Instance Ready");
     return Promise.resolve();
   }
 
   private async generateResponse(headId: string, modelId: string, endpointId: string) {
     logger.info(`generateResponse started. Head: ${headId}, Model: ${modelId}`);
-    this.updateStatus(TaskStatus.TASK_PROCESSING, "AI is thinking...");
+    this.updateStatus(TaskStatus.RUNNING, "AI is thinking...");
     const conn = getSpacetimeConn();
 
     if (conn) {
@@ -199,7 +193,7 @@ export class ChatNodeInstance extends NodeInstance {
         }),
       );
 
-      this.updateStatus(TaskStatus.TASK_PROCESSING, "AI Answered");
+      this.updateStatus(TaskStatus.RUNNING, "AI Answered");
     } catch (err: unknown) {
       logger.error(`Generation failed:`, err);
       if (conn) {
@@ -210,30 +204,20 @@ export class ChatNodeInstance extends NodeInstance {
         });
       }
 
-      this.updateStatus(TaskStatus.TASK_FAILED, err instanceof Error ? err.message : String(err));
+      this.updateStatus(TaskStatus.FAILED, err instanceof Error ? err.message : String(err));
       throw err;
     }
   }
 
-  private updateNodeHead(treeId: string, headId: string) {
-    this.emitMutation(
-      {
-        case: "updateNode",
-        value: create(UpdateNodeSchema, {
-          data: create(NodeDataSchema, {
-            extension: {
-              case: "chat",
-              value: {
-                conversationHeadId: headId,
-                isHistoryCleared: false,
-                treeId: treeId,
-              },
-            },
-          }),
-          id: this.nodeId ?? "unknown",
-        }),
-      },
-      MutationSource.SOURCE_REMOTE_TASK,
-    );
+  private updateNodeHead(headId: string) {
+    if (this.nodeId) {
+      const res = this.nodeDraft(this.nodeId);
+      if (res.ok) {
+        const draft = res.value;
+        if (draft.data?.extension?.case === "chat") {
+          draft.data.extension.value.conversationHeadId = headId;
+        }
+      }
+    }
   }
 }

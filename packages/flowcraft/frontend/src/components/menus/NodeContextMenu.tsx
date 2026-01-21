@@ -17,6 +17,7 @@ interface NodeContextMenuProps {
   onCopy?: () => void;
   onDelete: () => void;
   onDuplicate?: () => void;
+  onEnterScope?: () => void;
   onFocus?: () => void;
   onGroupSelected?: () => void;
   onLayoutGroup?: () => void;
@@ -31,6 +32,7 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
   onCopy,
   onDelete,
   onDuplicate,
+  onEnterScope,
   onFocus,
   onGroupSelected,
   onLayoutGroup,
@@ -43,6 +45,17 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
   return (
     <MenuContainer x={x} y={y}>
       <div className="fc-menu-section">
+        {onEnterScope && (
+          <div
+            className="fc-menu-item font-bold text-primary"
+            onClick={() => {
+              onEnterScope();
+              onClose();
+            }}
+          >
+            🚀 Enter Subgraph
+          </div>
+        )}
         {onFocus && (
           <div
             className="fc-menu-item"

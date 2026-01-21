@@ -151,6 +151,8 @@ const generateUiSchema = (s: RJSFSchema): UiSchema => {
   return ui;
 };
 
+import { NodeErrorBoundary } from "../base/NodeErrorBoundary";
+
 interface FlowcraftRJSFProps {
   formData: Record<string, unknown>;
   nodeId: string;
@@ -158,7 +160,7 @@ interface FlowcraftRJSFProps {
   schema: RJSFSchema;
 }
 
-export const FlowcraftRJSF: React.FC<FlowcraftRJSFProps> = ({ formData, nodeId, onChange, schema }) => {
+export const FlowcraftRJSF: React.FC<FlowcraftRJSFProps> = React.memo(({ formData, nodeId, onChange, schema }) => {
   const [renderError, setRenderError] = useState<null | string>(null);
 
   const uiSchema = React.useMemo(() => generateUiSchema(schema), [schema]);
@@ -188,19 +190,21 @@ export const FlowcraftRJSF: React.FC<FlowcraftRJSFProps> = ({ formData, nodeId, 
   }
 
   return (
-    <Form
-      formContext={{ nodeId }}
-      formData={formData}
-      onChange={(e) => {
-        onChange(e.formData as Record<string, unknown>);
-      }}
-      schema={schema}
-      templates={{ ObjectFieldTemplate: PlainObjectFieldTemplate }}
-      uiSchema={uiSchema}
-      validator={validator}
-      widgets={customWidgets}
-    >
-      <div />
-    </Form>
+    <NodeErrorBoundary nodeId={nodeId}>
+      <Form
+        formContext={{ nodeId }}
+        formData={formData}
+        onChange={(e) => {
+          onChange(e.formData as Record<string, unknown>);
+        }}
+        schema={schema}
+        templates={{ ObjectFieldTemplate: PlainObjectFieldTemplate }}
+        uiSchema={uiSchema}
+        validator={validator}
+        widgets={customWidgets}
+      >
+        <div />
+      </Form>
+    </NodeErrorBoundary>
   );
-};
+});

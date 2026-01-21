@@ -1,6 +1,6 @@
 import { t, table } from "spacetimedb/server";
 
-import { InferenceConfigDiscoveryResponse, NodeTemplate } from "../generated/generated_schema";
+import { services_InferenceConfigDiscoveryResponse, core_NodeTemplate } from "../generated/generated_schema";
 
 export const nodeTemplates = table(
   {
@@ -8,7 +8,7 @@ export const nodeTemplates = table(
     public: true,
   },
   {
-    state: NodeTemplate,
+    state: core_NodeTemplate,
     templateId: t.string().primaryKey(),
   },
 );
@@ -20,6 +20,6 @@ export const inferenceConfig = table(
   },
   {
     configId: t.string().primaryKey(),
-    state: InferenceConfigDiscoveryResponse,
+    state: services_InferenceConfigDiscoveryResponse,
   },
 );

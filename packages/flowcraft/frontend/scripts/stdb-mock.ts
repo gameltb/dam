@@ -11,6 +11,7 @@ const createTypeMock = (kind: string, tsType: string, name?: string) => {
     __ts_type: tsType,
     autoIncrement: () => mock,
     indexed: () => mock,
+    name: name, // For generate-pb-client compatibility
     primaryKey: () => mock,
     unique: () => mock,
   };

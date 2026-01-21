@@ -26,34 +26,57 @@ export const ListValue = t.string();
   const messages: any[] = [];
   const enums: any[] = [];
 
+  function getFlatName(fullName: string) {
+    if (fullName === ".google.protobuf.Value") return "Value";
+    if (fullName === ".google.protobuf.Struct") return "Struct";
+    if (fullName === ".google.protobuf.ListValue") return "ListValue";
+
+    // BACK TO FLAT NAMES: SpacetimeDB compiler prefers simple identifiers.
+    // We will use the last part of the name, but prefixed with parents if it's nested.
+    const parts = fullName.split(".").filter((p) => !!p);
+
+    // Logic: if it starts with flowcraft, skip the flowcraft and v1 parts
+    let startIdx = 0;
+    if (parts[0] === "flowcraft") startIdx = 2; // skip flowcraft.v1
+
+    return parts.slice(startIdx).join("_");
+  }
+
   function collect(file: any) {
+    const pkgPrefix = file.package ? `${String(file.package)}.` : "";
+
     if (file.enumType) {
       file.enumType.forEach((en: any) => {
-        en._fullName = en.name;
+        en._protoFullName = pkgPrefix + String(en.name);
+        en._fullName = getFlatName(en._protoFullName);
         enums.push(en);
       });
     }
     if (file.messageType) {
       file.messageType.forEach((msg: any) => {
-        collectMessage(msg, "");
+        collectMessage(msg, pkgPrefix);
       });
     }
   }
 
-  function collectMessage(msg: any, parentName: string) {
-    const fullName = parentName ? `${parentName}_${msg.name}` : msg.name;
+  function collectMessage(msg: any, prefix: string) {
+    const protoFullName = prefix + String(msg.name);
+    const fullName = getFlatName(protoFullName);
+
+    msg._protoFullName = protoFullName;
     msg._fullName = fullName;
     messages.push(msg);
 
     if (msg.enumType) {
       msg.enumType.forEach((en: any) => {
-        en._fullName = `${fullName}_${en.name}`;
+        en._protoFullName = `${protoFullName}.${String(en.name)}`;
+        en._fullName = getFlatName(en._protoFullName);
         enums.push(en);
       });
     }
     if (msg.nestedType) {
       msg.nestedType.forEach((nested: any) => {
-        collectMessage(nested, fullName);
+        collectMessage(nested, `${protoFullName}.`);
       });
     }
   }
@@ -92,7 +115,6 @@ export type ${en._fullName} = Infer<typeof ${en._fullName}>;
 `;
   });
 
-  // Sort messages to resolve dependencies
   const sortedMessages: any[] = [];
   const visited = new Set<string>();
   const visiting = new Set<string>();
@@ -101,14 +123,9 @@ export type ${en._fullName} = Infer<typeof ${en._fullName}>;
     const deps: string[] = [];
     msg.field?.forEach((f: any) => {
       if (f.type === "TYPE_MESSAGE" || f.type === "TYPE_ENUM") {
-        const parts = f.typeName.split(".").filter((p: string) => !!p && p !== "flowcraft_proto" && p !== "v1");
-        // Try suffixes from longest to shortest
-        for (let i = 0; i < parts.length; i++) {
-          const candidate = parts.slice(i).join("_");
-          if (candidate !== msg._fullName) {
-            deps.push(candidate);
-            break;
-          }
+        const depFullName = getFlatName(f.typeName);
+        if (depFullName !== msg._fullName) {
+          deps.push(depFullName);
         }
       }
     });
@@ -117,7 +134,7 @@ export type ${en._fullName} = Infer<typeof ${en._fullName}>;
 
   function visit(msgName: string) {
     if (visited.has(msgName)) return;
-    if (visiting.has(msgName)) return; // Circular or self-ref
+    if (visiting.has(msgName)) return;
 
     visiting.add(msgName);
     const msg = messages.find((m) => m._fullName === msgName);
@@ -174,11 +191,9 @@ export type ${enumName} = Infer<typeof ${enumName}>;
       const isComplex = f.type === "TYPE_MESSAGE" || f.type === "TYPE_ENUM";
 
       if (f.label === "LABEL_REPEATED") {
-        // Repeated fields are mapped to t.array
         const elementType = isComplex ? `t.option(${type})` : type;
         type = `t.array(${elementType})`;
       } else if (isComplex) {
-        // Wrap complex types in option to allow null/undefined (typical in PB)
         type = `t.option(${type})`;
       }
 
@@ -187,7 +202,6 @@ export type ${enumName} = Infer<typeof ${enumName}>;
     });
     msg.oneofDecl?.forEach((o: any) => {
       const fieldName = o.jsonName ?? o.name;
-      // Oneofs are always optional in SpacetimeDB schema since they can be unset in PB
       output += `  ${fieldName}: t.option(${msg._fullName}_${o.name}),
     `;
     });
@@ -220,21 +234,14 @@ export const SCHEMA_METADATA = {
 
   function resolveSafeType(f: any, currentMsg: string, done: Set<string>) {
     if (f.type === "TYPE_MESSAGE" || f.type === "TYPE_ENUM") {
-      const parts = f.typeName.split(".").filter((p: string) => !!p && p !== "flowcraft_proto" && p !== "v1");
-
-      // Try suffixes from longest to shortest
-      for (let i = 0; i < parts.length; i++) {
-        const candidate = parts.slice(i).join("_");
-        if (done.has(candidate)) {
-          return candidate;
-        }
+      const depFullName = getFlatName(f.typeName);
+      if (done.has(depFullName)) {
+        return depFullName;
       }
-
-      const candidate = parts.join("_");
-      if (candidate === currentMsg) {
+      if (depFullName === currentMsg) {
         return "t.string()";
       }
-      return candidate; // Fallback
+      return depFullName;
     }
     return typeMap[f.type];
   }

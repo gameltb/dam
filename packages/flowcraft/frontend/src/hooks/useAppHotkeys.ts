@@ -1,98 +1,71 @@
 import { useHotkeys } from "react-hotkeys-hook";
 import { useShallow } from "zustand/react/shallow";
 
-import { useFlowStore, useTemporalStore } from "@/store/flowStore";
+import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
-import { type AppNode, type Edge } from "@/types";
 
 import { useGraphOperations } from "./useGraphOperations";
 
-export const useAppHotkeys = () => {
-  const { autoLayout, copySelected, deleteEdge, deleteNode, duplicateSelected, paste } = useGraphOperations();
-
-  const { edges, nodes } = useFlowStore(
-    useShallow((state) => ({
-      edges: state.edges,
-      nodes: state.nodes,
+/**
+ * 全局应用快捷键管理
+ * 绑定到 uiStore 中的动态配置，支持用户自定义
+ */
+export function useAppHotkeys() {
+  const { redo, undo } = useFlowStore(
+    useShallow((s) => ({
+      redo: s.redo,
+      undo: s.undo,
     })),
   );
+  const { autoLayout, copySelected, deleteNode, duplicateSelected, paste } = useGraphOperations();
 
-  const { redo, undo } = useTemporalStore(
-    useShallow((state) => ({
-      redo: state.redo,
-      undo: state.undo,
-    })),
-  );
-
+  // 从 store 获取用户设置的快捷键
   const hotkeys = useUiStore((s) => s.settings.hotkeys);
 
-  useHotkeys(
-    hotkeys.copy,
-    (e) => {
-      e.preventDefault();
-      copySelected();
-    },
-    { enableOnFormTags: false },
-  );
+  // --- 历史管理 ---
+  useHotkeys(hotkeys.undo, (e) => {
+    e.preventDefault();
+    undo();
+  });
 
-  useHotkeys(
-    hotkeys.paste,
-    (e) => {
-      e.preventDefault();
-      paste();
-    },
-    { enableOnFormTags: false },
-  );
+  useHotkeys(hotkeys.redo, (e) => {
+    e.preventDefault();
+    redo();
+  });
 
-  useHotkeys(
-    hotkeys.duplicate,
-    (e) => {
-      e.preventDefault();
-      duplicateSelected();
-    },
-    { enableOnFormTags: false },
-  );
+  // --- 剪贴板与基本编辑 ---
+  useHotkeys(hotkeys.copy, (e) => {
+    e.preventDefault();
+    copySelected();
+  });
 
-  useHotkeys(
-    hotkeys.autoLayout,
-    (e) => {
-      e.preventDefault();
-      autoLayout();
-    },
-    { enableOnFormTags: false },
-  );
+  useHotkeys(hotkeys.paste, (e) => {
+    e.preventDefault();
+    paste();
+  });
 
-  useHotkeys(
-    hotkeys.undo,
-    (e) => {
-      e.preventDefault();
-      undo();
-    },
-    { enableOnFormTags: false },
-  );
+  useHotkeys(hotkeys.duplicate, (e) => {
+    e.preventDefault();
+    duplicateSelected();
+  });
 
-  useHotkeys(
-    hotkeys.redo,
-    (e) => {
-      e.preventDefault();
-      redo();
-    },
-    { enableOnFormTags: false },
-  );
+  // 删除操作特殊处理：防止在输入框内触发
+  useHotkeys(hotkeys.delete, (e) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
+      return;
+    }
 
-  useHotkeys(
-    hotkeys.delete,
-    (e) => {
-      e.preventDefault();
-      const selectedNodes = nodes.filter((n: AppNode) => n.selected);
-      const selectedEdges = edges.filter((e: Edge) => e.selected);
-      selectedNodes.forEach((n: AppNode) => {
-        deleteNode(n.id);
-      });
-      selectedEdges.forEach((e: Edge) => {
-        deleteEdge(e.id);
-      });
-    },
-    { enableOnFormTags: false },
-  );
-};
+    const nodes = useFlowStore.getState().nodes;
+    const selectedNodes = nodes.filter((n) => n.selected);
+    selectedNodes.forEach((n) => {
+      deleteNode(n.id);
+    });
+  });
+
+  // --- 图表工具 ---
+  useHotkeys(hotkeys.autoLayout, (e) => {
+    e.preventDefault();
+    autoLayout();
+  });
+}

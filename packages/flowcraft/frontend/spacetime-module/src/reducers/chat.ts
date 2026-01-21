@@ -1,10 +1,10 @@
 import { create } from "@bufbuild/protobuf";
 import { type ReducerCtx, t } from "spacetimedb/server";
 
-import { ChatSyncMessage as ProtoChatSyncMessage } from "../generated/flowcraft/v1/actions/chat_actions_pb";
+import { type ChatSyncMessage as ProtoChatSyncMessage } from "../generated/flowcraft/v1/actions/chat_actions_pb";
 import { ChatSyncMessageSchema } from "../generated/flowcraft/v1/actions/chat_actions_pb";
 import { ChatMessageSchema } from "../generated/flowcraft/v1/core/service_pb";
-import { ChatMessage as StdbChatMessage } from "../generated/generated_schema";
+import { services_ChatMessage as StdbChatMessage } from "../generated/generated_schema";
 import { pbToStdb } from "../generated/proto-stdb-bridge";
 import { type AppSchema } from "../schema";
 
@@ -22,7 +22,7 @@ export const chatReducers = {
           case: "chatMetadata",
           value: { attachmentUrls: [], modelId: message.modelId },
         },
-        parentId: "",
+        parentId: message.parentId || "", // NEW: respect parentId for branching
         parts: message.parts,
         role: message.role,
         siblingIds: [],
@@ -40,10 +40,8 @@ export const chatReducers = {
   clear_chat_history: {
     args: { nodeId: t.string() },
     handler: (ctx: ReducerCtx<AppSchema>, { nodeId }: { nodeId: string }) => {
-      // In this version, treeId is tied to nodeId
       const messages = [...ctx.db.chatMessages.iter()];
       for (const msg of messages) {
-        // msg.state is inferred from StdbChatMessage
         if (msg.state.treeId === nodeId) {
           ctx.db.chatMessages.id.delete(msg.id);
         }

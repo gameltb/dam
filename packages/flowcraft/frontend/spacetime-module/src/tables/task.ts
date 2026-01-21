@@ -1,6 +1,6 @@
 import { t, table } from "spacetimedb/server";
 
-import { ActionExecutionRequest, NodeSignal, TaskStatus, Value } from "../generated/generated_schema";
+import { core_TaskStatus, core_NodeSignal_payload, core_WorkerLanguage } from "../generated/generated_schema";
 
 export const tasks = table(
   {
@@ -9,11 +9,44 @@ export const tasks = table(
   },
   {
     id: t.string().primaryKey(),
-    request: ActionExecutionRequest, // Store full PB request
-    result: Value,
-    status: TaskStatus,
+    nodeId: t.string(),
+    taskType: t.string(),
+    paramsPayload: t.byteArray(),
+    selectorJson: t.string(), // Opaque JSON for selector
+    status: core_TaskStatus,
+    ownerId: t.string(),
+    result: t.string(),
     timestamp: t.u64(),
   },
+);
+
+export const workers = table(
+  {
+    name: "workers",
+    public: true,
+  },
+  {
+    workerId: t.string().primaryKey(),
+    lang: core_WorkerLanguage,
+    capabilities: t.string(), // Comma separated for simplicity in indexing
+    tagsJson: t.string(),
+    lastHeartbeat: t.u64(),
+  }
+);
+
+export const taskAuditLog = table(
+  {
+    name: "task_audit_log",
+    public: true,
+  },
+  {
+    id: t.string().primaryKey(),
+    taskId: t.string(),
+    nodeId: t.string(),
+    eventType: t.string(),
+    message: t.string(),
+    timestamp: t.u64(),
+  }
 );
 
 export const nodeSignals = table(
@@ -24,7 +57,7 @@ export const nodeSignals = table(
   {
     id: t.string().primaryKey(),
     nodeId: t.string(),
-    payload: NodeSignal.elements.payload, // Protobuf Enum/Union
+    payload: core_NodeSignal_payload, // Protobuf Enum/Union
     timestamp: t.u64(),
   },
 );

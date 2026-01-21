@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { v4 as uuidv4 } from "uuid";
 
-import { type TaskUpdate } from "@/generated/flowcraft/v1/core/node_pb";
+import { type TaskUpdate } from "@/generated/flowcraft/v1/core/kernel_pb";
 import {
   type FlowMessage,
   FlowMessageSchema,

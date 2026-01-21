@@ -9,13 +9,13 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
-import Node from "./node_type";
+import CoreNode from "./core_node_type";
 
 
 export default __t.object("Nodes", {
   nodeId: __t.string(),
   get state() {
-    return Node;
+    return CoreNode;
   },
 });
 

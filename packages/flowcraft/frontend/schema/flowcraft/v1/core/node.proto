@@ -1,23 +1,24 @@
 syntax = "proto3";
 
-package flowcraft_proto.v1;
+package flowcraft.v1.core;
 
 import "google/protobuf/struct.proto";
 import "flowcraft/v1/core/base.proto";
+import "flowcraft/v1/core/kernel.proto";
 import "flowcraft/v1/nodes/chat_node.proto";
 import "flowcraft/v1/nodes/ai_gen_node.proto";
 import "flowcraft/v1/nodes/media_node.proto";
 
 message Node {
-  string node_id = 1;           // UUID Instance ID
-  string template_id = 2;       // Reference to NodeTemplate (the "class")
-  NodeKind node_kind = 3;       // Architectural type (how to render)
-  
-  Presentation presentation = 4; // Visuals controlled by client
-  NodeData state = 5;           // Business data inner state
-  
-  VisualHint visual_hint = 6;   // Guidance for uninitialized nodes
-  bool is_selected = 7;
+  // 1-15: Identity & Core Structural
+  string node_id = 1;           
+  string template_id = 2;       
+  NodeKind node_kind = 3;       
+
+  // 16-30: Layered Data
+  Presentation presentation = 16; 
+  NodeData state = 17;           
+  VisualHint visual_hint = 18;   
 }
 
 message NodeTemplate {
@@ -31,28 +32,32 @@ message NodeTemplate {
 }
 
 message NodeData {
-  string display_name = 1;      // Instance-specific name (overrides template)
-  repeated RenderMode available_modes = 2;
-  RenderMode active_mode = 3;
-  MediaContent media = 4;
-  repeated Widget widgets = 5;
-  
-  repeated Port input_ports = 6;
-  repeated Port output_ports = 7;
-  
-  map<string, string> metadata = 8; // Still keep for general small markers
-  string task_id = 11;
-  google.protobuf.Struct widgets_values = 12; // Values for schema-driven widgets
-  google.protobuf.Struct widgets_schema = 13; // Optional override schema at node level
+  // 1-15: Core Metadata
+  string display_name = 1;      
+  RenderMode active_mode = 2;
+  string task_id = 3;
+  int32 schema_version = 4;     // Versioning for future migrations
 
-  // Node Type Specific Extensions
+  // 16-50: UI & Common Components
+  repeated RenderMode available_modes = 16;
+  MediaContent media = 17;
+  repeated Widget widgets = 18;
+  repeated Port input_ports = 19;
+  repeated Port output_ports = 20;
+
+  // 51-100: Business Extensions (Strongly typed)
   oneof extension {
-    ChatNodeState chat = 20;
-    AiGenNodeState ai_gen = 21;
-    VisualNodeState visual = 22;
-    DocumentNodeState document = 23;
-    AcousticNodeState acoustic = 24;
+    flowcraft.v1.nodes.ChatNodeState chat = 51;
+    flowcraft.v1.nodes.AiGenNodeState ai_gen = 52;
+    flowcraft.v1.nodes.VisualNodeState visual = 53;
+    flowcraft.v1.nodes.DocumentNodeState document = 54;
+    flowcraft.v1.nodes.AcousticNodeState acoustic = 55;
   }
+
+  // 100+: Opaque/Legacy Data
+  map<string, string> metadata = 100;
+  google.protobuf.Struct widgets_values = 101; 
+  google.protobuf.Struct widgets_schema = 102; 
 }
 
 enum RenderMode {
@@ -73,7 +78,7 @@ message Port {
 }
 
 message PortType {
-  PortMainType main_type = 1;
+  flowcraft.v1.core.PortMainType main_type = 1;
   string item_type = 2;
   bool is_generic = 3;
 }
@@ -130,22 +135,4 @@ message Edge {
   map<string, string> metadata = 6;
 }
 
-enum TaskStatus {
-  TASK_PENDING = 0;
-  TASK_PROCESSING = 1;
-  TASK_COMPLETED = 2;
-  TASK_FAILED = 3;
-  TASK_CANCELLED = 4;
-  TASK_RESTARTING = 5;
-}
 
-message TaskUpdate {
-  string task_id = 1;
-  TaskStatus status = 2;
-  double progress = 3;
-  string message = 4;
-  google.protobuf.Value result = 5;
-  string node_id = 6;
-  string display_label = 7;
-  string type = 8;
-}

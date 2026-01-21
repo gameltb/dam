@@ -12,10 +12,15 @@ export type GroupNodeData = Record<string, unknown> & {
 
 export type GroupNodeType = Node<GroupNodeData, AppNodeType.GROUP>;
 
-const GroupNode = ({ data, id, selected }: NodeProps<GroupNodeType>) => {
+export const GroupNode = memo(({ data, id, selected }: NodeProps<GroupNodeType>) => {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const updateNodeData = useFlowStore(useShallow((s) => s.updateNodeData));
+  const { allNodes, nodeDraft } = useFlowStore(
+    useShallow((s) => ({
+      allNodes: s.allNodes,
+      nodeDraft: s.nodeDraft,
+    })),
+  );
 
   const [label, setLabel] = useState(data.displayName ?? "");
   const [isFocused, setIsFocused] = useState(false);
@@ -30,8 +35,13 @@ const GroupNode = ({ data, id, selected }: NodeProps<GroupNodeType>) => {
   const handleBlur = () => {
     setIsFocused(false);
     if (label !== data.displayName) {
-      // Correctly update the displayName within the data object
-      updateNodeData(id, { displayName: label });
+      const node = allNodes.find((n) => n.id === id);
+      if (node) {
+        const res = nodeDraft(node);
+        if (res.ok) {
+          res.value.data.displayName = label;
+        }
+      }
     }
   };
 
@@ -103,5 +113,4 @@ const GroupNode = ({ data, id, selected }: NodeProps<GroupNodeType>) => {
       </div>
     </div>
   );
-};
-export default memo(GroupNode);
+});

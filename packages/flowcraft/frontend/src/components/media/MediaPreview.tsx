@@ -4,8 +4,10 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
 import { useMediaTransform } from "@/hooks/useMediaTransform";
 import { type AppNode, AppNodeType, VideoMode } from "@/types";
+import { type DynamicNodeData } from "@/types";
 
 import { IconButton } from "../base/IconButton";
+import { MediaContentRenderer } from "./MediaContentRenderer";
 import { MediaPreviewToolbar } from "./MediaPreviewToolbar";
 
 interface MediaPreviewProps {
@@ -36,10 +38,10 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({ initialIndex, node, 
   // Video Modes
   const [videoMode, setVideoMode] = useState<VideoMode>(VideoMode.FIT);
 
-  const media = node.type === AppNodeType.DYNAMIC ? (node.data as any).media : null;
+  const media = node.type === AppNodeType.DYNAMIC ? (node.data as DynamicNodeData).media : null;
   const items = useMemo(() => {
     if (!media) return [];
-    return [media.url, ...(media.galleryUrls ?? [])].filter(Boolean) as string[];
+    return [media.url, ...(media.galleryUrls ?? [])].filter(Boolean);
   }, [media]);
 
   const currentUrl = items[activeIndex];
@@ -195,79 +197,20 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({ initialIndex, node, 
           />
         )}
 
-        <div
-          onMouseDown={isImage ? handleMouseDown : undefined}
-          style={{
-            alignItems: "center",
-            cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default",
-            display: "flex",
-            justifyContent: "center",
-            maxHeight: "100%",
-            maxWidth: "100%",
-            transform: `translate(${String(offset.x)}px, ${String(offset.y)}px) scale(${String(zoom)}) rotate(${String(rotation)}deg)`,
-            transition: isDragging ? "none" : "transform 0.2s ease-out",
+        <MediaContentRenderer
+          currentUrl={currentUrl || ""}
+          handleMouseDown={handleMouseDown}
+          isDragging={isDragging}
+          isImage={isImage}
+          isVideo={isVideo}
+          offset={offset}
+          onLoaded={() => {
+            setIsLoading(false);
           }}
-        >
-          {isImage ? (
-            <img
-              alt="Preview"
-              onLoad={() => {
-                setIsLoading(false);
-              }}
-              src={currentUrl}
-              style={{
-                boxShadow: "0 30px 60px rgba(0,0,0,0.8)",
-                maxHeight: "85vh",
-                maxWidth: "90vw",
-                objectFit: "contain",
-                pointerEvents: "none",
-              }}
-            />
-          ) : isVideo ? (
-            <video
-              autoPlay
-              controls
-              key={currentUrl}
-              onLoadedData={() => {
-                setIsLoading(false);
-              }}
-              src={currentUrl}
-              style={{
-                boxShadow: "0 30px 60px rgba(0,0,0,0.8)",
-                height: videoMode === VideoMode.ORIGINAL ? "auto" : "85vh",
-                maxHeight: "100%",
-                maxWidth: "100%",
-                objectFit: videoMode === VideoMode.ORIGINAL ? "none" : "contain",
-                width: videoMode === VideoMode.ORIGINAL ? "auto" : "90vw",
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                alignItems: "center",
-                backgroundColor: "#1a1a1a",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: "20px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "30px",
-                padding: "40px",
-                width: "400px",
-              }}
-            >
-              <audio
-                autoPlay
-                controls
-                key={currentUrl}
-                onLoadedData={() => {
-                  setIsLoading(false);
-                }}
-                src={currentUrl}
-                style={{ width: "100%" }}
-              />
-            </div>
-          )}
-        </div>
+          rotation={rotation}
+          videoMode={videoMode}
+          zoom={zoom}
+        />
 
         {/* Navigation - Right */}
         {items.length > 1 && (

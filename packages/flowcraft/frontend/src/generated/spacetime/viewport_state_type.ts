@@ -9,13 +9,13 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
-import Viewport from "./viewport_type";
+import CoreViewport from "./core_viewport_type";
 
 
 export default __t.object("ViewportState", {
   id: __t.string(),
   get state() {
-    return Viewport;
+    return CoreViewport;
   },
 });
 

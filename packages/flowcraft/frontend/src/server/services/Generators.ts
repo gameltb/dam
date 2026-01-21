@@ -1,3 +1,6 @@
+import { create as createProto } from "@bufbuild/protobuf";
+
+import { PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import { type AppNode, AppNodeType, type Edge, RenderMode } from "@/types";
 
 export function generateGallery(): { edges: Edge[]; nodes: AppNode[] } {
@@ -15,6 +18,12 @@ export function generateGallery(): { edges: Edge[]; nodes: AppNode[] } {
       } as any,
       id: "welcome-node",
       position: { x: 100, y: 100 },
+      presentation: createProto(PresentationSchema, {
+        height: 400,
+        isInitialized: true,
+        position: { x: 100, y: 100 },
+        width: 500,
+      }),
       type: AppNodeType.DYNAMIC,
     },
   ];

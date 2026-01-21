@@ -1,299 +1,233 @@
-import { type JsonObject, create as createProto } from "@bufbuild/protobuf";
-import { applyEdgeChanges, applyNodeChanges } from "@xyflow/react";
-import { temporal, type TemporalState } from "zundo";
+import { create as createProto, fromJson } from "@bufbuild/protobuf";
+import { ValueSchema } from "@bufbuild/protobuf/wkt";
+import { applyEdgeChanges, applyNodeChanges, type Edge } from "@xyflow/react";
 import { create } from "zustand";
 
-import { MutationSource as ProtoSource } from "@/generated/flowcraft/v1/core/base_pb";
-import { PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
-import { type PortType } from "@/generated/flowcraft/v1/core/node_pb";
-import { type GraphMutation, GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
-import { NodeSignalSchema } from "@/generated/flowcraft/v1/core/signals_pb";
-import { type RFState } from "@/store/types";
-import { type AppNode, type DynamicNodeData, MutationSource } from "@/types";
-import { appNodeDataToProto, appNodeToProto } from "@/utils/nodeProtoUtils";
-import { dehydrateNode, findPort } from "@/utils/nodeUtils";
-import { getValidator } from "@/utils/portValidators";
+import { NodeSchema } from "@/generated/flowcraft/v1/core/node_pb";
+import {
+  AddNodeRequestSchema,
+  PathUpdateRequest_UpdateType,
+  PathUpdateRequestSchema,
+  ReparentNodeRequestSchema,
+} from "@/generated/flowcraft/v1/core/service_pb";
+import { type AppNode, FlowEvent, MutationSource } from "@/types";
+import { globalToLocal, localToGlobal } from "@/utils/coordinateUtils";
+import { createNodeDraft, type Draftable, Err, type Result } from "@/utils/draft";
+import { calculateInverse, getFriendlyDescription } from "@/utils/historyUtils";
+import { appNodeToProto } from "@/utils/nodeProtoUtils";
 
-import { pipeline } from "./middleware/pipeline";
-import { MutationDirection } from "./middleware/types";
-import { handleGraphMutation } from "./mutationHandlers";
-import { getWidgetSignalListener } from "./signalHandlers";
+import { type GraphMutationEvent, MutationDirection } from "./middleware/types";
+import { handleMutation } from "./mutationHandlers";
+import { NotificationType, useNotificationStore } from "./notificationStore";
+import { initStoreOrchestrator } from "./orchestrator";
 import { dispatchToSpacetime } from "./spacetimeDispatcher";
+import { type HistoryEntry, type MutationInput, type RFState } from "./types";
+import { useUiStore } from "./uiStore";
 
-const useStore = create(
-  temporal<RFState>(
-    (set, get) => {
-      return {
-        addNode: (node) => {
-          get().applyMutations([
-            createProto(GraphMutationSchema, {
-              operation: {
-                case: "addNode",
-                value: { node: appNodeToProto(node) },
-              },
-            }),
-          ]);
-        },
-        applyMutations: (mutations, context) => {
-          const source = context?.source ?? MutationSource.SOURCE_USER;
+export const useFlowStore = create<RFState>()((set, get) => ({
+  addNode: (node) => {
+    get().applyMutations([createProto(AddNodeRequestSchema, { node: appNodeToProto(node) })]);
+  },
+  allEdges: [],
+  allNodes: [],
+  applyMutations: (inputs, context) => {
+    const source = context?.source ?? MutationSource.SOURCE_USER;
+    const direction = source === MutationSource.SOURCE_SYNC ? MutationDirection.INCOMING : MutationDirection.OUTGOING;
 
-          let direction = MutationDirection.OUTGOING;
-          if (source === ProtoSource.SOURCE_SYNC) {
-            direction = MutationDirection.INCOMING;
-          }
+    const pipeline = initStoreOrchestrator();
+    pipeline.execute({ context: context ?? {}, direction, mutations: inputs }, (finalEvent: GraphMutationEvent) => {
+      const currentNodes = [...get().allNodes];
+      const currentEdges = [...get().allEdges];
 
-          pipeline.execute({ context: context ?? {}, direction, mutations }, (finalEvent) => {
-            const { edges: currentEdges, nodes: currentNodes, spacetimeConn } = get();
+      // 1. 记录历史
+      if (direction === MutationDirection.OUTGOING && !context?.isHistoryOp) {
+        const inverses = finalEvent.mutations
+          .map((m: MutationInput) => calculateInverse(m, currentNodes))
+          .filter((m: MutationInput | null): m is MutationInput => m !== null);
 
-            let nextNodes = currentNodes;
-            let nextEdges = currentEdges;
+        if (inverses.length > 0) {
+          const entry: HistoryEntry = {
+            description:
+              context?.description ||
+              (finalEvent.mutations[0] ? getFriendlyDescription(finalEvent.mutations[0]) : "Unknown Operation"),
+            forward: [...finalEvent.mutations],
+            id: crypto.randomUUID(),
+            inverse: inverses,
+            scopeId: useUiStore.getState().activeScopeId,
+            timestamp: Date.now(),
+          };
+          set((state) => ({
+            redoStack: [],
+            undoStack: [entry, ...state.undoStack].slice(0, 50),
+          }));
+        }
+      }
 
-            finalEvent.mutations.forEach((mutInput) => {
-              const result = handleGraphMutation(mutInput, nextNodes, nextEdges);
-              nextNodes = result.nodes;
-              nextEdges = result.edges;
+      // 2. 执行状态更新
+      let nextNodes = currentNodes;
+      let nextEdges = currentEdges;
+      finalEvent.mutations.forEach((mutInput: MutationInput) => {
+        const result = handleMutation(mutInput, nextNodes, nextEdges);
+        nextNodes = result.nodes;
+        nextEdges = result.edges;
+      });
 
-              // Sync to SpacetimeDB
-              if (direction === MutationDirection.OUTGOING && spacetimeConn) {
-                // Set implicit task context if a taskId is provided in the mutation
-                if (mutInput.originTaskId) {
-                  spacetimeConn.reducers.assignCurrentTask({
-                    taskId: mutInput.originTaskId,
-                  });
-                }
-                dispatchToSpacetime(spacetimeConn, mutInput);
-              }
-            });
+      set({ allEdges: nextEdges, allNodes: nextNodes });
+      get().refreshView();
 
-            set({
-              edges: nextEdges,
-              isLayoutDirty: true,
-              nodes: nextNodes,
-            });
-          });
-        },
-        dispatchNodeEvent: (type, payload) => {
-          set({ lastNodeEvent: { payload, timestamp: Date.now(), type } });
-        },
-        edges: [],
-        handleIncomingWidgetSignal: (signal) => {
-          getWidgetSignalListener(signal.nodeId, signal.widgetId)?.(signal);
-        },
-        isLayoutDirty: false,
-        lastNodeEvent: null,
+      // 3. 后端同步
+      if (direction === MutationDirection.OUTGOING && get().spacetimeConn) {
+        finalEvent.mutations.forEach((mut: MutationInput) => {
+          dispatchToSpacetime(get().spacetimeConn!, mut);
+        });
+      }
+    });
+  },
+  dispatchNodeEvent: (type: FlowEvent, payload: Record<string, unknown>) => {
+    set({ lastNodeEvent: { payload, timestamp: Date.now(), type } });
+  },
+  edges: [],
+  handleIncomingWidgetSignal: () => {},
+  lastLocalUpdate: {},
 
-        nodes: [],
+  lastNodeEvent: null,
 
-        onConnect: (connection) => {
-          const { edges, nodes } = get();
-          const targetNode = nodes.find((n) => n.id === connection.target);
-          let maxInputs = 999;
+  nodeDraft: (nodeIdOrNode: AppNode | string): Result<Draftable<AppNode>> => {
+    const node = typeof nodeIdOrNode === "string" ? get().allNodes.find((n) => n.id === nodeIdOrNode) : nodeIdOrNode;
 
-          if (targetNode) {
-            const port = findPort(targetNode, connection.targetHandle ?? "");
-            if (port) {
-              const validator = getValidator(port.type as unknown as PortType | undefined);
-              maxInputs = validator.getMaxInputs();
-            }
-          }
+    if (!node) return Err(`Node ${String(nodeIdOrNode)} not found`);
 
-          const mutations: GraphMutation[] = [];
-          if (maxInputs === 1) {
-            edges.forEach((e) => {
-              if (e.target === connection.target && e.targetHandle === connection.targetHandle) {
-                mutations.push(
-                  createProto(GraphMutationSchema, {
-                    operation: { case: "removeEdge", value: { id: e.id } },
-                  }),
-                );
-              }
-            });
-          }
+    return createNodeDraft(node.id, node, NodeSchema, (path: string, value: unknown) => {
+      get().applyMutations([
+        createProto(PathUpdateRequestSchema, {
+          path: path,
+          targetId: node.id,
+          type: PathUpdateRequest_UpdateType.REPLACE,
+          value: fromJson(ValueSchema, value as any),
+        }),
+      ]);
+    });
+  },
 
-          const edgeId = `e${String(Date.now())}`;
-          mutations.push(
-            createProto(GraphMutationSchema, {
-              operation: {
-                case: "addEdge",
-                value: {
-                  edge: {
-                    edgeId,
-                    metadata: {},
-                    sourceHandle: connection.sourceHandle ?? "",
-                    sourceNodeId: connection.source,
-                    targetHandle: connection.targetHandle ?? "",
-                    targetNodeId: connection.target,
-                  },
-                },
-              },
-            }),
-          );
+  nodes: [],
 
-          get().applyMutations(mutations, { description: "Connect handles" });
-        },
+  onConnect: () => {},
 
-        onEdgesChange: (changes) => {
-          const nextEdges = applyEdgeChanges(changes, get().edges);
-          set({ edges: nextEdges });
+  onEdgesChange: (changes) => {
+    set({ allEdges: applyEdgeChanges(changes, get().allEdges) });
+    get().refreshView();
+  },
 
-          const removals = changes.filter((c) => c.type === "remove") as {
-            id: string;
-            type: "remove";
-          }[];
+  onNodesChange: (changes) => {
+    set({ allNodes: applyNodeChanges(changes, get().allNodes) });
+    get().refreshView();
+  },
 
-          if (removals.length > 0) {
-            get().applyMutations(
-              removals.map((r) =>
-                createProto(GraphMutationSchema, {
-                  operation: { case: "removeEdge", value: { id: r.id } },
-                }),
-              ),
-            );
-          }
-        },
+  redo: () => {
+    const { redoStack, undoStack } = get();
+    if (redoStack.length === 0) return;
 
-        onNodesChange: (changes) => {
-          const nextNodes = applyNodeChanges(changes, get().nodes) as AppNode[];
-          set({ nodes: nextNodes });
+    const entry = redoStack[0]!;
+    const remaining = redoStack.slice(1);
 
-          const mutations: GraphMutation[] = [];
+    if (entry.scopeId !== useUiStore.getState().activeScopeId) {
+      useUiStore.getState().setActiveScope(entry.scopeId);
+    }
 
-          changes.forEach((c) => {
-            if (c.type === "remove") {
-              mutations.push(
-                createProto(GraphMutationSchema, {
-                  operation: { case: "removeNode", value: { id: c.id } },
-                }),
-              );
-            } else if ((c.type === "position" && !c.dragging) || c.type === "dimensions") {
-              const n = nextNodes.find((node) => node.id === c.id);
-              if (n) {
-                const presentation = createProto(PresentationSchema, {
-                  height: n.measured?.height ?? Number(n.style?.height ?? 0),
-                  isInitialized: true,
-                  parentId: n.parentId ?? "",
-                  position: { x: n.position.x, y: n.position.y },
-                  width: n.measured?.width ?? Number(n.style?.width ?? 0),
-                });
+    get().applyMutations(entry.forward, {
+      description: `重做: ${entry.description}`,
+      isHistoryOp: true,
+    });
 
-                const dynData = n.data as DynamicNodeData;
-                mutations.push(
-                  createProto(GraphMutationSchema, {
-                    operation: {
-                      case: "updateNode",
-                      value: {
-                        data: appNodeDataToProto(dynData),
-                        id: n.id,
-                        presentation,
-                      },
-                    },
-                  }),
-                );
-              }
-            }
-          });
+    useNotificationStore
+      .getState()
+      .addNotification({ message: `已重做: ${entry.description}`, type: NotificationType.INFO });
 
-          if (mutations.length > 0) {
-            get().applyMutations(mutations);
-          }
-        },
+    set({
+      redoStack: remaining,
+      undoStack: [entry, ...undoStack],
+    });
+  },
 
-        resetStore: () => {
-          get().applyMutations([
-            createProto(GraphMutationSchema, {
-              operation: { case: "clearGraph", value: {} },
-            }),
-          ]);
-          set({ edges: [], isLayoutDirty: false, nodes: [] });
-        },
-        sendNodeSignal: (signal) => {
-          const { spacetimeConn } = get();
-          if (spacetimeConn) {
-            spacetimeConn.pbreducers.sendNodeSignal({
-              signal,
-            });
-          }
-        },
-        sendWidgetSignal: (signal) => {
-          const { spacetimeConn } = get();
-          if (spacetimeConn) {
-            // Mapping widget signal to node signal with structured parameters.
-            // Using google.protobuf.Struct to hold the payload and widgetId.
-            spacetimeConn.pbreducers.sendNodeSignal({
-              signal: createProto(NodeSignalSchema, {
-                nodeId: signal.nodeId,
-                payload: {
-                  case: "parameters",
-                  value: {
-                    fields: {
-                      payload: {
-                        kind: {
-                          case: "structValue",
-                          value: signal.payload as JsonObject,
-                        },
-                      },
-                      widgetId: {
-                        kind: { case: "stringValue", value: signal.widgetId },
-                      },
-                    },
-                  },
-                },
-              }),
-            });
-          }
-        },
-        setGraph: (graph) => {
-          set({
-            edges: graph.edges,
-            isLayoutDirty: true,
-            nodes: graph.nodes.map(dehydrateNode),
-          });
-        },
-        updateNodeData: (id, data) => {
-          const node = get().nodes.find((n) => n.id === id);
-          if (node) {
-            const updatedData = {
-              ...node.data,
-              ...data,
-            } as DynamicNodeData;
-            get().applyMutations([
-              createProto(GraphMutationSchema, {
-                operation: {
-                  case: "updateNode",
-                  value: {
-                    data: appNodeDataToProto(updatedData),
-                    id: id,
-                  },
-                },
-              }),
-            ]);
-          }
-        },
-      };
-    },
-    {
-      equality: () => true, // version is gone, we don't rely on it for equality here anymore
-      handleSet: (handleSet) => (state) => {
-        // Skip recording history if we're in the middle of a drag
-        const isDragging = (state as RFState).nodes.some((n) => n.dragging);
-        if (isDragging) return;
-        handleSet(state);
-      },
-      partialize: (state) => {
-        const { edges, nodes } = state;
-        return { edges, nodes } as unknown as RFState;
-      },
-    },
-  ),
-);
+  redoStack: [],
 
-import { useTemporalStore as useTemporalStoreInternal } from "./temporalSync";
+  refreshView: () => {
+    const activeScopeId = useUiStore.getState().activeScopeId;
+    const allNodes = get().allNodes;
+    const allEdges = get().allEdges;
 
-export const useFlowStore = useStore;
+    const nextNodes = allNodes.filter((n) => (n.parentId || null) === activeScopeId);
+    const nextEdges = allEdges.filter((e) => {
+      const s = allNodes.find((n) => n.id === e.source);
+      const t = allNodes.find((n) => n.id === e.target);
+      return (s?.parentId || null) === activeScopeId && (t?.parentId || null) === activeScopeId;
+    });
 
-export function useTemporalStore<T>(
-  selector: (state: TemporalState<RFState>) => T,
-  equality?: (a: T, b: T) => boolean,
-): T {
-  return useTemporalStoreInternal(useStore, selector, equality);
-}
+    const currentNodes = get().nodes;
+    const currentEdges = get().edges;
+
+    const nodesChanged = nextNodes.length !== currentNodes.length || nextNodes.some((n, i) => n !== currentNodes[i]);
+    const edgesChanged = nextEdges.length !== currentEdges.length || nextEdges.some((e, i) => e !== currentEdges[i]);
+
+    if (nodesChanged || edgesChanged) {
+      set({ edges: nextEdges, nodes: nextNodes });
+    }
+  },
+
+  reparentNode: (nodeId, newParentId) => {
+    const node = get().allNodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    const currentGlobalPos = localToGlobal(node.position, node.parentId || null, get().allNodes);
+    const newLocalPos = globalToLocal(currentGlobalPos, newParentId, get().allNodes);
+    get().applyMutations([
+      createProto(ReparentNodeRequestSchema, {
+        newParentId: newParentId || "",
+        newPosition: newLocalPos,
+        nodeId,
+      }),
+    ]);
+  },
+  resetStore: () => {
+    set({ allEdges: [], allNodes: [], edges: [], nodes: [], redoStack: [], undoStack: [] });
+  },
+  sendNodeSignal: (signal) => get().spacetimeConn?.pbreducers.sendNodeSignal({ signal }),
+  sendWidgetSignal: () => {},
+  setEdges: (allEdges: Edge[]) => {
+    set({ allEdges });
+    get().refreshView();
+  },
+  setGraph: (g: { edges: Edge[]; nodes: AppNode[] }) => {
+    set({ allEdges: g.edges, allNodes: g.nodes });
+    get().refreshView();
+  },
+  setNodes: (allNodes: AppNode[]) => {
+    set({ allNodes });
+    get().refreshView();
+  },
+  undo: () => {
+    const { redoStack, undoStack } = get();
+    if (undoStack.length === 0) return;
+
+    const entry = undoStack[0]!;
+    const remaining = undoStack.slice(1);
+
+    if (entry.scopeId !== useUiStore.getState().activeScopeId) {
+      useUiStore.getState().setActiveScope(entry.scopeId);
+    }
+
+    get().applyMutations(entry.inverse, {
+      description: `撤销: ${entry.description}`,
+      isHistoryOp: true,
+    });
+
+    useNotificationStore
+      .getState()
+      .addNotification({ message: `已撤销: ${entry.description}`, type: NotificationType.INFO });
+
+    set({
+      redoStack: [entry, ...redoStack],
+      undoStack: remaining,
+    });
+  },
+  undoStack: [],
+}));

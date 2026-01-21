@@ -1,21 +1,19 @@
 import { type ReducerCtx, t } from "spacetimedb/server";
 
-import { ActionExecutionRequest as ProtoActionExecutionRequest } from "../generated/flowcraft/v1/core/action_pb";
+import { type ActionExecutionRequest as ProtoActionExecutionRequest } from "../generated/flowcraft/v1/core/action_pb";
 import { ActionExecutionRequestSchema } from "../generated/flowcraft/v1/core/action_pb";
-import { TaskUpdate as ProtoTaskUpdate } from "../generated/flowcraft/v1/core/node_pb";
-import { TaskUpdateSchema } from "../generated/flowcraft/v1/core/node_pb";
-import { NodeSignal as ProtoNodeSignal } from "../generated/flowcraft/v1/core/signals_pb";
+import { type TaskUpdate as ProtoTaskUpdate } from "../generated/flowcraft/v1/core/kernel_pb";
+import { TaskUpdateSchema } from "../generated/flowcraft/v1/core/kernel_pb";
+import { type NodeSignal as ProtoNodeSignal } from "../generated/flowcraft/v1/core/signals_pb";
 import { NodeSignalSchema } from "../generated/flowcraft/v1/core/signals_pb";
 import {
-  ActionExecutionRequest as StdbActionExecutionRequest,
-  NodeSignal as StdbNodeSignal,
-  TaskUpdate as StdbTaskUpdate,
+  core_NodeSignal as StdbNodeSignal,
 } from "../generated/generated_schema";
 import { pbToStdb } from "../generated/proto-stdb-bridge";
 import { type AppSchema } from "../schema";
 
 export const taskReducers = {
-  assign_current_task: {
+  assignCurrentTask: {
     args: { taskId: t.string() },
     handler: (ctx: ReducerCtx<AppSchema>, { taskId }: { taskId: string }) => {
       const identity = ctx.sender.toHexString();
@@ -32,7 +30,7 @@ export const taskReducers = {
     },
   },
 
-  execute_action: {
+  executeAction: {
     args: {
       id: t.string(),
       request: ActionExecutionRequestSchema,
@@ -40,24 +38,26 @@ export const taskReducers = {
     handler: (ctx: ReducerCtx<AppSchema>, { id, request }: { id: string; request: ProtoActionExecutionRequest }) => {
       ctx.db.tasks.insert({
         id: id,
-        request: pbToStdb(
-          ActionExecutionRequestSchema,
-          StdbActionExecutionRequest,
-          request,
-        ) as StdbActionExecutionRequest,
+        nodeId: request.sourceNodeId,
+        taskType: request.actionId,
+        paramsPayload: new TextEncoder().encode(JSON.stringify(request.params || {})),
+        selectorJson: "",
+        ownerId: "",
         result: "",
-        status: { tag: "TASK_PENDING" },
+        status: { tag: "TASK_STATUS_PENDING" },
         timestamp: ctx.timestamp.toMillis(),
       });
     },
   },
 
-  send_node_signal: {
+  sendNodeSignal: {
     args: {
       signal: NodeSignalSchema,
     },
     handler: (ctx: ReducerCtx<AppSchema>, { signal }: { signal: ProtoNodeSignal }) => {
       const stSignal = pbToStdb(NodeSignalSchema, StdbNodeSignal, signal) as StdbNodeSignal;
+      if (!stSignal.payload) throw new Error("[Task] Missing payload in signal");
+      
       ctx.db.nodeSignals.insert({
         id: crypto.randomUUID(),
         nodeId: signal.nodeId,
@@ -67,20 +67,15 @@ export const taskReducers = {
     },
   },
 
-  update_task_status: {
+  updateTaskStatus: {
     args: { update: TaskUpdateSchema },
     handler: (ctx: ReducerCtx<AppSchema>, { update }: { update: ProtoTaskUpdate }) => {
       const task = ctx.db.tasks.id.find(update.taskId);
-      if (task) {
-        const stUpdate = pbToStdb(TaskUpdateSchema, StdbTaskUpdate, update) as StdbTaskUpdate;
-        const updated = { ...task };
-        if (stUpdate.status) {
-          updated.status = stUpdate.status;
-        }
-        if (stUpdate.result) {
-          updated.result = stUpdate.result;
-        }
-        ctx.db.tasks.id.update(updated);
+      if (task && update.status) {
+        ctx.db.tasks.id.update({
+            ...task,
+            status: { tag: (update.status as any).tag || update.status }
+        });
       }
     },
   },

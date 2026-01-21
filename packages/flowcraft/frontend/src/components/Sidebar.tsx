@@ -1,5 +1,6 @@
 import { PanelLeftClose, X } from "lucide-react";
 import React, { useCallback, useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
@@ -8,7 +9,15 @@ import { ChatBot } from "./media/ChatBot";
 import { Button } from "./ui/button";
 
 export const Sidebar: React.FC = () => {
-  const { activeChatNodeId, isSidebarOpen, setActiveChat, setSidebarWidth, sidebarWidth } = useUiStore();
+  const { activeChatNodeId, isSidebarOpen, setActiveChat, setSidebarWidth, sidebarWidth } = useUiStore(
+    useShallow((s) => ({
+      activeChatNodeId: s.activeChatNodeId,
+      isSidebarOpen: s.isSidebarOpen,
+      setActiveChat: s.setActiveChat,
+      setSidebarWidth: s.setSidebarWidth,
+      sidebarWidth: s.sidebarWidth,
+    })),
+  );
 
   const node = useFlowStore((s) => s.nodes.find((n) => n.id === activeChatNodeId));
 

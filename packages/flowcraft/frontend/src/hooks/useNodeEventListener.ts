@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
 import { useFlowStore } from "@/store/flowStore";
 import { useTaskStore } from "@/store/taskStore";
-import { type AppNode, AppNodeType, FlowEvent, isDynamicNode, MediaType, MutationSource, type NodeId, type TaskId } from "@/types";
+import { type AppNode, AppNodeType, FlowEvent, isDynamicNode, MediaType, MutationSource, type NodeId } from "@/types";
 
 export interface ContextMenuData {
   galleryItemType?: MediaType;
@@ -61,7 +61,7 @@ export function useNodeEventListener({
       setContextMenu({
         galleryItemType: payload.mediaType,
         galleryItemUrl: payload.url,
-        nodeId: payload.nodeId as NodeId,
+        nodeId: payload.nodeId,
         x: payload.x,
         y: payload.y,
       });
@@ -73,7 +73,7 @@ export function useNodeEventListener({
       setTimeout(() => {
         setPreviewData({
           ...payload,
-          nodeId: payload.nodeId as NodeId,
+          nodeId: payload.nodeId,
         });
       }, 0);
     } else if (lastNodeEvent.type === FlowEvent.OPEN_EDITOR) {
@@ -88,13 +88,13 @@ export function useNodeEventListener({
       };
       const node = nodes.find((n) => n.id === nodeId);
       if (node && isDynamicNode(node) && node.data.widgets) {
-        const widget = node.data.widgets.find((w) => w.id === widgetId);
+        const widget = node.data.widgets.find((w: any) => w.id === widgetId);
         const val = widget?.value ? (toJson(ValueSchema, widget.value) as string) : "";
         if (val && typeof val === "string") {
           if (val.startsWith("task:")) {
             const taskType = val.split(":")[1];
             if (!taskType) return;
-            const taskId = uuidv4() as TaskId;
+            const taskId = uuidv4();
             const position = {
               x: node.position.x + 300,
               y: node.position.y,
@@ -104,7 +104,7 @@ export function useNodeEventListener({
                 displayName: `Running ${taskType}...`,
                 taskId,
               },
-              id: `task-${taskId}` as NodeId,
+              id: `task-${taskId}`,
               position,
               type: AppNodeType.PROCESSING,
             } as any;

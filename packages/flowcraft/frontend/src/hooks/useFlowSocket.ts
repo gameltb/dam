@@ -4,13 +4,13 @@ import { useTable } from "spacetimedb/react";
 
 import { ActionExecutionRequestSchema } from "@/generated/flowcraft/v1/core/action_pb";
 import { ViewportSchema } from "@/generated/flowcraft/v1/core/base_pb";
-import { TaskStatus, TaskUpdateSchema } from "@/generated/flowcraft/v1/core/node_pb";
+import { TaskStatus, TaskUpdateSchema } from "@/generated/flowcraft/v1/core/kernel_pb";
 import { tables } from "@/generated/spacetime";
 import { useFlowStore } from "@/store/flowStore";
 import { convertStdbToPb } from "@/utils/pb-client";
 
 export const useFlowSocket = (_args?: unknown) => {
-  const { spacetimeConn } = useFlowStore();
+  const spacetimeConn = useFlowStore((s) => s.spacetimeConn);
   const [stTemplates] = useTable(tables.nodeTemplates);
   const [stInferenceConfig] = useTable(tables.inferenceConfig);
 
@@ -19,7 +19,7 @@ export const useFlowSocket = (_args?: unknown) => {
       const pbTemplate = convertStdbToPb("nodeTemplates", t);
       return {
         ...pbTemplate,
-        templateId: t.templateId, // Keep original ID if needed for indexing
+        templateId: t.templateId,
       };
     });
   }, [stTemplates]);
@@ -60,7 +60,7 @@ export const useFlowSocket = (_args?: unknown) => {
             nodeId: "",
             progress: 0,
             result: undefined,
-            status: TaskStatus.TASK_CANCELLED,
+            status: TaskStatus.CANCELLED,
             taskId,
             type: "",
           }),
@@ -70,6 +70,10 @@ export const useFlowSocket = (_args?: unknown) => {
     [spacetimeConn],
   );
 
+  const streamAction = useCallback((nodeId: string, widgetId: string) => {
+    console.log("streamAction", nodeId, widgetId);
+  }, []);
+
   return {
     cancelTask,
     executeTask,
@@ -77,22 +81,13 @@ export const useFlowSocket = (_args?: unknown) => {
     restartTask: (taskId: string) => {
       console.log("Restarting task:", taskId);
     },
-    streamAction: (nodeId: string, widgetId: string) => {
-      console.log("streamAction", nodeId, widgetId);
-    },
+    streamAction,
     templates,
-    updateNodeData: (id: string, data: unknown) => {
-      // Logic to merge data and call updateNodePb
-      console.log("updateNodeData", id, data);
-    },
     updateViewport: (x: number, y: number, zoom: number) => {
       spacetimeConn?.pbreducers.updateViewport({
         id: "default",
         viewport: create(ViewportSchema, { x, y, zoom }),
       } as any);
-    },
-    updateWidget: (nodeId: string, widgetId: string, value: string) => {
-      spacetimeConn?.reducers.updateWidgetValue({ nodeId, value, widgetId });
     },
   };
 };

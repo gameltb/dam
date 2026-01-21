@@ -1,6 +1,6 @@
 import { t, table } from "spacetimedb/server";
 
-import { ChatMessage } from "../generated/generated_schema";
+import { services_ChatMessage } from "../generated/generated_schema";
 
 /**
  * Chat messages table using the Protobuf-defined structure.
@@ -12,7 +12,7 @@ export const chatMessages = table(
   },
   {
     id: t.string().primaryKey(),
-    state: ChatMessage,
+    state: services_ChatMessage,
   },
 );
 

@@ -5,8 +5,8 @@ import fastifyStatic from "@fastify/static";
 import { fastify } from "fastify";
 
 import { FlowService } from "@/generated/flowcraft/v1/core/service_pb";
-import { wrapReducers } from "../utils/pb-client";
 
+import { wrapReducers } from "../utils/pb-client";
 import { SERVER_CONFIG } from "./config";
 import { AssetService } from "./services/AssetService";
 import { initConfigSync } from "./services/ConfigSyncService";
@@ -26,7 +26,8 @@ initConfigSync();
 
 onSpacetimeConnect((conn) => {
   const pbConn = wrapReducers(conn as any);
-  new ChatWorker(conn as any, pbConn);
+  const chatWorker = new ChatWorker(pbConn);
+  void chatWorker.start();
 });
 
 // 2. 注册核心插件

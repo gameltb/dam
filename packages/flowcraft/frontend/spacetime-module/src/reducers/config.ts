@@ -1,13 +1,13 @@
 import { type ReducerCtx, t } from "spacetimedb/server";
 
-import { NodeTemplate, NodeTemplateSchema } from "../generated/flowcraft/v1/core/node_pb";
+import { type NodeTemplate, NodeTemplateSchema } from "../generated/flowcraft/v1/core/node_pb";
 import {
   InferenceConfigDiscoveryResponseSchema,
-  InferenceConfigDiscoveryResponse as ProtoInferenceConfigDiscoveryResponse,
+  type InferenceConfigDiscoveryResponse as ProtoInferenceConfigDiscoveryResponse,
 } from "../generated/flowcraft/v1/core/service_pb";
 import {
-  InferenceConfigDiscoveryResponse as StdbInferenceConfigDiscoveryResponse,
-  NodeTemplate as StdbNodeTemplate,
+  services_InferenceConfigDiscoveryResponse as StdbInferenceConfigDiscoveryResponse,
+  core_NodeTemplate as StdbNodeTemplate,
 } from "../generated/generated_schema";
 import { pbToStdb } from "../generated/proto-stdb-bridge";
 import { type AppSchema } from "../schema";

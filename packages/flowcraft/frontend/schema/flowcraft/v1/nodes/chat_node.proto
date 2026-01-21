@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-package flowcraft_proto.v1;
+package flowcraft.v1.nodes;
 
 message ChatNodeState {
-  string tree_id = 1;
+  string tree_id = 1; // 关键：这是该节点关联的“环境 ID”
   string conversation_head_id = 2;
   bool is_history_cleared = 3;
 }

@@ -13,8 +13,8 @@ const SNAP_DISTANCE = 10;
  */
 export function useHelperLines(): {
   calculateLines: (
-    draggingNode: Node,
-    allNodes: Node[],
+    draggingNode: Node<any, any>,
+    allNodes: Node<any, any>[],
     shouldUpdateState: boolean,
     overriddenPosition?: XYPosition,
   ) => { helperLines: HelperLines; snappedPosition: XYPosition };
@@ -24,7 +24,11 @@ export function useHelperLines(): {
   const [helperLines, setHelperLines] = useState<HelperLines>({});
 
   // Helper to find absolute position of a node
-  const getAbsolutePosition = (node: Node, allNodes: Node[], overriddenPosition?: XYPosition): XYPosition => {
+  const getAbsolutePosition = (
+    node: Node<any, any>,
+    allNodes: Node<any, any>[],
+    overriddenPosition?: XYPosition,
+  ): XYPosition => {
     let x = overriddenPosition ? overriddenPosition.x : node.position.x;
     let y = overriddenPosition ? overriddenPosition.y : node.position.y;
     let parentId = node.parentId;
@@ -43,7 +47,12 @@ export function useHelperLines(): {
   };
 
   const calculateLines = useCallback(
-    (draggingNode: Node, allNodes: Node[], shouldUpdateState: boolean, overriddenPosition?: XYPosition) => {
+    (
+      draggingNode: Node<any, any>,
+      allNodes: Node<any, any>[],
+      shouldUpdateState: boolean,
+      overriddenPosition?: XYPosition,
+    ) => {
       const result: HelperLines = {
         horizontal: undefined,
         vertical: undefined,

@@ -1,136 +1,163 @@
-import { create } from "@bufbuild/protobuf";
-import { type NodeProps, NodeResizer, type ResizeDragEvent } from "@xyflow/react";
-import { AlertCircle, RefreshCw } from "lucide-react";
-import React, { memo, useCallback } from "react";
+import { type NodeProps, NodeResizer } from "@xyflow/react";
+import { memo, useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
 
-import { PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
-import { GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
+import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
+import { TaskStatus } from "@/generated/flowcraft/v1/core/kernel_pb";
+import { RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
 import { useNodeHandlers } from "@/hooks/useNodeHandlers";
-import { cn } from "@/lib/utils";
 import { useFlowStore } from "@/store/flowStore";
 import { useTaskStore } from "@/store/taskStore";
-import { type DynamicNodeData, type DynamicNodeType, OverflowMode, TaskStatus } from "@/types";
-import { appNodeDataToProto } from "@/utils/nodeProtoUtils";
+import { useUiStore } from "@/store/uiStore";
+import { type DynamicNodeType } from "@/types";
 
 import { BaseNode } from "./base/BaseNode";
 import { NodeErrorBoundary } from "./base/NodeErrorBoundary";
 import { ChatRenderer } from "./media/ChatRenderer";
+import { MEDIA_CONFIGS } from "./media/mediaConfigs";
 import { MediaContent } from "./nodes/MediaContent";
 import { WidgetContent } from "./nodes/WidgetContent";
 
-interface LayoutProps {
-  height?: number;
-  measured?: { height: number; width: number };
-  width?: number;
-}
+/**
+ * Maps incoming render mode to standardized RenderMode enum.
+ */
+const mapToRenderMode = (mode: number | RenderMode | { tag: string }, nodeId: string): RenderMode => {
+  let resolvedMode: RenderMode = RenderMode.MODE_UNSPECIFIED;
 
-const RenderMedia: React.FC<{
-  data: DynamicNodeData;
-  height?: number;
-  id: string;
-  measured?: { height: number; width: number };
-  onOverflowChange?: (o: OverflowMode) => void;
-  width?: number;
-}> = (props) => {
-  const { data, id, onOverflowChange } = props;
-  const layoutProps = props as LayoutProps;
+  if (typeof mode === "object" && "tag" in mode) {
+    resolvedMode = RenderMode[mode.tag as keyof typeof RenderMode] ?? RenderMode.MODE_UNSPECIFIED;
+  } else if (typeof mode === "number") {
+    resolvedMode = mode;
+  } else if (typeof mode === "string") {
+    resolvedMode = (RenderMode as any)[mode] ?? RenderMode.MODE_UNSPECIFIED;
+  }
 
-  const nodeWidth = layoutProps.width ?? layoutProps.measured?.width ?? 240;
-  const nodeHeight = layoutProps.height ?? layoutProps.measured?.height ?? 180;
+  if (resolvedMode === RenderMode.MODE_UNSPECIFIED) {
+    throw new Error(`[DynamicNode] Node ${nodeId} has RenderMode.MODE_UNSPECIFIED. 
+      Nodes must always have a concrete active mode.`);
+  }
 
-  return <MediaContent data={data} height={nodeHeight} id={id} onOverflowChange={onOverflowChange} width={nodeWidth} />;
+  return resolvedMode;
 };
 
-const RenderWidgets: React.FC<{
-  data: DynamicNodeData;
+const ContentRenderer: React.FC<{
+  data: DynamicNodeType["data"];
   id: string;
   onToggleMode: () => void;
   selected?: boolean;
 }> = (props) => {
   const { data, id, onToggleMode, selected } = props;
+  const mode = mapToRenderMode(data.activeMode as any, id);
 
-  return <WidgetContent data={data} id={id} onToggleMode={onToggleMode} selected={selected} />;
+  return (
+    <NodeErrorBoundary nodeId={id}>
+      <div className="w-full h-full overflow-hidden rounded-[inherit] flex flex-col">
+        {(() => {
+          switch (mode) {
+            case RenderMode.MODE_CHAT:
+              return <ChatRenderer data={data} id={id} />;
+            case RenderMode.MODE_MEDIA:
+              return <MediaContent data={data} id={id} />;
+            case RenderMode.MODE_WIDGETS:
+              return <WidgetContent data={data} id={id} onToggleMode={onToggleMode} selected={selected} />;
+            default:
+              throw new Error(`[DynamicNode] Unhandled RenderMode: ${RenderMode[mode] || mode} for node ${id}`);
+          }
+        })()}
+      </div>
+    </NodeErrorBoundary>
+  );
 };
 
 export const DynamicNode = memo(
-  ({ data, id, positionAbsoluteX, positionAbsoluteY, selected, type, ...rest }: NodeProps<DynamicNodeType>) => {
-    const {
-      containerStyle,
-      minHeight,
-      minWidth,
-      onChange: updateNodeData,
-      shouldLockAspectRatio,
-    } = useNodeHandlers(data, selected, positionAbsoluteX, positionAbsoluteY);
+  ({ data, id, positionAbsoluteX, positionAbsoluteY, selected }: NodeProps<DynamicNodeType>) => {
+    const { containerStyle, shouldLockAspectRatio } = useNodeHandlers(
+      data,
+      selected,
+      positionAbsoluteX,
+      positionAbsoluteY,
+    );
+
+    const activeScopeId = useUiStore((s) => s.activeScopeId);
+    const isActiveScope = activeScopeId === id;
+    const { allNodes, nodeDraft } = useFlowStore(
+      useShallow((s) => ({
+        allNodes: s.allNodes,
+        nodeDraft: s.nodeDraft,
+      })),
+    );
+
+    // Calculate effective constraints from registry
+    const { minHeight, minWidth } = useMemo(() => {
+      const mode = mapToRenderMode(data.activeMode as any, id);
+      const constraints = MEDIA_CONFIGS[mode as any] || { minHeight: 150, minWidth: 200 };
+      const modeSpecific = (constraints as any).modeConstraints?.[mode as any];
+
+      if (modeSpecific) {
+        return { minHeight: modeSpecific.minHeight, minWidth: modeSpecific.minWidth };
+      }
+
+      // Special handling for Media mode which has its own registry (mediaConfigs)
+      if (mode === RenderMode.MODE_MEDIA) {
+        const mediaType =
+          data.media?.type ?? (data.extension?.case === "visual" ? (data.extension.value as any).type : undefined);
+        const size = MediaContent.getMinSize(mediaType ?? MediaType.MEDIA_UNSPECIFIED);
+        return { minHeight: size.height, minWidth: size.width };
+      }
+
+      return {
+        minHeight: constraints.minHeight ?? 150,
+        minWidth: constraints.minWidth ?? 200,
+      };
+    }, [data.activeMode, data.templateId, data.media?.type, data.extension, id]);
 
     const hasError = useTaskStore((s) =>
-      Object.values(s.tasks).some((t) => t.nodeId === id && t.status === TaskStatus.TASK_FAILED),
+      Object.values(s.tasks).some((t) => t.nodeId === id && t.status === TaskStatus.FAILED),
     );
 
-    const isProcessing = useTaskStore((s) =>
-      Object.values(s.tasks).some((t) => t.nodeId === id && t.status === TaskStatus.TASK_PROCESSING),
-    );
+    const onToggleMode = () => {
+      const node = allNodes.find((n) => n.id === id);
+      if (!node) return;
 
-    const handleResizeEnd = useCallback(
-      (_event: ResizeDragEvent, params: { height: number; width: number }) => {
-        const { applyMutations } = useFlowStore.getState();
-        const presentation = create(PresentationSchema, {
-          height: params.height,
-          isInitialized: true,
-          position: { x: positionAbsoluteX, y: positionAbsoluteY },
-          width: params.width,
-        });
+      const mode = mapToRenderMode(data.activeMode, id);
+      const nextMode = mode === RenderMode.MODE_WIDGETS ? RenderMode.MODE_MEDIA : RenderMode.MODE_WIDGETS;
 
-        applyMutations([
-          create(GraphMutationSchema, {
-            operation: {
-              case: "updateNode",
-              value: {
-                data: appNodeDataToProto(data),
-                id: id,
-                presentation,
-              },
-            },
-          }),
-        ]);
-      },
-      [id, data, positionAbsoluteX, positionAbsoluteY],
-    );
+      // Use ORM-style update with Result handling
+      const res = nodeDraft(node);
+      if (res.ok) {
+        res.value.data.activeMode = nextMode;
+      }
+    };
+
+    const handleResizeEnd = (_: any, params: { height: number; width: number }) => {
+      const node = allNodes.find((n) => n.id === id);
+      if (!node) return;
+
+      const res = nodeDraft(node);
+      if (res.ok) {
+        const draft = res.value;
+        draft.presentation.width = params.width;
+        draft.presentation.height = params.height;
+      }
+    };
 
     return (
-      <div
-        className={cn(
-          "custom-node relative transition-shadow duration-300",
-          hasError && "ring-2 ring-destructive ring-offset-2 ring-offset-background",
-          isProcessing && "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse",
-        )}
+      <BaseNode
+        className={hasError ? "border-destructive shadow-[0_0_15px_rgba(239,68,68,0.3)]" : ""}
         style={{
           ...containerStyle,
-          overflow: "visible", // Ensure floating panel is not clipped
+          borderStyle: isActiveScope ? "dashed" : "solid",
+          opacity: isActiveScope ? 0.3 : 1,
         }}
       >
-        <style>{`
-          .custom-node:hover .react-flow__handle { opacity: 1 !important; }
-      `}</style>
-
-        {hasError && !selected && (
-          <div className="absolute -top-3 -right-3 bg-destructive text-white rounded-full p-1.5 shadow-xl animate-bounce z-[1000]">
-            <AlertCircle size={14} />
-          </div>
-        )}
-
-        {isProcessing && !selected && (
-          <div className="absolute -top-3 -right-3 bg-primary text-primary-foreground rounded-full p-1.5 shadow-xl animate-spin z-[1000]">
-            <RefreshCw size={14} />
-          </div>
-        )}
-
         <NodeResizer
+          color="var(--primary-color)"
           handleStyle={{
-            background: "var(--primary-color)",
+            backgroundColor: "var(--primary-color)",
             border: "2px solid white",
             borderRadius: "50%",
-            height: 8,
-            width: 8,
+            height: 10,
+            width: 10,
           }}
           isVisible={selected}
           keepAspectRatio={shouldLockAspectRatio}
@@ -139,25 +166,14 @@ export const DynamicNode = memo(
           onResizeEnd={handleResizeEnd}
         />
 
-        <NodeErrorBoundary nodeId={id}>
-          <BaseNode<DynamicNodeType>
-            data={data}
-            handles={null}
-            id={id}
-            renderChat={ChatRenderer}
-            renderMedia={RenderMedia}
-            renderWidgets={RenderWidgets}
-            selected={selected}
-            type={data.templateId ?? type}
-            updateNodeData={updateNodeData}
-            x={positionAbsoluteX}
-            y={positionAbsoluteY}
-            {...rest}
-          />
-        </NodeErrorBoundary>
-      </div>
+        {isActiveScope ? (
+          <div className="w-full h-full flex items-center justify-center pointer-events-none select-none">
+            <span className="text-2xl font-black text-primary/20 uppercase tracking-widest">{data.displayName}</span>
+          </div>
+        ) : (
+          <ContentRenderer data={data} id={id} onToggleMode={onToggleMode} selected={selected} />
+        )}
+      </BaseNode>
     );
   },
 );
-
-DynamicNode.displayName = "DynamicNode";

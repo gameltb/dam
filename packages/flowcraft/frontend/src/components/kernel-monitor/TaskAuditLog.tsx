@@ -23,28 +23,39 @@ export const TaskAuditLog: React.FC<TaskAuditLogProps> = ({ logs }) => {
               No mutations emitted by this instance.
             </div>
           ) : (
-            logs.map((log) => (
-              <div className="group" key={log.id}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-mono text-orange-500/80">
-                    [{new Date(log.timestamp).toLocaleTimeString()}]
-                  </span>
-                  <span className="text-xs font-medium group-hover:text-primary transition-colors cursor-default">
-                    {log.description}
-                  </span>
+            logs.map((log) => {
+              let parsedMutations: any[] = [];
+              try {
+                parsedMutations = JSON.parse(log.mutationsJson);
+              } catch (e) {
+                console.error("Failed to parse mutation log", e);
+              }
+
+              return (
+                <div className="group" key={log.id}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-mono text-orange-500/80">
+                      [{new Date(log.timestamp).toLocaleTimeString()}]
+                    </span>
+                    <span className="text-xs font-medium group-hover:text-primary transition-colors cursor-default">
+                      {log.description}
+                    </span>
+                  </div>
+                  <div className="ml-4 pl-4 border-l-2 border-muted space-y-1">
+                    {parsedMutations.map((m, idx) => {
+                      // 提取类型名称（例如 "flowcraft.v1.services.UpdateNodeRequest"）
+                      const fullName = m.$typeName || "Unknown Type";
+                      const shortName = fullName.split(".").pop() || fullName;
+                      return (
+                        <div className="text-[10px] font-mono text-muted-foreground flex items-center gap-2" key={idx}>
+                          <ChevronRight size={8} /> {shortName}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="ml-4 pl-4 border-l-2 border-muted space-y-1">
-                  {log.mutations.map((m, idx) => {
-                    const type = Object.keys(m).find((k) => k !== "toJSON");
-                    return (
-                      <div className="text-[10px] font-mono text-muted-foreground flex items-center gap-2" key={idx}>
-                        <ChevronRight size={8} /> {type}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </ScrollArea>

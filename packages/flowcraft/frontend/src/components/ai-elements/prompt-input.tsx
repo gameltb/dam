@@ -635,6 +635,7 @@ export const PromptInput = ({
   );
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = (event) => {
+    console.log("[PromptInput] handleSubmit triggered");
     event.preventDefault();
 
     const form = event.currentTarget;
@@ -733,6 +734,7 @@ export type PromptInputTextareaProps = ComponentProps<typeof InputGroupTextarea>
 
 export const PromptInputTextarea = ({
   onChange,
+  value,
   className,
   placeholder = "What would you like to know?",
   ...props
@@ -804,6 +806,7 @@ export const PromptInputTextarea = ({
         },
       }
     : {
+        value,
         onChange,
       };
 

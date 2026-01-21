@@ -2,11 +2,22 @@ import { create } from "@bufbuild/protobuf";
 import { type JsonObject } from "@bufbuild/protobuf";
 import { useReactFlow } from "@xyflow/react";
 import { useCallback } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import { ActionExecutionRequestSchema, type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
+import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
 import { useFlowStore } from "@/store/flowStore";
 import { useTaskStore } from "@/store/taskStore";
-import { type AppNode, MutationSource, type NodeTemplate, TaskStatus, type NodeId, type TaskId, type TemplateId } from "@/types";
+import {
+  AppNodeType,
+  MutationSource,
+  type NodeId,
+  type NodeTemplate,
+  type TaskId,
+  TaskStatus,
+  type TemplateId,
+} from "@/types";
+import { getMediaTypeFromMime } from "@/utils/nodeUtils";
 
 import { useNodeOperations } from "./useNodeOperations";
 
@@ -16,7 +27,12 @@ export const useAppActions = (
   closeContextMenuAndClear: () => void,
 ) => {
   const { screenToFlowPosition } = useReactFlow();
-  const { applyMutations, nodes } = useFlowStore();
+  const { applyMutations, nodes } = useFlowStore(
+    useShallow((s) => ({
+      applyMutations: s.applyMutations,
+      nodes: s.nodes,
+    })),
+  );
   const { addNode } = useNodeOperations(applyMutations);
 
   const handleExecuteAction = useCallback(
@@ -26,8 +42,8 @@ export const useAppActions = (
         closeContextMenuAndClear();
         return;
       }
-      const effectiveNodeId = contextMenu?.nodeId ?? nodes.find((n: AppNode) => n.selected)?.id ?? "";
-      if (!effectiveNodeId && nodes.filter((n: AppNode) => n.selected).length === 0) return;
+      const effectiveNodeId = contextMenu?.nodeId ?? nodes.find((n: any) => n.selected)?.id ?? "";
+      if (!effectiveNodeId && nodes.filter((n: any) => n.selected).length === 0) return;
 
       const taskId = crypto.randomUUID() as TaskId;
       useTaskStore.getState().registerTask({
@@ -41,7 +57,7 @@ export const useAppActions = (
         try {
           const request = create(ActionExecutionRequestSchema, {
             actionId: action.id,
-            contextNodeIds: nodes.filter((n: AppNode) => n.selected).map((n: AppNode) => n.id),
+            contextNodeIds: nodes.filter((n: any) => n.selected).map((n: any) => n.id),
             params: {
               case: "paramsStruct",
               value: params as JsonObject,
@@ -57,34 +73,27 @@ export const useAppActions = (
           console.error("[SpacetimeDB] Failed to execute action:", err);
           useTaskStore.getState().updateTask(taskId, {
             message: String(err),
-            status: TaskStatus.TASK_FAILED,
+            status: TaskStatus.FAILED,
           });
         }
-      } else {
-        console.warn("[App] Cannot execute action: No SpacetimeDB connection");
       }
 
       setPendingAction(null);
       closeContextMenuAndClear();
     },
-    [closeContextMenuAndClear, contextMenu, nodes, setPendingAction, applyMutations],
+    [closeContextMenuAndClear, contextMenu, nodes, setPendingAction],
   );
 
   const handleAddNode = useCallback(
     (template: NodeTemplate) => {
       if (!contextMenu) return;
       const pos = screenToFlowPosition({ x: contextMenu.x, y: contextMenu.y });
-      addNode(
-        template.templateId as TemplateId,
-        pos,
-        {
-          ...template.defaultState,
-          displayName: template.displayName,
-          templateId: template.templateId as TemplateId,
-        },
-        template.defaultWidth,
-        template.defaultHeight,
-      );
+
+      addNode(AppNodeType.DYNAMIC, pos, {
+        ...template.defaultState,
+        displayName: template.displayName,
+        templateId: template.templateId,
+      });
     },
     [addNode, contextMenu, screenToFlowPosition],
   );
@@ -99,6 +108,7 @@ export const useAppActions = (
           x: event.clientX,
           y: event.clientY,
         });
+
         for (const file of Array.from(files)) {
           const formData = new FormData();
           formData.append("file", file);
@@ -111,14 +121,25 @@ export const useAppActions = (
             name: string;
             url: string;
           };
+
           let tpl = "flowcraft.node.media.document" as TemplateId;
-          if (asset.mimeType.startsWith("image/")) tpl = "flowcraft.node.media.visual" as TemplateId;
+          const mediaType = getMediaTypeFromMime(asset.mimeType);
+          if (mediaType === MediaType.MEDIA_IMAGE || mediaType === MediaType.MEDIA_VIDEO) {
+            tpl = "flowcraft.node.media.visual" as TemplateId;
+          }
+
           const template = templates.find((t) => t.templateId === tpl);
-          addNode(tpl, position, {
+
+          const extension: any =
+            tpl === "flowcraft.node.media.visual"
+              ? { case: "visual", value: { content: "", type: mediaType, url: asset.url } }
+              : { case: "document", value: { content: "", type: mediaType, url: asset.url } };
+
+          addNode(AppNodeType.DYNAMIC, position, {
             ...template?.defaultState,
-            displayName: asset.name ? asset.name : (template?.displayName ?? "New Asset"),
+            displayName: asset.name || (template?.displayName ?? "New Asset"),
+            extension,
             templateId: tpl,
-            widgetsValues: { mimeType: asset.mimeType, url: asset.url },
           });
         }
       };

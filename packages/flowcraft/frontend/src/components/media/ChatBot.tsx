@@ -1,21 +1,23 @@
 import { create } from "@bufbuild/protobuf";
 import { type FileUIPart } from "ai";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
+import { useShallow } from "zustand/react/shallow";
 
 import { ChatSyncMessageSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 import { ChatMessagePartSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
 import { InferenceConfigDiscoveryResponseSchema } from "@/generated/flowcraft/v1/core/service_pb";
-import { ChatNodeStateSchema } from "@/generated/flowcraft/v1/nodes/chat_node_pb";
 import { useFlowSocket } from "@/hooks/useFlowSocket";
+import { useNodeController } from "@/hooks/useNodeController";
 import { useFlowStore } from "@/store/flowStore";
 import { useTaskStore } from "@/store/taskStore";
 import { type DynamicNodeData, TaskStatus } from "@/types";
+import { ChatStatus as ChatStatusEnum } from "@/types";
 
 import { ChatConversationArea } from "./chat/ChatConversationArea";
 import { ChatInputArea } from "./chat/ChatInputArea";
-import { type ContextNode } from "./chat/types";
+import { ChatRole, type ContextNode } from "./chat/types";
 import { useChatActions } from "./chat/useChatActions";
 import { useChatController } from "./chat/useChatController";
 import { partsToText } from "./chat/utils";
@@ -25,40 +27,65 @@ interface ChatBotProps {
 }
 
 export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
-  const node = useFlowStore((s) => s.nodes.find((n) => n.id === nodeId));
-  const updateNodeData = useFlowStore((s) => s.updateNodeData);
+  const { allNodes, nodeDraft } = useFlowStore(
+    useShallow((s) => ({
+      allNodes: s.allNodes,
+      nodeDraft: s.nodeDraft,
+    })),
+  );
+  const node = allNodes.find((n) => n.id === nodeId);
   const { inferenceConfig } = useFlowSocket();
+  const nodeController = useNodeController(nodeId);
 
-  const data = node?.data as DynamicNodeData;
-  const conversationHeadId = data.extension?.case === "chat" ? data.extension.value.conversationHeadId : undefined;
+  const data = node?.data as DynamicNodeData | undefined;
+
+  // Extract chat extension safely
+  const chatExtension = data?.extension?.case === "chat" ? data.extension.value : undefined;
+
+  const conversationHeadId =
+    chatExtension?.conversationHeadId || ((data as any)?.chat?.conversation_head_id as string | undefined);
+  const treeId = chatExtension?.treeId || ((data as any)?.chat?.tree_id as string | undefined) || nodeId;
 
   const [droppedNodes, setDroppedNodes] = useState<ContextNode[]>([]);
 
-  // Controller handles state, history, and streaming buffers
   const {
     appendUserMessage,
     handleStreamChunk,
-    messages, // Replaces 'history'
+    messages,
     sliceHistory,
-    status, // Derived status from SpacetimeDB
+    status: chatStatus,
     streamingMessage,
-  } = useChatController(conversationHeadId, nodeId);
+  } = useChatController(conversationHeadId, nodeId, treeId);
 
-  // Error handling: find failed task for this node
+  // Combine chat status with global node runtime status
+  const effectiveStatus = useMemo(() => {
+    if (nodeController.status === "busy") return ChatStatusEnum.SUBMITTED;
+    return chatStatus;
+  }, [nodeController.status, chatStatus]);
+
   const failedTask = useTaskStore((s) =>
-    Object.values(s.tasks).find((t) => t.nodeId === nodeId && t.status === TaskStatus.TASK_FAILED),
+    Object.values(s.tasks).find((t) => t.nodeId === nodeId && t.status === TaskStatus.FAILED),
   );
 
-  // State lifted from ChatInputArea
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
   const [selectedEndpoint, setSelectedEndpoint] = useState("openai");
   const [useWebSearch, setUseWebSearch] = useState(false);
 
-  // Sync selected model with backend default when it arrives if not already customized
+  const {
+    continueChat,
+    editMessage,
+    sendMessage: rawSendMessage,
+    switchBranch,
+  } = useChatActions(
+    nodeId,
+    () => {},
+    appendUserMessage,
+    handleStreamChunk,
+    () => messages,
+  );
+
   useEffect(() => {
     if (!inferenceConfig) return;
-
-    // Use a microtask to avoid synchronous setState during render/effect phase
     queueMicrotask(() => {
       if (inferenceConfig.defaultModel && selectedModel === "gpt-4o-mini") {
         setSelectedModel(inferenceConfig.defaultModel);
@@ -67,23 +94,9 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
         setSelectedEndpoint(inferenceConfig.defaultEndpointId);
       }
     });
-  }, [inferenceConfig, selectedModel, selectedEndpoint]); // Only depend on inferenceConfig
+  }, [inferenceConfig, selectedModel, selectedEndpoint]);
 
-  // Pass a dummy setStatus to useChatActions because we manage it via controller now.
-  const {
-    continueChat,
-    editMessage,
-    sendMessage: rawSendMessage,
-    switchBranch,
-  } = useChatActions(
-    nodeId,
-    () => {
-      /* Status is derived from SpacetimeDB in the controller */
-    },
-    appendUserMessage,
-    handleStreamChunk,
-    () => messages,
-  );
+  if (!node || !data) return null;
 
   const sendMessageWrapper = async (
     content: string,
@@ -93,8 +106,6 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
     files: FileUIPart[],
     context: ContextNode[],
   ) => {
-    // rawSendMessage now handles appendUserMessage internally for local inference
-    // but for consistency we let it handle the logic.
     try {
       await rawSendMessage(content, model, endpoint, search, files, context);
     } catch (err) {
@@ -108,14 +119,10 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
 
     if (targetMsg.role === "assistant") {
       const userMsg = index > 0 ? messages[index - 1] : null;
-
       if (userMsg?.role === "user") {
         sliceHistory(index - 1);
         switchBranch(userMsg.parentId ?? "");
-
-        // Extract text content for resending
         const text = (userMsg.parts?.map((p) => (p.part.case === "text" ? p.part.value : "")) ?? []).join("\n");
-
         void sendMessageWrapper(
           text,
           selectedModel,
@@ -125,20 +132,14 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
           userMsg.contextNodes ?? [],
         );
         toast.success("Regenerating...");
-      } else {
-        toast.error("Could not find original user message to regenerate.");
       }
     } else if (targetMsg.role === "user") {
-      // If it's the last message, just continue
       if (index === messages.length - 1) {
         continueChat(selectedModel, selectedEndpoint);
-        toast.success("Generating response...");
       } else {
-        // If it's in the middle, slice and branch
         sliceHistory(index);
         switchBranch(targetMsg.id);
         continueChat(selectedModel, selectedEndpoint);
-        toast.success("Branching and generating...");
       }
     }
   };
@@ -150,30 +151,19 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
     const prevMsg = idx > 0 ? messages[idx - 1] : null;
     const newHead = prevMsg ? prevMsg.id : "";
 
-    const chatExtension = data.extension?.case === "chat" ? data.extension.value : null;
+    const res = nodeDraft(node);
+    if (res.ok) {
+      const draft = res.value;
+      if (draft.data.extension?.case === "chat") {
+        draft.data.extension.value.conversationHeadId = newHead;
+      }
+    }
 
-    updateNodeData(nodeId, {
-      extension: {
-        case: "chat",
-        value: create(ChatNodeStateSchema, {
-          conversationHeadId: newHead,
-          isHistoryCleared: false,
-          treeId: chatExtension?.treeId ?? "",
-        }),
-      },
-    });
-
-    // Optimistic slice
     sliceHistory(idx);
   };
 
   const handleEdit = (id: string, newContent: string, attachments: string[] = []) => {
-    const newParts = [
-      create(ChatMessagePartSchema, {
-        part: { case: "text", value: newContent },
-      }),
-    ];
-
+    const newParts = [create(ChatMessagePartSchema, { part: { case: "text", value: newContent } })];
     attachments.forEach((url) => {
       newParts.push(
         create(ChatMessagePartSchema, {
@@ -190,9 +180,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
         }),
       );
     });
-
     editMessage(id, newParts);
-    toast.success("Message branched. You can now generate a new response.");
   };
 
   const handleSwitchBranch = (targetId: string) => {
@@ -209,55 +197,36 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
         }
         e.preventDefault();
       } catch (err) {
-        console.error("Drop parse error", err);
+        console.error(err);
       }
     }
   };
 
-  if (!node) return null;
-
   const handleStreamingEditSave = (content: string) => {
     const newMsgId = crypto.randomUUID();
-    const chatExtension = data.extension?.case === "chat" ? data.extension.value : null;
+    const res = nodeDraft(node);
+    if (res.ok) {
+      const draft = res.value;
+      if (draft.data.extension?.case === "chat") {
+        draft.data.extension.value.conversationHeadId = newMsgId;
+        draft.data.extension.value.isHistoryCleared = false;
+      }
+    }
 
-    // Use current treeId or create new
-    const treeId = chatExtension?.treeId ?? crypto.randomUUID();
-
-    const newParts = [
-      create(ChatMessagePartSchema, {
-        part: { case: "text", value: content },
-      }),
-    ];
-
-    // Sync to backend via chatSync signal or direct reducer if connected
     const conn = useFlowStore.getState().spacetimeConn;
     if (conn) {
-      const message = create(ChatSyncMessageSchema, {
-        id: newMsgId,
-        modelId: "gpt-4o",
-        parts: newParts,
-        role: "user",
-        timestamp: BigInt(Date.now()),
-      });
       conn.pbreducers.addChatMessage({
-        message,
+        message: create(ChatSyncMessageSchema, {
+          id: newMsgId,
+          modelId: "gpt-4o",
+          parts: [create(ChatMessagePartSchema, { part: { case: "text", value: content } })],
+          role: ChatRole.USER,
+          timestamp: BigInt(Date.now()),
+        }),
         nodeId: nodeId,
       });
     }
-
-    // Move node's head to the newly created message
-    updateNodeData(nodeId, {
-      extension: {
-        case: "chat",
-        value: create(ChatNodeStateSchema, {
-          conversationHeadId: newMsgId,
-          isHistoryCleared: false,
-          treeId: treeId,
-        }),
-      },
-    });
-
-    toast.success("Branch created from partial content.");
+    toast.success("Branch created.");
   };
 
   return (
@@ -277,15 +246,12 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
         onRegenerate={handleRegenerate}
         onStreamingEditSave={handleStreamingEditSave}
         onSwitchBranch={handleSwitchBranch}
-        status={status}
+        status={effectiveStatus}
         streamingContent={partsToText(streamingMessage?.parts)}
       />
-
       <ChatInputArea
         droppedNodes={droppedNodes}
-        inferenceConfig={
-          inferenceConfig ? create(InferenceConfigDiscoveryResponseSchema, inferenceConfig as any) : null
-        }
+        inferenceConfig={inferenceConfig ? create(InferenceConfigDiscoveryResponseSchema, inferenceConfig) : null}
         onModelChange={(model, endpoint) => {
           setSelectedModel(model);
           if (endpoint) setSelectedEndpoint(endpoint);
@@ -297,7 +263,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
         selectedEndpoint={selectedEndpoint}
         selectedModel={selectedModel}
         setDroppedNodes={setDroppedNodes}
-        status={status}
+        status={effectiveStatus}
         useWebSearch={useWebSearch}
       />
     </div>

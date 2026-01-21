@@ -1,10 +1,10 @@
-import { type GraphMutation } from "@/generated/flowcraft/v1/core/service_pb";
-import { type MutationContext } from "@/store/types";
+import { type MutationSource } from "@/types";
+
+import { type MutationInput } from "../types";
 
 export enum MutationDirection {
-  INCOMING = "INCOMING", // From Server
-  INTERNAL = "INTERNAL", // From Undo/Redo/Internal Logic
-  OUTGOING = "OUTGOING", // From UI/Local Action
+  INCOMING = "incoming",
+  OUTGOING = "outgoing",
 }
 
 export type GraphMiddleware = (event: GraphMutationEvent, next: MiddlewareNext) => void;
@@ -12,7 +12,13 @@ export type GraphMiddleware = (event: GraphMutationEvent, next: MiddlewareNext) 
 export interface GraphMutationEvent {
   context: MutationContext;
   direction: MutationDirection;
-  mutations: GraphMutation[];
+  mutations: MutationInput[];
 }
 
 export type MiddlewareNext = (event: GraphMutationEvent) => void;
+
+export interface MutationContext {
+  description?: string;
+  source?: MutationSource;
+  taskId?: string;
+}

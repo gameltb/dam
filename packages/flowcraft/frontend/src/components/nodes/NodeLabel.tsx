@@ -1,8 +1,7 @@
-import { create } from "@bufbuild/protobuf";
 import React, { memo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 
-import { NodeDataSchema } from "@/generated/flowcraft/v1/core/node_pb";
-import { useFlowSocket } from "@/hooks/useFlowSocket";
+import { useFlowStore } from "@/store/flowStore";
 
 interface NodeLabelProps {
   id: string;
@@ -11,129 +10,60 @@ interface NodeLabelProps {
   selected?: boolean;
 }
 
-export const NodeLabel: React.FC<NodeLabelProps> = memo(({ id, label, onChange: _onChange, selected }) => {
-  const { updateNodeData } = useFlowSocket({ disablePolling: true });
-
+export const NodeLabel: React.FC<NodeLabelProps> = memo(({ id, label, selected }) => {
+  const { allNodes, nodeDraft } = useFlowStore(
+    useShallow((s) => ({
+      allNodes: s.allNodes,
+      nodeDraft: s.nodeDraft,
+    })),
+  );
   const [isEditing, setIsEditing] = useState(false);
-
-  const [localLabel, setLocalLabel] = useState(label);
-
-  const [prevLabel, setPrevLabel] = useState(label);
-
-  const [prevSelected, setPrevSelected] = useState(selected);
-
-  // Adjust state when props change (React recommendation instead of useEffect for sync)
-
-  if (label !== prevLabel && !isEditing) {
-    setPrevLabel(label);
-
-    setLocalLabel(label);
-  }
-
-  if (selected !== prevSelected) {
-    setPrevSelected(selected);
-
-    if (!selected && isEditing) {
-      setIsEditing(false);
-
-      if (localLabel !== label) {
-        updateNodeData(id, create(NodeDataSchema, { displayName: localLabel }));
-      }
-    }
-  }
+  const [value, setValue] = useState(label);
 
   const handleBlur = () => {
     setIsEditing(false);
-
-    if (localLabel !== label) {
-      updateNodeData(id, create(NodeDataSchema, { displayName: localLabel }));
+    if (value !== label) {
+      const node = allNodes.find((n) => n.id === id);
+      if (node) {
+        const res = nodeDraft(node);
+        if (res.ok) {
+          res.value.data.displayName = value;
+        }
+      }
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      e.currentTarget.blur();
-    } else if (e.key === "Escape") {
-      setLocalLabel(label);
-
-      setIsEditing(false);
+      (e.target as HTMLInputElement).blur();
     }
   };
+
+  if (!isEditing) {
+    return (
+      <div
+        className={`px-3 py-2 text-xs font-bold uppercase tracking-tight truncate border-b border-node-border bg-muted/30 cursor-text hover:bg-muted/50 transition-colors ${selected ? "text-primary" : "text-muted-foreground"}`}
+        onDoubleClick={() => {
+          setIsEditing(true);
+        }}
+      >
+        {label || "Untitled Node"}
+      </div>
+    );
+  }
 
   return (
-    <div
-      onDoubleClick={() => {
-        setIsEditing(true);
-      }}
-      style={{
-        alignItems: "center",
-
-        backgroundColor: "rgba(0,0,0,0.05)",
-
-        borderBottom: "1px solid var(--node-border)",
-
-        borderRadius: "8px 8px 0 0",
-
-        cursor: "text",
-
-        display: "flex",
-
-        justifyContent: "space-between",
-
-        padding: "8px 12px",
-      }}
-    >
-      {isEditing ? (
-        <input
-          autoFocus
-          className="nodrag"
-          onBlur={handleBlur}
-          onChange={(e) => {
-            setLocalLabel(e.target.value);
-          }}
-          onKeyDown={handleKeyDown}
-          style={{
-            background: "rgba(255,255,255,0.1)",
-
-            border: "1px solid var(--primary-color)",
-
-            borderRadius: "4px",
-
-            color: "white",
-
-            fontSize: "12px",
-
-            fontWeight: "bold",
-
-            outline: "none",
-
-            padding: "2px 4px",
-
-            width: "100%",
-          }}
-          value={localLabel}
-        />
-      ) : (
-        <div
-          style={{
-            color: selected ? "var(--primary-color)" : "white",
-
-            fontSize: "12px",
-
-            fontWeight: "bold",
-
-            maxWidth: "100%",
-
-            overflow: "hidden",
-
-            textOverflow: "ellipsis",
-
-            whiteSpace: "nowrap",
-          }}
-        >
-          {label}
-        </div>
-      )}
+    <div className="px-3 py-2 border-b border-node-border bg-background">
+      <input
+        autoFocus
+        className="w-full bg-transparent text-xs font-bold uppercase outline-none text-primary"
+        onBlur={handleBlur}
+        onChange={(e) => {
+          setValue(e.target.value);
+        }}
+        onKeyDown={handleKeyDown}
+        value={value}
+      />
     </div>
   );
 });

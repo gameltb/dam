@@ -1,46 +1,45 @@
-import { create } from "@bufbuild/protobuf";
-import { type NodeProps } from "@xyflow/react";
+import { Send, Settings2 } from "lucide-react";
 import { memo } from "react";
 
-import { ChatNodeStateSchema } from "@/generated/flowcraft/v1/nodes/chat_node_pb";
+import { useSpacetimeChat } from "@/hooks/useSpacetimeChat";
 import { useFlowStore } from "@/store/flowStore";
-import { type DynamicNodeType } from "@/types";
+import { type DynamicNodeData } from "@/types";
 
+import { withScopeLens } from "../hocs/withScopeLens";
+import { Button } from "../ui/button";
 import { ChatBot } from "./ChatBot";
 
-export const ChatRenderer: React.FC<NodeProps<DynamicNodeType>> = memo(({ data, id }) => {
-  const updateNodeData = useFlowStore((s) => s.updateNodeData);
-
-  const headId = data.extension?.case === "chat" ? data.extension.value.conversationHeadId : "";
-  const treeId = data.extension?.case === "chat" ? data.extension.value.treeId : "";
-
-  const handleCreateBranch = () => {
-    updateNodeData(id, {
-      extension: {
-        case: "chat",
-        value: create(ChatNodeStateSchema, {
-          conversationHeadId: headId,
-          isHistoryCleared: false,
-          treeId: treeId,
-        }),
-      },
-    });
-  };
+const ChatRendererComponent = ({ id }: { id: string }) => {
+  const node = useFlowStore((s) => s.allNodes.find((n) => n.id === id));
+  const data = node?.data as DynamicNodeData | undefined;
+  const treeId = data?.extension?.case === "chat" ? data.extension.value.treeId : undefined;
+  const { messages } = useSpacetimeChat(treeId || id);
 
   return (
-    <div className="flex flex-col h-full w-full">
-      <div className="p-2 border-b border-node-border flex justify-between items-center">
-        <span className="text-xs font-bold uppercase opacity-50">{data.displayName || "Chat"}</span>
-        <button
-          className="text-[10px] bg-primary-color/10 text-primary-color px-2 py-1 rounded hover:bg-primary-color/20 transition-colors"
-          onClick={handleCreateBranch}
-        >
-          New Branch
-        </button>
+    <div className="flex flex-col h-full bg-background/50">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-node-border bg-muted/20">
+        <div className="flex items-center gap-2">
+          <Send className="text-primary" size={14} />
+          <span className="text-[10px] font-bold uppercase">Chat Lens</span>
+        </div>
+        <div className="flex gap-1">
+          <Button className="h-6 w-6" size="icon" variant="ghost">
+            <Settings2 size={14} />
+          </Button>
+        </div>
       </div>
-      <div className="flex-1 overflow-hidden min-h-[400px]">
+
+      <div className="flex-1 overflow-hidden relative">
         <ChatBot nodeId={id} />
+      </div>
+
+      <div className="px-3 py-1 border-t border-node-border bg-muted/10">
+        <span className="text-[8px] text-muted-foreground uppercase">{messages.length} Active context nodes</span>
       </div>
     </div>
   );
+};
+
+export const ChatRenderer = Object.assign(memo(withScopeLens(ChatRendererComponent)), {
+  minSize: { height: 400, width: 350 },
 });

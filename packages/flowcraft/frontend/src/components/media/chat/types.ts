@@ -4,6 +4,12 @@ import type { ChatMessagePart } from "@/generated/flowcraft/v1/actions/chat_acti
 
 import { ChatStatus } from "@/types";
 
+export enum ChatRole {
+  ASSISTANT = "assistant",
+  SYSTEM = "system",
+  USER = "user",
+}
+
 export interface ChatMessage {
   attachments?: FileUIPart[];
   content?: string;
@@ -13,8 +19,9 @@ export interface ChatMessage {
   metadata?: Record<string, unknown>;
   parentId?: string;
   parts?: ChatMessagePart[];
-  role: "assistant" | "system" | "user";
+  role: ChatRole;
   siblingIds?: string[];
+  timestamp?: bigint;
   treeId?: string;
 }
 

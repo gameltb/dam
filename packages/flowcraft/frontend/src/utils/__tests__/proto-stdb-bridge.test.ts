@@ -4,19 +4,21 @@ import { describe, expect, it } from "vitest";
 
 import { NodeKind, PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import { NodeDataSchema, NodeSchema, NodeTemplateSchema, RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
-import StdbNodeData from "@/generated/spacetime/node_data_type";
-import StdbNodeTemplate from "@/generated/spacetime/node_template_type";
+import StdbNodeData from "@/generated/spacetime/core_node_data_type";
+import StdbNodeTemplate from "@/generated/spacetime/core_node_template_type";
 // Import SpacetimeDB Client Definitions
-import StdbNode from "@/generated/spacetime/node_type";
+import StdbNode from "@/generated/spacetime/core_node_type";
 
 import { pbToStdb, stdbToPb } from "../proto-stdb-bridge";
 
 describe("proto-stdb-bridge (Client Schema)", () => {
   it("should convert a basic Node to SpacetimeDB object (Client Shape)", () => {
     const protoNode = create(NodeSchema, {
-      isSelected: true,
       nodeId: "node-123",
       nodeKind: NodeKind.DYNAMIC,
+      presentation: create(PresentationSchema, {
+        isSelected: true,
+      }),
       templateId: "template-abc",
     });
 
@@ -28,7 +30,7 @@ describe("proto-stdb-bridge (Client Schema)", () => {
     // NodeKind is an enum (Sum). Proto=DYNAMIC(1).
     // In SpacetimeDB Client with { tag, value } format:
     expect(stdbObj.nodeKind).toEqual({ tag: "NODE_KIND_DYNAMIC", value: {} });
-    expect(stdbObj.isSelected).toBe(true);
+    expect(stdbObj.presentation.isSelected).toBe(true);
   });
 
   it("should convert NodeTemplate to SpacetimeDB object", () => {
@@ -86,10 +88,10 @@ describe("proto-stdb-bridge (Client Schema)", () => {
 
   it("should round-trip (PB -> STDB -> PB)", () => {
     const originalProto = create(NodeSchema, {
-      isSelected: false,
       nodeId: "node-roundtrip",
       nodeKind: NodeKind.GROUP,
       presentation: create(PresentationSchema, {
+        isSelected: false,
         position: { x: 10, y: 20 },
       }),
     });
@@ -102,7 +104,7 @@ describe("proto-stdb-bridge (Client Schema)", () => {
     expect(restoredProto.nodeKind).toBe(originalProto.nodeKind);
     expect(restoredProto.presentation?.position?.x).toBe(originalProto.presentation?.position?.x);
     expect(restoredProto.presentation?.position?.y).toBe(originalProto.presentation?.position?.y);
-    expect(restoredProto.isSelected).toBe(originalProto.isSelected);
+    expect(restoredProto.presentation?.isSelected).toBe(originalProto.presentation?.isSelected);
   });
 
   it("should be serializable by SpacetimeDB SDK", () => {

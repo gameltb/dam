@@ -32,22 +32,20 @@ import {
 } from "spacetimedb";
 
 // Import and reexport all reducer arg types
+import PathUpdatePbReducer from "./path_update_pb_reducer";
+export { PathUpdatePbReducer };
+import ReparentNodePbReducer from "./reparent_node_pb_reducer";
+export { ReparentNodePbReducer };
 import AddEdgePbReducer from "./add_edge_pb_reducer";
 export { AddEdgePbReducer };
 import CreateNodePbReducer from "./create_node_pb_reducer";
 export { CreateNodePbReducer };
-import MoveNodeReducer from "./move_node_reducer";
-export { MoveNodeReducer };
 import RemoveEdgeReducer from "./remove_edge_reducer";
 export { RemoveEdgeReducer };
 import RemoveNodeReducer from "./remove_node_reducer";
 export { RemoveNodeReducer };
-import UpdateNodePbReducer from "./update_node_pb_reducer";
-export { UpdateNodePbReducer };
 import UpdateViewportReducer from "./update_viewport_reducer";
 export { UpdateViewportReducer };
-import UpdateWidgetValueReducer from "./update_widget_value_reducer";
-export { UpdateWidgetValueReducer };
 import AddChatMessageReducer from "./add_chat_message_reducer";
 export { AddChatMessageReducer };
 import ClearChatHistoryReducer from "./clear_chat_history_reducer";
@@ -66,6 +64,22 @@ import SendNodeSignalReducer from "./send_node_signal_reducer";
 export { SendNodeSignalReducer };
 import UpdateTaskStatusReducer from "./update_task_status_reducer";
 export { UpdateTaskStatusReducer };
+import ResetNodeReducer from "./reset_node_reducer";
+export { ResetNodeReducer };
+import SubmitTaskReducer from "./submit_task_reducer";
+export { SubmitTaskReducer };
+import RegisterWorkerReducer from "./register_worker_reducer";
+export { RegisterWorkerReducer };
+import ClaimTaskReducer from "./claim_task_reducer";
+export { ClaimTaskReducer };
+import UpdateTaskProgressReducer from "./update_task_progress_reducer";
+export { UpdateTaskProgressReducer };
+import CompleteTaskReducer from "./complete_task_reducer";
+export { CompleteTaskReducer };
+import FailTaskReducer from "./fail_task_reducer";
+export { FailTaskReducer };
+import LogTaskEventReducer from "./log_task_event_reducer";
+export { LogTaskEventReducer };
 import OnDisconnectReducer from "./on_disconnect_reducer";
 export { OnDisconnectReducer };
 
@@ -82,6 +96,8 @@ import EdgesRow from "./edges_table";
 export { EdgesRow };
 import InferenceConfigRow from "./inference_config_table";
 export { InferenceConfigRow };
+import NodeRuntimeStatesRow from "./node_runtime_states_table";
+export { NodeRuntimeStatesRow };
 import NodeSignalsRow from "./node_signals_table";
 export { NodeSignalsRow };
 import NodeTemplatesRow from "./node_templates_table";
@@ -90,174 +106,194 @@ import NodesRow from "./nodes_table";
 export { NodesRow };
 import OperationLogsRow from "./operation_logs_table";
 export { OperationLogsRow };
+import TaskAuditLogRow from "./task_audit_log_table";
+export { TaskAuditLogRow };
 import TasksRow from "./tasks_table";
 export { TasksRow };
 import ViewportStateRow from "./viewport_state_table";
 export { ViewportStateRow };
 import WidgetValuesRow from "./widget_values_table";
 export { WidgetValuesRow };
+import WorkersRow from "./workers_table";
+export { WorkersRow };
 
 // Import and reexport all types
-import AcousticNodeState from "./acoustic_node_state_type";
-export { AcousticNodeState };
-import ActionExecutionRequest from "./action_execution_request_type";
-export { ActionExecutionRequest };
-import ActionExecutionRequestParams from "./action_execution_request_params_type";
-export { ActionExecutionRequestParams };
 import AddChatMessage from "./add_chat_message_type";
 export { AddChatMessage };
 import AddEdgePb from "./add_edge_pb_type";
 export { AddEdgePb };
-import AiGenNodeState from "./ai_gen_node_state_type";
-export { AiGenNodeState };
 import AssignCurrentTask from "./assign_current_task_type";
 export { AssignCurrentTask };
-import ChatActionParams from "./chat_action_params_type";
-export { ChatActionParams };
-import ChatEditParams from "./chat_edit_params_type";
-export { ChatEditParams };
-import ChatMessage from "./chat_message_type";
-export { ChatMessage };
-import ChatMessagePart from "./chat_message_part_type";
-export { ChatMessagePart };
-import ChatMessagePartPart from "./chat_message_part_part_type";
-export { ChatMessagePartPart };
-import ChatMessagePreview from "./chat_message_preview_type";
-export { ChatMessagePreview };
-import ChatMessageMetadata from "./chat_message_metadata_type";
-export { ChatMessageMetadata };
 import ChatMessages from "./chat_messages_type";
 export { ChatMessages };
-import ChatMsgMetadata from "./chat_msg_metadata_type";
-export { ChatMsgMetadata };
-import ChatNodeState from "./chat_node_state_type";
-export { ChatNodeState };
 import ChatStreams from "./chat_streams_type";
 export { ChatStreams };
-import ChatSwitchBranchParams from "./chat_switch_branch_params_type";
-export { ChatSwitchBranchParams };
-import ChatSyncBranchParams from "./chat_sync_branch_params_type";
-export { ChatSyncBranchParams };
-import ChatSyncMessage from "./chat_sync_message_type";
-export { ChatSyncMessage };
+import ClaimTask from "./claim_task_type";
+export { ClaimTask };
 import ClearChatHistory from "./clear_chat_history_type";
 export { ClearChatHistory };
 import ClientTaskAssignments from "./client_task_assignments_type";
 export { ClientTaskAssignments };
+import CompleteTask from "./complete_task_type";
+export { CompleteTask };
 import CreateNodePb from "./create_node_pb_type";
 export { CreateNodePb };
-import DocumentNodeState from "./document_node_state_type";
-export { DocumentNodeState };
-import Edge from "./edge_type";
-export { Edge };
-import EdgeMetadataEntry from "./edge_metadata_entry_type";
-export { EdgeMetadataEntry };
 import Edges from "./edges_type";
 export { Edges };
 import ExecuteAction from "./execute_action_type";
 export { ExecuteAction };
-import ImageEnhanceParams from "./image_enhance_params_type";
-export { ImageEnhanceParams };
+import FailTask from "./fail_task_type";
+export { FailTask };
 import InferenceConfig from "./inference_config_type";
 export { InferenceConfig };
-import InferenceConfigDiscoveryResponse from "./inference_config_discovery_response_type";
-export { InferenceConfigDiscoveryResponse };
-import InferenceEndpointSummary from "./inference_endpoint_summary_type";
-export { InferenceEndpointSummary };
-import MediaContent from "./media_content_type";
-export { MediaContent };
-import MediaType from "./media_type_type";
-export { MediaType };
-import MoveNode from "./move_node_type";
-export { MoveNode };
-import Node from "./node_type";
-export { Node };
-import NodeData from "./node_data_type";
-export { NodeData };
-import NodeDataMetadataEntry from "./node_data_metadata_entry_type";
-export { NodeDataMetadataEntry };
-import NodeDataExtension from "./node_data_extension_type";
-export { NodeDataExtension };
-import NodeKind from "./node_kind_type";
-export { NodeKind };
-import NodeSignalPayload from "./node_signal_payload_type";
-export { NodeSignalPayload };
+import LogTaskEvent from "./log_task_event_type";
+export { LogTaskEvent };
+import NodeRuntimeStates from "./node_runtime_states_type";
+export { NodeRuntimeStates };
 import NodeSignals from "./node_signals_type";
 export { NodeSignals };
-import NodeTemplate from "./node_template_type";
-export { NodeTemplate };
 import NodeTemplates from "./node_templates_type";
 export { NodeTemplates };
-import NodeTransformParams from "./node_transform_params_type";
-export { NodeTransformParams };
 import Nodes from "./nodes_type";
 export { Nodes };
 import OnDisconnect from "./on_disconnect_type";
 export { OnDisconnect };
 import OperationLogs from "./operation_logs_type";
 export { OperationLogs };
-import Port from "./port_type";
-export { Port };
-import PortMainType from "./port_main_type_type";
-export { PortMainType };
-import PortStyle from "./port_style_type";
-export { PortStyle };
-import PortType from "./port_type_type";
-export { PortType };
-import Position from "./position_type";
-export { Position };
-import Presentation from "./presentation_type";
-export { Presentation };
-import PromptGenParams from "./prompt_gen_params_type";
-export { PromptGenParams };
+import PathUpdatePb from "./path_update_pb_type";
+export { PathUpdatePb };
 import RegisterTemplate from "./register_template_type";
 export { RegisterTemplate };
+import RegisterWorker from "./register_worker_type";
+export { RegisterWorker };
 import RemoveEdge from "./remove_edge_type";
 export { RemoveEdge };
 import RemoveNode from "./remove_node_type";
 export { RemoveNode };
-import RenderMode from "./render_mode_type";
-export { RenderMode };
-import RestartInstance from "./restart_instance_type";
-export { RestartInstance };
+import ReparentNodePb from "./reparent_node_pb_type";
+export { ReparentNodePb };
+import ResetNode from "./reset_node_type";
+export { ResetNode };
 import SendNodeSignal from "./send_node_signal_type";
 export { SendNodeSignal };
-import TaskStatus from "./task_status_type";
-export { TaskStatus };
+import SubmitTask from "./submit_task_type";
+export { SubmitTask };
+import TaskAuditLog from "./task_audit_log_type";
+export { TaskAuditLog };
 import Tasks from "./tasks_type";
 export { Tasks };
 import UpdateChatStream from "./update_chat_stream_type";
 export { UpdateChatStream };
 import UpdateInferenceConfig from "./update_inference_config_type";
 export { UpdateInferenceConfig };
-import UpdateNodePb from "./update_node_pb_type";
-export { UpdateNodePb };
+import UpdateTaskProgress from "./update_task_progress_type";
+export { UpdateTaskProgress };
 import UpdateTaskStatus from "./update_task_status_type";
 export { UpdateTaskStatus };
 import UpdateViewport from "./update_viewport_type";
 export { UpdateViewport };
-import UpdateWidgetValue from "./update_widget_value_type";
-export { UpdateWidgetValue };
-import Viewport from "./viewport_type";
-export { Viewport };
 import ViewportState from "./viewport_state_type";
 export { ViewportState };
-import VisualHint from "./visual_hint_type";
-export { VisualHint };
-import VisualHintPlacement from "./visual_hint_placement_type";
-export { VisualHintPlacement };
-import VisualNodeState from "./visual_node_state_type";
-export { VisualNodeState };
-import Widget from "./widget_type";
-export { Widget };
-import WidgetConfig from "./widget_config_type";
-export { WidgetConfig };
-import WidgetOption from "./widget_option_type";
-export { WidgetOption };
-import WidgetType from "./widget_type_type";
-export { WidgetType };
 import WidgetValues from "./widget_values_type";
 export { WidgetValues };
+import Workers from "./workers_type";
+export { Workers };
+import ActionsChatActionParams from "./actions_chat_action_params_type";
+export { ActionsChatActionParams };
+import ActionsChatEditParams from "./actions_chat_edit_params_type";
+export { ActionsChatEditParams };
+import ActionsChatMessagePart from "./actions_chat_message_part_type";
+export { ActionsChatMessagePart };
+import ActionsChatMessagePartPart from "./actions_chat_message_part_part_type";
+export { ActionsChatMessagePartPart };
+import ActionsChatMessagePreview from "./actions_chat_message_preview_type";
+export { ActionsChatMessagePreview };
+import ActionsChatSwitchBranchParams from "./actions_chat_switch_branch_params_type";
+export { ActionsChatSwitchBranchParams };
+import ActionsChatSyncBranchParams from "./actions_chat_sync_branch_params_type";
+export { ActionsChatSyncBranchParams };
+import ActionsChatSyncMessage from "./actions_chat_sync_message_type";
+export { ActionsChatSyncMessage };
+import CoreEdge from "./core_edge_type";
+export { CoreEdge };
+import CoreEdgeMetadataEntry from "./core_edge_metadata_entry_type";
+export { CoreEdgeMetadataEntry };
+import CoreMediaContent from "./core_media_content_type";
+export { CoreMediaContent };
+import CoreMediaType from "./core_media_type_type";
+export { CoreMediaType };
+import CoreNode from "./core_node_type";
+export { CoreNode };
+import CoreNodeData from "./core_node_data_type";
+export { CoreNodeData };
+import CoreNodeDataMetadataEntry from "./core_node_data_metadata_entry_type";
+export { CoreNodeDataMetadataEntry };
+import CoreNodeDataExtension from "./core_node_data_extension_type";
+export { CoreNodeDataExtension };
+import CoreNodeKind from "./core_node_kind_type";
+export { CoreNodeKind };
+import CoreNodeSignalPayload from "./core_node_signal_payload_type";
+export { CoreNodeSignalPayload };
+import CoreNodeTemplate from "./core_node_template_type";
+export { CoreNodeTemplate };
+import CorePort from "./core_port_type";
+export { CorePort };
+import CorePortMainType from "./core_port_main_type_type";
+export { CorePortMainType };
+import CorePortStyle from "./core_port_style_type";
+export { CorePortStyle };
+import CorePortType from "./core_port_type_type";
+export { CorePortType };
+import CorePosition from "./core_position_type";
+export { CorePosition };
+import CorePresentation from "./core_presentation_type";
+export { CorePresentation };
+import CoreRenderMode from "./core_render_mode_type";
+export { CoreRenderMode };
+import CoreRestartInstance from "./core_restart_instance_type";
+export { CoreRestartInstance };
+import CoreTaskStatus from "./core_task_status_type";
+export { CoreTaskStatus };
+import CoreViewport from "./core_viewport_type";
+export { CoreViewport };
+import CoreVisualHint from "./core_visual_hint_type";
+export { CoreVisualHint };
+import CoreVisualHintPlacement from "./core_visual_hint_placement_type";
+export { CoreVisualHintPlacement };
+import CoreWidget from "./core_widget_type";
+export { CoreWidget };
+import CoreWidgetConfig from "./core_widget_config_type";
+export { CoreWidgetConfig };
+import CoreWidgetOption from "./core_widget_option_type";
+export { CoreWidgetOption };
+import CoreWidgetSignal from "./core_widget_signal_type";
+export { CoreWidgetSignal };
+import CoreWidgetSignalPayload from "./core_widget_signal_payload_type";
+export { CoreWidgetSignalPayload };
+import CoreWidgetType from "./core_widget_type_type";
+export { CoreWidgetType };
+import CoreWorkerLanguage from "./core_worker_language_type";
+export { CoreWorkerLanguage };
+import NodesAcousticNodeState from "./nodes_acoustic_node_state_type";
+export { NodesAcousticNodeState };
+import NodesAiGenNodeState from "./nodes_ai_gen_node_state_type";
+export { NodesAiGenNodeState };
+import NodesChatNodeState from "./nodes_chat_node_state_type";
+export { NodesChatNodeState };
+import NodesDocumentNodeState from "./nodes_document_node_state_type";
+export { NodesDocumentNodeState };
+import NodesVisualNodeState from "./nodes_visual_node_state_type";
+export { NodesVisualNodeState };
+import ServicesChatMessage from "./services_chat_message_type";
+export { ServicesChatMessage };
+import ServicesChatMessageMetadata from "./services_chat_message_metadata_type";
+export { ServicesChatMessageMetadata };
+import ServicesChatMsgMetadata from "./services_chat_msg_metadata_type";
+export { ServicesChatMsgMetadata };
+import ServicesInferenceConfigDiscoveryResponse from "./services_inference_config_discovery_response_type";
+export { ServicesInferenceConfigDiscoveryResponse };
+import ServicesInferenceEndpointSummary from "./services_inference_endpoint_summary_type";
+export { ServicesInferenceEndpointSummary };
 
 /** The schema information for all tables in this module. This is defined the same was as the tables would have been defined in the server. */
 const tablesSchema = __schema(
@@ -317,6 +353,17 @@ const tablesSchema = __schema(
     ],
   }, InferenceConfigRow),
   __table({
+    name: 'node_runtime_states',
+    indexes: [
+      { name: 'nodeId', algorithm: 'btree', columns: [
+        'nodeId',
+      ] },
+    ],
+    constraints: [
+      { name: 'node_runtime_states_nodeId_key', constraint: 'unique', columns: ['nodeId'] },
+    ],
+  }, NodeRuntimeStatesRow),
+  __table({
     name: 'node_signals',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -361,6 +408,17 @@ const tablesSchema = __schema(
     ],
   }, OperationLogsRow),
   __table({
+    name: 'task_audit_log',
+    indexes: [
+      { name: 'id', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'task_audit_log_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, TaskAuditLogRow),
+  __table({
     name: 'tasks',
     indexes: [
       { name: 'id', algorithm: 'btree', columns: [
@@ -393,27 +451,45 @@ const tablesSchema = __schema(
       { name: 'widget_values_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, WidgetValuesRow),
+  __table({
+    name: 'workers',
+    indexes: [
+      { name: 'workerId', algorithm: 'btree', columns: [
+        'workerId',
+      ] },
+    ],
+    constraints: [
+      { name: 'workers_workerId_key', constraint: 'unique', columns: ['workerId'] },
+    ],
+  }, WorkersRow),
 );
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("path_update_pb", PathUpdatePbReducer),
+  __reducerSchema("reparent_node_pb", ReparentNodePbReducer),
   __reducerSchema("add_edge_pb", AddEdgePbReducer),
   __reducerSchema("create_node_pb", CreateNodePbReducer),
-  __reducerSchema("move_node", MoveNodeReducer),
   __reducerSchema("remove_edge", RemoveEdgeReducer),
   __reducerSchema("remove_node", RemoveNodeReducer),
-  __reducerSchema("update_node_pb", UpdateNodePbReducer),
   __reducerSchema("update_viewport", UpdateViewportReducer),
-  __reducerSchema("update_widget_value", UpdateWidgetValueReducer),
   __reducerSchema("add_chat_message", AddChatMessageReducer),
   __reducerSchema("clear_chat_history", ClearChatHistoryReducer),
   __reducerSchema("update_chat_stream", UpdateChatStreamReducer),
   __reducerSchema("register_template", RegisterTemplateReducer),
   __reducerSchema("update_inference_config", UpdateInferenceConfigReducer),
-  __reducerSchema("assign_current_task", AssignCurrentTaskReducer),
-  __reducerSchema("execute_action", ExecuteActionReducer),
-  __reducerSchema("send_node_signal", SendNodeSignalReducer),
-  __reducerSchema("update_task_status", UpdateTaskStatusReducer),
+  __reducerSchema("assignCurrentTask", AssignCurrentTaskReducer),
+  __reducerSchema("executeAction", ExecuteActionReducer),
+  __reducerSchema("sendNodeSignal", SendNodeSignalReducer),
+  __reducerSchema("updateTaskStatus", UpdateTaskStatusReducer),
+  __reducerSchema("reset_node", ResetNodeReducer),
+  __reducerSchema("submitTask", SubmitTaskReducer),
+  __reducerSchema("registerWorker", RegisterWorkerReducer),
+  __reducerSchema("claimTask", ClaimTaskReducer),
+  __reducerSchema("updateTaskProgress", UpdateTaskProgressReducer),
+  __reducerSchema("completeTask", CompleteTaskReducer),
+  __reducerSchema("failTask", FailTaskReducer),
+  __reducerSchema("logTaskEvent", LogTaskEventReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
@@ -421,7 +497,7 @@ const proceduresSchema = __procedures(
 );
 
 /** The remote SpacetimeDB module schema, both runtime and type information. */
-export const REMOTE_MODULE = {
+const REMOTE_MODULE = {
   versionInfo: {
     cliVersion: "1.11.3" as const,
   },

@@ -17,7 +17,7 @@ import { useUiStore } from "@/store/uiStore";
 import { ChatStatus, type LocalLLMClientConfig, TaskStatus, TaskType } from "@/types";
 import { mapHistoryToOpenAI } from "@/utils/chatUtils";
 
-import { type ChatMessage } from "./types";
+import { type ChatMessage, ChatRole } from "./types";
 
 export function useLocalInference(nodeId: string) {
   const { localClients } = useUiStore((s) => s.settings);
@@ -39,7 +39,7 @@ export function useLocalInference(nodeId: string) {
           label: `Local Chat (${localClient.name})`,
           nodeId,
           source: MutationSource.SOURCE_USER,
-          status: TaskStatus.TASK_PROCESSING,
+          status: TaskStatus.RUNNING,
           taskId,
           type: TaskType.REMOTE,
         });
@@ -77,7 +77,7 @@ export function useLocalInference(nodeId: string) {
         setStatus(ChatStatus.READY);
         updateTask(taskId, {
           message: "Generation complete",
-          status: TaskStatus.TASK_COMPLETED,
+          status: TaskStatus.COMPLETED,
         });
 
         const newMessagesToSync: ChatSyncMessage[] = [];
@@ -86,7 +86,7 @@ export function useLocalInference(nodeId: string) {
             create(ChatSyncMessageSchema, {
               id: userMsgId,
               parts: userParts,
-              role: "user",
+              role: ChatRole.USER,
               timestamp: BigInt(Date.now()),
             }),
           );
@@ -101,7 +101,7 @@ export function useLocalInference(nodeId: string) {
                 part: { case: "text", value: fullContent },
               }),
             ],
-            role: "assistant",
+            role: ChatRole.ASSISTANT,
             timestamp: BigInt(Date.now()),
           }),
         );
@@ -122,7 +122,7 @@ export function useLocalInference(nodeId: string) {
         setStatus(ChatStatus.READY);
         updateTask(taskId, {
           message: errorMessage,
-          status: TaskStatus.TASK_FAILED,
+          status: TaskStatus.FAILED,
         });
       }
     },

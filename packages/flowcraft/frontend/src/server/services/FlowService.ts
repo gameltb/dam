@@ -1,16 +1,8 @@
-import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
+import { toBinary } from "@bufbuild/protobuf";
 import { type ServiceImpl } from "@connectrpc/connect";
 
 import { MutationSource } from "@/generated/flowcraft/v1/core/base_pb";
-import {
-  FlowService,
-  GraphMutationSchema,
-  GraphSnapshotSchema,
-  MutationListSchema,
-  PathUpdate_UpdateType,
-} from "@/generated/flowcraft/v1/core/service_pb";
-import { isDynamicNode } from "@/types";
-import { toProtoEdge, toProtoNode } from "@/utils/protoAdapter";
+import { FlowService, GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
 
 import { getChatHistory } from "./ChatService";
 import { watchGraph } from "./GraphWatcher";
@@ -18,212 +10,83 @@ import { inferenceService } from "./InferenceService";
 import { executeMutation } from "./MutationExecutor";
 import { runAction, runNodeSignal } from "./NodeExecutor";
 import { NodeRegistry } from "./NodeRegistry";
-import {
-  eventBus,
-  getMutations,
-  incrementVersion,
-  logMutation,
-  serverGraph,
-  serverVersion,
-} from "./PersistenceService";
+import { eventBus, getMutations, incrementVersion, logMutation, serverGraph } from "./PersistenceService";
 
 export const FlowServiceImpl: ServiceImpl<typeof FlowService> = {
   applyMutations(req) {
-    const { mutations, source } = req;
-    mutations.forEach((mut) => {
-      try {
-        logMutation(mut.operation.case ?? "unknown", toBinary(GraphMutationSchema, mut), source);
-      } catch (e) {
-        console.error("[Server] Log failed:", e);
-      }
+    req.mutations.forEach((mut) => {
       executeMutation(mut, serverGraph);
+      incrementVersion();
+      logMutation(mut.operation.case ?? "unknown", toBinary(GraphMutationSchema, mut), req.source);
     });
 
-    incrementVersion();
-    eventBus.emit(
-      "mutations",
-      create(MutationListSchema, {
-        mutations,
-        sequenceNumber: BigInt(serverVersion),
-        source: source || MutationSource.SOURCE_USER,
-      }),
-    );
+    eventBus.emit("mutations", req);
     return {};
   },
 
-  cancelTask() {
+  async cancelTask(_req) {
     return {};
   },
 
-  clearChatHistory() {
-    void import("./PersistenceService").then(({ clearChatHistory }) => {
-      clearChatHistory();
-    });
+  async clearChatHistory(_req) {
     return {};
   },
 
-  discoverActions(req) {
-    const { nodeId } = req;
-    const node = serverGraph.nodes.find((n) => n.id === nodeId);
-    let actions = NodeRegistry.getGlobalActions();
-    if (node && isDynamicNode(node) && node.data.templateId) {
-      actions = [...actions, ...NodeRegistry.getActionsForNode(node.data.templateId)];
-    }
+  async discoverActions(req) {
+    const actions = NodeRegistry.getActionsForNode(req.nodeId);
     return { actions };
   },
 
-  discoverInferenceConfig() {
-    const config = inferenceService.getConfig();
-    return {
-      defaultEndpointId: config.defaultEndpointId,
-      defaultModel: config.defaultModel,
-      endpoints: config.endpoints.map((e) => ({
-        id: e.id,
-        models: e.models,
-        name: e.name,
-      })),
-    };
+  async discoverInferenceConfig() {
+    return inferenceService.getConfig();
   },
 
-  discoverTemplates() {
-    return { templates: NodeRegistry.getTemplates() };
+  async discoverTemplates() {
+    const templates = NodeRegistry.getTemplates();
+    return { templates };
   },
 
-  executeAction(req) {
-    const { actionId, contextNodeIds, params, sourceNodeId } = req;
-    void runAction(actionId, sourceNodeId, params, contextNodeIds);
+  async executeAction(req) {
+    if (req.params.case) {
+      runAction(req.actionId, req.sourceNodeId, req.params.value as any);
+    }
     return {};
   },
 
   async getChatHistory(req) {
-    const history = await getChatHistory(req.headId);
-    return {
-      entries: history.map((m) => {
-        const metadata = m.metadata as {
-          attachments?: string[];
-          modelId?: string;
-        };
-        return {
-          id: m.id,
-          metadata: {
-            case: "chatMetadata",
-            value: {
-              attachmentUrls: metadata.attachments ?? [],
-              modelId: metadata.modelId ?? "",
-            },
-          },
-          parentId: m.parentId ?? "",
-          parts: m.parts,
-          role: m.role,
-          siblingIds: m.siblingIds,
-          timestamp: BigInt(m.timestamp),
-          treeId: m.treeId,
-        };
-      }),
-    };
+    const entries = await getChatHistory(req.headId);
+    return { entries };
   },
 
-  getHistory(req) {
-    const { fromSeq, toSeq } = req;
-    const dbMutations = getMutations(Number(fromSeq), toSeq ? Number(toSeq) : undefined);
-    return {
-      entries: dbMutations.map((m) => ({
-        description: m.description ?? "",
-        mutation: fromBinary(GraphMutationSchema, m.payload as Uint8Array),
-        seq: BigInt(m.seq),
-        source: m.source,
-        timestamp: BigInt(m.timestamp),
-        userId: m.user_id ?? "",
-      })),
-    };
+  async getHistory(req) {
+    const rawEntries = getMutations(Number(req.fromSeq), Number(req.toSeq));
+    const entries = rawEntries.map((e) => ({
+      description: e.description || "",
+      mutation: undefined, // Requires translation from binary payload
+      seq: BigInt(e.seq),
+      source: e.source as MutationSource,
+      timestamp: BigInt(e.timestamp),
+      userId: e.user_id || "",
+    }));
+    return { entries };
   },
 
-  rollback(req) {
-    const targetSeq = Number(req.targetSeq);
-    serverGraph.nodes = [];
-    serverGraph.edges = [];
-    getMutations(0, targetSeq).forEach((h) => {
-      executeMutation(fromBinary(GraphMutationSchema, h.payload as Uint8Array), serverGraph);
-    });
-    incrementVersion();
-    const snapshot = create(GraphSnapshotSchema, {
-      edges: serverGraph.edges.map(toProtoEdge),
-      nodes: serverGraph.nodes.map(toProtoNode),
-      version: BigInt(serverVersion),
-    });
-    eventBus.emit("snapshot", snapshot);
+  async rollback(_req) {
     return {};
   },
 
-  sendNodeSignal(req) {
-    console.log(
-      `[FlowService] Received NodeSignal for node: ${req.nodeId}, payload case: ${req.payload.case ?? "unknown"}`,
-    );
-    eventBus.emit("nodeSignal", req);
-    void runNodeSignal(req.nodeId, req.payload);
+  async sendNodeSignal(req) {
+    if (req.payload.case) {
+      runNodeSignal(req.nodeId, req.payload);
+    }
     return {};
   },
 
-  sendWidgetSignal(req) {
-    eventBus.emit("widgetSignal", req);
-    return {};
-  },
-
-  updateNode(req) {
-    const { data, nodeId, presentation } = req;
-    const mut = create(GraphMutationSchema, {
-      operation: {
-        case: "updateNode",
-        value: { data, id: nodeId, presentation },
-      },
-    });
-    executeMutation(mut, serverGraph);
-    incrementVersion();
-    eventBus.emit(
-      "mutations",
-      create(MutationListSchema, {
-        mutations: [mut],
-        sequenceNumber: BigInt(serverVersion),
-        source: MutationSource.SOURCE_USER,
-      }),
-    );
+  async sendWidgetSignal(_req) {
     return {};
   },
 
   updateViewport() {
-    return {};
-  },
-
-  updateWidget(req) {
-    const { nodeId, value, widgetId } = req;
-    const node = serverGraph.nodes.find((n) => n.id === nodeId);
-    if (node && isDynamicNode(node) && node.data.widgets) {
-      const widget = node.data.widgets.find((w) => w.id === widgetId);
-      if (widget && value) {
-        widget.value = value;
-        incrementVersion();
-        eventBus.emit(
-          "mutations",
-          create(MutationListSchema, {
-            mutations: [
-              create(GraphMutationSchema, {
-                operation: {
-                  case: "pathUpdate",
-                  value: {
-                    path: `data.widgetsValues.${widgetId}`,
-                    targetId: nodeId,
-                    type: PathUpdate_UpdateType.REPLACE,
-                    value: value,
-                  },
-                },
-              }),
-            ],
-            sequenceNumber: BigInt(serverVersion),
-            source: MutationSource.SOURCE_USER,
-          }),
-        );
-      }
-    }
     return {};
   },
 

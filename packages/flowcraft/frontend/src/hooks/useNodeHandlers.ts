@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 
 import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
+import { RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
 import { useFlowStore } from "@/store/flowStore";
 import { type DynamicNodeData, FlowEvent } from "@/types";
 
@@ -12,31 +13,51 @@ export interface NodeHandlersResult {
   isMedia: boolean;
   minHeight: number;
   minWidth: number;
-  onChange: (id: string, data: Partial<DynamicNodeData>) => void;
+  onChange: (id: string, data: Record<string, any>) => void;
   onGalleryItemContext: (nodeId: string, url: string, mediaType: MediaType, x: number, y: number) => void;
   onWidgetClick: (nodeId: string, widgetId: string) => void;
   shouldLockAspectRatio: boolean;
 }
 
+import { useShallow } from "zustand/react/shallow";
+
+import { type RFState } from "@/store/types";
+import { type AppNode } from "@/types";
+
 /**
  * Hook that provides layout, styling, and common event handlers for nodes.
- * Replaces the withNodeHandlers HOC and provides access to the flow store.
  */
-export function useNodeHandlers(
-  data?: DynamicNodeData,
-  selected?: boolean,
-  _positionAbsoluteX?: number,
-  _positionAbsoluteY?: number,
-): NodeHandlersResult {
-  const updateNodeData = useFlowStore((state) => state.updateNodeData);
-  const dispatchNodeEvent = useFlowStore((state) => state.dispatchNodeEvent);
+export const useNodeHandlers = (data: DynamicNodeData, selected?: boolean, _idOrX?: number | string, _y?: number) => {
+  const { allNodes, dispatchNodeEvent, nodeDraft } = useFlowStore(
+    useShallow((s: RFState) => ({
+      allNodes: s.allNodes,
+      dispatchNodeEvent: s.dispatchNodeEvent,
+      nodeDraft: s.nodeDraft,
+    })),
+  );
 
   const layout = useNodeLayout(data ?? ({} as DynamicNodeData));
-  const { isAudio, isMedia, minHeight, minWidth } = layout;
+
+  const { minHeight, minWidth } = layout;
+
+  const isMedia = data?.activeMode === RenderMode.MODE_MEDIA;
+  const getMediaType = () => {
+    if (data?.media?.type !== undefined) return data.media.type;
+    if (
+      data?.extension?.case === "visual" ||
+      data?.extension?.case === "document" ||
+      data?.extension?.case === "acoustic"
+    ) {
+      return (data.extension.value as any).type;
+    }
+    return undefined;
+  };
+  const mediaType = getMediaType();
+  const isAudio = isMedia && mediaType === MediaType.MEDIA_AUDIO;
 
   const shouldLockAspectRatio = useMemo(() => {
-    return isMedia && (data?.media?.type === MediaType.MEDIA_IMAGE || data?.media?.type === MediaType.MEDIA_VIDEO);
-  }, [isMedia, data?.media?.type]);
+    return isMedia && (mediaType === MediaType.MEDIA_IMAGE || mediaType === MediaType.MEDIA_VIDEO);
+  }, [isMedia, mediaType]);
 
   const containerStyle = useMemo((): React.CSSProperties => {
     return {
@@ -58,11 +79,22 @@ export function useNodeHandlers(
     };
   }, [selected]);
 
+  /**
+   * ORM 风格更新代理
+   */
   const onChange = useCallback(
-    (id: string, newData: Partial<DynamicNodeData>) => {
-      updateNodeData(id, newData);
+    (nodeId: string, newData: Record<string, any>) => {
+      const node = allNodes.find((n: AppNode) => n.id === nodeId);
+      if (!node) return;
+
+      const res = nodeDraft(node);
+      if (res.ok) {
+        Object.entries(newData).forEach(([key, value]) => {
+          (res.value.data as any)[key] = value;
+        });
+      }
     },
-    [updateNodeData],
+    [allNodes, nodeDraft],
   );
 
   const onWidgetClick = useCallback(
@@ -96,4 +128,4 @@ export function useNodeHandlers(
     onWidgetClick,
     shouldLockAspectRatio,
   };
-}
+};

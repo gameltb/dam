@@ -56,7 +56,7 @@ async function main() {
     for (const file of tableFiles) {
       try {
         await import(path.join(TABLES_DIR, file));
-      } catch (e) {
+      } catch {
         // Ignore files that fail to load in Node context due to missing browser/stdb deps
       }
     }
@@ -81,13 +81,20 @@ async function main() {
     for (const [rawArgName, argTypeObj] of Object.entries(args)) {
       const argType = argTypeObj as any;
       if (argType && typeof argType === "object" && "name" in argType) {
-        const schemaName = addImport(argType.name);
-        if (schemaName) fields.push(`      ${toCamelCase(rawArgName)}: { schema: ${schemaName} }`);
+        const stName = String(argType.name);
+        const matchName = pbRegistry.has(stName)
+          ? stName
+          : Array.from(pbRegistry.keys()).find((k) => stName.endsWith("_" + k));
+
+        if (matchName) {
+          const schemaName = addImport(matchName);
+          if (schemaName) fields.push(`      ${toCamelCase(rawArgName)}: { schema: ${schemaName} }`);
+        }
       }
     }
     if (fields.length > 0)
       pbReducerEntries.push(`  "${camelName}": {
-${fields.join(",\n")}
+${fields.join(",\n")} 
   }`);
   }
 
@@ -97,13 +104,14 @@ ${fields.join(",\n")}
       const typeInfo = colType as any;
       if (typeInfo?.__st_name) {
         const stName = String(typeInfo.__st_name);
+        // Heuristic: exact match or stName ends with _TypeName (e.g. core_Node -> Node)
         const matchName = pbRegistry.has(stName)
           ? stName
-          : Array.from(pbRegistry.keys()).find((k) => k.endsWith("_" + stName));
+          : Array.from(pbRegistry.keys()).find((k) => stName.endsWith("_" + k));
+
         if (matchName) {
           const schemaName = addImport(matchName);
           if (schemaName) {
-            // 使用 toCamelCase(table.name) 作为键，匹配前端 tables 对象的属性名
             const accessorName = toCamelCase(String(table.name));
             tableToProtoMetadata.push(`  "${accessorName}": { schema: ${schemaName}, field: "${colName}" }`);
             break;
@@ -121,7 +129,9 @@ ${fields.join(",\n")}
 
   const code = `/** AUTO-GENERATED - DO NOT EDIT **/ 
 /* eslint-disable */
+import { type GenMessage } from "@bufbuild/protobuf/codegenv2";
 ${importStatements}
+import { type DbConnection } from "./spacetime";
 
 /**
  * PB 覆盖清单
@@ -133,9 +143,17 @@ ${pbReducerEntries.join(",\n")}
 /**
  * 表与 Protobuf Schema 的映射
  */
-export const TABLE_TO_PROTO: Record<string, { schema: any, field: string }> = {
+export const TABLE_TO_PROTO: Record<string, { schema: GenMessage<any>, field: string }> = {
 ${tableToProtoMetadata.join(",\n")} 
-};
+} as const;
+
+/**
+ * 编译时类型安全断言：确保所有映射的 Reducer 在 SDK 中都存在
+ */
+type AssertReducersExist = keyof typeof PB_REDUCERS_MAP extends keyof DbConnection["reducers"]
+  ? true
+  : never;
+export const _ASSERT_REDUCERS_SAFE: AssertReducersExist = true;
 `;
 
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });

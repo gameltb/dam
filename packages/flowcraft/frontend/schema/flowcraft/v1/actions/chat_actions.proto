@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package flowcraft_proto.v1;
+package flowcraft.v1.actions;
 
 import "flowcraft/v1/core/base.proto";
 
@@ -12,16 +12,16 @@ message ChatActionParams {
   repeated ChatMessagePreview history_override = 5;
 }
 
-message ChatMessagePart {
-  oneof part {
-    string text = 1;
-    MediaContent media = 2;
-  }
-}
-
 message ChatMessagePreview {
   string role = 1;
   repeated ChatMessagePart parts = 2;
+}
+
+message ChatMessagePart {
+  oneof part {
+    string text = 1;
+    flowcraft.v1.core.MediaContent media = 2;
+  }
 }
 
 message ChatEditParams {
@@ -41,9 +41,17 @@ message ChatSyncBranchParams {
 }
 
 message ChatSyncMessage {
+
   string id = 1;
+
   string role = 2;
+
   repeated ChatMessagePart parts = 3;
+
   string model_id = 4;
+
   int64 timestamp = 5;
+
+  string parent_id = 6;
+
 }

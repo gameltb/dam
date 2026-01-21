@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package flowcraft_proto.v1;
+package flowcraft.v1.core;
 
 enum NodeKind {
   NODE_KIND_UNSPECIFIED = 0;
@@ -32,6 +32,13 @@ enum PortMainType {
   PORT_MAIN_TYPE_SYSTEM = 10;
 }
 
+message MutationMetadata {
+  string origin_task_id = 1;
+  int64 timestamp = 2;
+  MutationSource source = 3;
+  string user_id = 4;
+}
+
 message Position {
   double x = 1;
   double y = 2;
@@ -45,8 +52,8 @@ message Presentation {
   int32 z_index = 5;
   bool is_hidden = 6;
   bool is_locked = 7;
-  // Indicates if the visual properties have been settled by a client
   bool is_initialized = 8;
+  bool is_selected = 9;
 }
 
 message VisualHint {

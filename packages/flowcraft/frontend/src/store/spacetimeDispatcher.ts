@@ -1,55 +1,45 @@
-import { create } from "@bufbuild/protobuf";
-
-import { NodeSchema } from "@/generated/flowcraft/v1/core/node_pb";
-import { type GraphMutation } from "@/generated/flowcraft/v1/core/service_pb";
+import {
+  AddEdgeRequestSchema,
+  AddNodeRequestSchema,
+  ClearGraphRequestSchema,
+  PathUpdateRequestSchema,
+  RemoveEdgeRequestSchema,
+  RemoveNodeRequestSchema,
+  ReparentNodeRequestSchema,
+} from "@/generated/flowcraft/v1/core/service_pb";
 import { type PbConnection } from "@/utils/pb-client";
 
-type MutationCase = NonNullable<MutationOp["case"]>;
-type MutationOp = GraphMutation["operation"];
-type MutationValue<K extends MutationCase> = Extract<MutationOp, { case: K }>["value"];
+export const dispatchToSpacetime = (conn: PbConnection, input: any) => {
+  switch (input.$typeName) {
+    case AddEdgeRequestSchema.typeName:
+      if (input.edge) conn.pbreducers.addEdgePb({ edge: input.edge });
+      break;
 
-/**
- * 直接映射 Mutation 到 PbConnection.reducers
- * 使用 camelCase 命名以对齐官方 SDK 规范
- */
-const HANDLERS: {
-  [K in MutationCase]: (conn: PbConnection, val: MutationValue<K>) => void;
-} = {
-  addEdge: (conn, val) => {
-    if (val.edge) conn.pbreducers.addEdgePb({ edge: val.edge });
-  },
-  addNode: (conn, val) => {
-    if (val.node) conn.pbreducers.createNodePb({ node: val.node });
-  },
-  clearGraph: () => {
-    // Implement if a clear_graph reducer exists
-  },
-  pathUpdate: () => {
-    // Handle path updates if needed
-  },
-  removeEdge: (conn, val) => {
-    if (val.id) conn.reducers.removeEdge({ id: val.id });
-  },
-  removeNode: (conn, val) => {
-    if (val.id) conn.reducers.removeNode({ id: val.id });
-  },
-  updateNode: (conn, val) => {
-    if (val.id) {
-      conn.pbreducers.updateNodePb({
-        node: create(NodeSchema, {
-          nodeId: val.id,
-          presentation: val.presentation,
-          state: val.data,
-        }),
-      });
-    }
-  },
-};
+    case AddNodeRequestSchema.typeName:
+      if (input.node) conn.pbreducers.createNodePb({ node: input.node });
+      break;
 
-export const dispatchToSpacetime = (conn: PbConnection, mutation: GraphMutation) => {
-  const { case: opCase, value } = mutation.operation;
-  if (!opCase) return;
+    case ClearGraphRequestSchema.typeName:
+      if ((conn.reducers as any).clearGraph) {
+        (conn.reducers as any).clearGraph();
+      }
+      break;
 
-  const handler = HANDLERS[opCase] as (conn: PbConnection, v: unknown) => void;
-  handler(conn, value);
+    case PathUpdateRequestSchema.typeName:
+      // 现在后端已支持增量路径更新 Reducer
+      conn.pbreducers.pathUpdatePb({ req: input });
+      break;
+
+    case RemoveEdgeRequestSchema.typeName:
+      conn.reducers.removeEdge({ id: input.id });
+      break;
+
+    case RemoveNodeRequestSchema.typeName:
+      conn.reducers.removeNode({ id: input.id });
+      break;
+
+    case ReparentNodeRequestSchema.typeName:
+      conn.pbreducers.reparentNodePb({ req: input });
+      break;
+  }
 };

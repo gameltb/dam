@@ -1,109 +1,127 @@
-import { create } from "@bufbuild/protobuf";
 import { useCallback, useMemo, useState } from "react";
-import { useTable } from "spacetimedb/react";
 
-import { ChatNodeStateSchema } from "@/generated/flowcraft/v1/nodes/chat_node_pb";
-import { tables } from "@/generated/spacetime";
 import { useSpacetimeChat } from "@/hooks/useSpacetimeChat";
+import { useChatStore } from "@/store/chatStore";
 import { useFlowStore } from "@/store/flowStore";
 import { ChatStatus } from "@/types";
 
-import { type ChatMessage } from "./types";
+import { type ChatMessage, ChatRole } from "./types";
 
 interface ChatState {
   lastRequest: null | {
     content: string;
     endpoint: string;
-    model: string;
+    modelId: string; // Corrected field name
     search: boolean;
   };
 }
 
-export function useChatController(conversationHeadId: string | undefined, nodeId: string) {
-  const { addMessage, messages: allMessages } = useSpacetimeChat(nodeId);
-  const [stStreams] = useTable(tables.chatStreams);
+export function useChatController(conversationHeadId: string | undefined, nodeId: string, treeId?: string) {
+  const { addMessage, messages: allMessages } = useSpacetimeChat(treeId || nodeId, undefined, conversationHeadId);
+  const streamEntry = useChatStore((s) => s.streams[nodeId]);
 
   const [state, setState] = useState<ChatState>({
     lastRequest: null,
   });
 
-  // Calculate active path from SpacetimeDB messages
+  // Calculate active path from PB-converted messages
   const messages = useMemo(() => {
-    if (!conversationHeadId || allMessages.length === 0) return [];
+    let effectiveHeadId = conversationHeadId;
+
+    if (!effectiveHeadId && allMessages.length > 0) {
+      const sorted = [...allMessages].sort((a: any, b: any) => {
+        const tA = BigInt(a.timestamp || 0n);
+        const tB = BigInt(b.timestamp || 0n);
+        return Number(tB - tA);
+      });
+      effectiveHeadId = sorted[0]?.id;
+    }
+
+    if (!effectiveHeadId || allMessages.length === 0) {
+      return [];
+    }
 
     const path: ChatMessage[] = [];
-    let currentId: string | undefined = conversationHeadId;
-    const msgMap = new Map(allMessages.map((m) => [m.id, m]));
+    let currentId: string | undefined = effectiveHeadId;
+    const visited = new Set<string>();
 
-    while (currentId) {
-      const msg = msgMap.get(currentId);
+    while (currentId && !visited.has(currentId)) {
+      visited.add(currentId);
+      const targetId: string = currentId;
+      const msg = allMessages.find((m) => m.id === targetId) as ChatMessage | undefined;
+
       if (!msg) break;
       path.unshift(msg);
       currentId = msg.parentId;
     }
+
     return path;
   }, [allMessages, conversationHeadId]);
-
-  // Derive streaming message from Spacetime table
-  const streamEntry = stStreams.find((s) => s.nodeId === nodeId);
 
   const streamingMessage = useMemo(() => {
     if (!streamEntry || streamEntry.status === "idle") return null;
 
     return {
-      createdAt: 0, // Placeholder doesn't need real timestamp
+      createdAt: 0,
       id: "streaming-placeholder",
       parts: [
         {
           part: {
             case: "text",
-            value:
-              streamEntry.status === "thinking" && !streamEntry.content
-                ? "..." // Show indicator while thinking
-                : streamEntry.content,
+            value: streamEntry.status === "thinking" && !streamEntry.content ? "..." : streamEntry.content,
           },
         },
       ],
-      role: "assistant",
+      role: ChatRole.ASSISTANT,
     } as ChatMessage;
   }, [streamEntry]);
 
   // Derive consolidated status
   const status = useMemo<ChatStatus>(() => {
-    if (stStreams.some((s) => s.nodeId === nodeId && s.status === "streaming")) {
+    if (streamEntry?.status === "streaming") {
       return ChatStatus.STREAMING;
     }
-    if (stStreams.some((s) => s.nodeId === nodeId && s.status === "thinking")) {
+    if (streamEntry?.status === "thinking") {
       return ChatStatus.SUBMITTED;
     }
     return ChatStatus.READY;
-  }, [stStreams, nodeId]);
+  }, [streamEntry]);
 
   const setLastRequest = useCallback(
     (request: ChatState["lastRequest"]) => {
       setState((prev) => ({ ...prev, lastRequest: request }));
     },
+
     [setState],
   );
 
   /**
-   * Optimistically appends a user message.
-   */
+
+       * Optimistically appends a user message.
+
+       */
+
   const appendUserMessage = useCallback(
     (msg: ChatMessage) => {
       addMessage(msg);
-      // Move head to the user message immediately
-      useFlowStore.getState().updateNodeData(nodeId, {
-        extension: {
-          case: "chat",
-          value: create(ChatNodeStateSchema, {
-            conversationHeadId: msg.id,
-            isHistoryCleared: false,
-            treeId: msg.treeId ?? "",
-          }),
-        },
-      });
+
+      const node = useFlowStore.getState().allNodes.find((n) => n.id === nodeId);
+
+      if (!node) return;
+
+      const res = useFlowStore.getState().nodeDraft(node);
+
+      if (res.ok) {
+        const draft = res.value;
+
+        if (draft.data.extension?.case === "chat") {
+          draft.data.extension.value.conversationHeadId = msg.id;
+
+          draft.data.extension.value.isHistoryCleared = false;
+        }
+      }
     },
+
     [addMessage, nodeId],
   );
 

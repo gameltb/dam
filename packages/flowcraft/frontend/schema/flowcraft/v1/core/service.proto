@@ -1,10 +1,11 @@
 syntax = "proto3";
 
-package flowcraft_proto.v1;
+package flowcraft.v1.services;
 
 import "google/protobuf/struct.proto";
 import "flowcraft/v1/core/base.proto";
 import "flowcraft/v1/core/node.proto";
+import "flowcraft/v1/core/kernel.proto";
 import "flowcraft/v1/core/signals.proto";
 import "flowcraft/v1/core/action.proto";
 
@@ -14,45 +15,41 @@ message FlowMessage {
 
   oneof payload {
     SyncRequest sync_request = 10;
-    // bytes yjs_update = 11; // Removed
-    UpdateNodeRequest node_update = 12;
-    UpdateWidgetRequest widget_update = 13;
-    ActionExecutionRequest action_execute = 14;
-    ActionDiscoveryRequest action_discovery = 17;
+    flowcraft.v1.core.ActionExecutionRequest action_execute = 14;
+    flowcraft.v1.core.ActionDiscoveryRequest action_discovery = 17;
     TaskCancelRequest task_cancel = 15;
     ViewportUpdate viewport_update = 16;
-    WidgetSignal widget_signal = 18;
-    NodeSignal node_signal = 27;
+    flowcraft.v1.core.WidgetSignal widget_signal = 18;
+    flowcraft.v1.core.NodeSignal node_signal = 27;
     TemplateDiscoveryRequest template_discovery = 19;
     InferenceConfigDiscoveryRequest inference_discovery = 28;
 
     GraphSnapshot snapshot = 20;
     MutationList mutations = 21;
-    ActionDiscoveryResponse actions = 25;
+    flowcraft.v1.core.ActionDiscoveryResponse actions = 25;
     TemplateDiscoveryResponse templates = 26;
     InferenceConfigDiscoveryResponse inference_config = 29;
-    TaskUpdate task_update = 22;
+    flowcraft.v1.core.TaskUpdate task_update = 22;
     ClearChatHistoryRequest chat_clear = 30;
-    NodeEvent node_event = 23; // REPLACES StreamChunk
+    ResetNodeRequest reset_node = 31;
+    NodeEvent node_event = 23;
     ErrorResponse error = 24;
   }
 }
 
-/**
- * NodeEvent - A logical channel event for a specific node.
- */
+message ResetNodeRequest {
+  string node_id = 1;
+  bool clear_data = 2; // Optional: whether to also clear node state/widgets
+}
+
+
 message NodeEvent {
   string node_id = 1;
   oneof payload {
-    // Chat Stream
     ChatStreamEvent chat_stream = 10;
-    // Generic Log/Console
     LogEvent log = 11;
-    // Task Progress
     NodeProgress progress = 12;
-    // Widget Data Stream (REPLACES StreamChunk)
     WidgetStreamEvent widget_stream = 13;
-    // Generic Data for custom extensions
     bytes data = 14;
   }
 }
@@ -66,7 +63,7 @@ message WidgetStreamEvent {
 message ChatStreamEvent {
   string chunk_data = 1;
   bool is_done = 2;
-  string message_id = 3; // Link to specific message instance
+  string message_id = 3;
 }
 
 message LogEvent {
@@ -89,9 +86,9 @@ message NodeProgress {
 message SyncRequest { 
   string graph_id = 1;
   oneof filter {
-    Rect target_area = 2;        // Area-based partial sync
-    NodeIdList node_ids = 3;      // ID-based partial sync
-    HierarchyFilter hierarchy = 4; // Hierarchy-based partial sync
+    flowcraft.v1.core.Rect target_area = 2;
+    NodeIdList node_ids = 3;
+    HierarchyFilter hierarchy = 4;
   }
   bool subscribe_to_updates = 5;
 }
@@ -102,35 +99,23 @@ message NodeIdList {
 
 message HierarchyFilter {
   string root_node_id = 1;
-  int32 depth = 2; // -1 for infinite
+  int32 depth = 2;
 }
 
 message TemplateDiscoveryRequest {}
 message TemplateDiscoveryResponse {
-  repeated NodeTemplate templates = 1;
-}
-
-message UpdateNodeRequest {
-  string node_id = 1;
-  NodeData data = 2;
-  Presentation presentation = 3;
-}
-
-message UpdateWidgetRequest {
-  string node_id = 1;
-  string widget_id = 2;
-  google.protobuf.Value value = 3;
+  repeated flowcraft.v1.core.NodeTemplate templates = 1;
 }
 
 message ViewportUpdate {
-  Viewport viewport = 1;
-  Rect visible_bounds = 2;
+  flowcraft.v1.core.Viewport viewport = 1;
+  flowcraft.v1.core.Rect visible_bounds = 2;
 }
 
 message MutationList {
   repeated GraphMutation mutations = 1;
   int64 sequence_number = 2;
-  MutationSource source = 3;
+  flowcraft.v1.core.MutationSource source = 3;
 }
 
 message GetHistoryRequest {
@@ -147,14 +132,14 @@ message MutationLogEntry {
   int64 seq = 1;
   GraphMutation mutation = 2;
   int64 timestamp = 3;
-  MutationSource source = 4;
+  flowcraft.v1.core.MutationSource source = 4;
   string description = 5;
   string user_id = 6;
 }
 
 message RollbackRequest {
   string graph_id = 1;
-  int64 target_seq = 2; // The sequence number to roll back to
+  int64 target_seq = 2;
 }
 
 import "flowcraft/v1/actions/chat_actions.proto";
@@ -170,7 +155,7 @@ message ChatHistoryResponse {
 message ChatMessage {
   string id = 1;
   string role = 2;
-  repeated ChatMessagePart parts = 3;
+  repeated flowcraft.v1.actions.ChatMessagePart parts = 3;
   oneof metadata {
     google.protobuf.Struct metadata_struct = 4;
     ChatMsgMetadata chat_metadata = 5;
@@ -196,46 +181,72 @@ message ErrorResponse {
 }
 
 message GraphSnapshot {
-  repeated Node nodes = 1;
-  repeated Edge edges = 2;
+  repeated flowcraft.v1.core.Node nodes = 1;
+  repeated flowcraft.v1.core.Edge edges = 2;
   int64 version = 3;
 }
 
 message GraphMutation {
-  string origin_task_id = 1; // 溯源：哪个任务产生的变更
   oneof operation {
-    AddNode add_node = 2;
-    UpdateNode update_node = 3;
-    RemoveNode remove_node = 4;
-    AddEdge add_edge = 5;
-    RemoveEdge remove_edge = 6;
-    ClearGraph clear_graph = 7;
-    PathUpdate path_update = 8;
+    AddNodeRequest add_node = 1;
+    RemoveNodeRequest remove_node = 3;
+    AddEdgeRequest add_edge = 4;
+    RemoveEdgeRequest remove_edge = 5;
+    ClearGraphRequest clear_graph = 6;
+    PathUpdateRequest path_update = 7;
+    AddSubGraphRequest add_sub_graph = 8;
+    ReparentNodeRequest reparent_node = 9;
   }
 }
 
-message AddNode { Node node = 1; }
-message UpdateNode {
-  string id = 1;
-  NodeData data = 2;
-  Presentation presentation = 3;
+message ReparentNodeRequest {
+  flowcraft.v1.core.MutationMetadata metadata = 1;
+  string node_id = 2;
+  string new_parent_id = 3;
+  flowcraft.v1.core.Position new_position = 4;
 }
-message RemoveNode { string id = 1; }
-message AddEdge { Edge edge = 1; }
-message RemoveEdge { string id = 1; }
-message AddSubGraph { repeated Node nodes = 1; repeated Edge edges = 2; }
-message ClearGraph {}
 
-message PathUpdate {
-  string target_id = 1; // Node ID or Edge ID
-  string path = 2;      // e.g., "data.widgets.my_slider.value"
-  google.protobuf.Value value = 3; // The new value
+message AddNodeRequest { 
+  flowcraft.v1.core.MutationMetadata metadata = 1;
+  flowcraft.v1.core.Node node = 2; 
+}
+
+message RemoveNodeRequest { 
+  flowcraft.v1.core.MutationMetadata metadata = 1;
+  string id = 2; 
+}
+
+message AddEdgeRequest { 
+  flowcraft.v1.core.MutationMetadata metadata = 1;
+  flowcraft.v1.core.Edge edge = 2; 
+}
+
+message RemoveEdgeRequest { 
+  flowcraft.v1.core.MutationMetadata metadata = 1;
+  string id = 2; 
+}
+
+message AddSubGraphRequest { 
+  flowcraft.v1.core.MutationMetadata metadata = 1;
+  repeated flowcraft.v1.core.Node nodes = 2; 
+  repeated flowcraft.v1.core.Edge edges = 3; 
+}
+
+message ClearGraphRequest {
+  flowcraft.v1.core.MutationMetadata metadata = 1;
+}
+
+message PathUpdateRequest {
+  flowcraft.v1.core.MutationMetadata metadata = 1;
+  string target_id = 2;
+  string path = 3;
+  google.protobuf.Value value = 4;
   enum UpdateType {
     REPLACE = 0;
     MERGE = 1;
     DELETE = 2;
   }
-  UpdateType type = 4;
+  UpdateType type = 5;
 }
 
 message TaskCancelRequest { string task_id = 1; }
@@ -255,29 +266,16 @@ message InferenceEndpointSummary {
 }
 
 service FlowService {
-  // Establish a stream for graph updates
   rpc WatchGraph(SyncRequest) returns (stream FlowMessage);
-
-  // Apply a list of mutations
   rpc ApplyMutations(MutationList) returns (ErrorResponse);
-
-  // Simple RPCs for direct updates
-  rpc UpdateNode(UpdateNodeRequest) returns (ErrorResponse);
-  rpc UpdateWidget(UpdateWidgetRequest) returns (ErrorResponse);
-  rpc SendWidgetSignal(WidgetSignal) returns (ErrorResponse);
-  rpc SendNodeSignal(NodeSignal) returns (ErrorResponse);
-
-  // Execution and Discovery
-  rpc ExecuteAction(ActionExecutionRequest) returns (ErrorResponse);
-  rpc DiscoverActions(ActionDiscoveryRequest) returns (ActionDiscoveryResponse);
+  rpc SendWidgetSignal(flowcraft.v1.core.WidgetSignal) returns (ErrorResponse);
+  rpc SendNodeSignal(flowcraft.v1.core.NodeSignal) returns (ErrorResponse);
+  rpc ExecuteAction(flowcraft.v1.core.ActionExecutionRequest) returns (ErrorResponse);
+  rpc DiscoverActions(flowcraft.v1.core.ActionDiscoveryRequest) returns (flowcraft.v1.core.ActionDiscoveryResponse);
   rpc DiscoverTemplates(TemplateDiscoveryRequest) returns (TemplateDiscoveryResponse);
   rpc DiscoverInferenceConfig(InferenceConfigDiscoveryRequest) returns (InferenceConfigDiscoveryResponse);
-
-  // Control
   rpc CancelTask(TaskCancelRequest) returns (ErrorResponse);
   rpc UpdateViewport(ViewportUpdate) returns (ErrorResponse);
-
-  // History & Replay
   rpc GetHistory(GetHistoryRequest) returns (HistoryResponse);
   rpc Rollback(RollbackRequest) returns (ErrorResponse);
   rpc GetChatHistory(GetChatHistoryRequest) returns (ChatHistoryResponse);

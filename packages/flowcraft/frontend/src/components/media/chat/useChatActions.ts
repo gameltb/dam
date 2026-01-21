@@ -2,6 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { type FileUIPart } from "ai";
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { useShallow } from "zustand/react/shallow";
 
 import {
   ChatActionParamsSchema,
@@ -12,14 +13,13 @@ import {
 } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
 import { NodeSignalSchema } from "@/generated/flowcraft/v1/core/signals_pb";
-import { ChatNodeStateSchema } from "@/generated/flowcraft/v1/nodes/chat_node_pb";
 import { TaskQueue } from "@/shared/task-protocol";
 import { TaskDispatcher } from "@/shared/TaskDispatcher";
 import { useFlowStore } from "@/store/flowStore";
-import { ChatStatus, type DynamicNodeData } from "@/types";
+import { ChatStatus } from "@/types";
 import { uploadFile } from "@/utils/assetUtils";
 
-import { type ChatMessage, type ContextNode } from "./types";
+import { type ChatMessage, ChatRole, type ContextNode } from "./types";
 import { useLocalInference } from "./useLocalInference";
 
 export function useChatActions(
@@ -29,7 +29,13 @@ export function useChatActions(
   handleStreamChunk: (chunk: string) => void,
   getHistory: () => ChatMessage[],
 ) {
-  const node = useFlowStore((s) => s.nodes.find((n) => n.id === nodeId));
+  const { allNodes, nodeDraft } = useFlowStore(
+    useShallow((s) => ({
+      allNodes: s.allNodes,
+      nodeDraft: s.nodeDraft,
+    })),
+  );
+  const node = allNodes.find((n) => n.id === nodeId);
   const sendNodeSignal = useFlowStore((s) => s.sendNodeSignal);
   const { localClients, performLocalInference } = useLocalInference(nodeId);
 
@@ -90,26 +96,28 @@ export function useChatActions(
         createdAt: Date.now(),
         id: userMsgId,
         parts: userParts,
-        role: "user",
+        role: ChatRole.USER,
+        timestamp: BigInt(Date.now()),
       };
 
       appendUserMessage(userMsg);
 
-      if (!node) return;
-      const data = node.data as DynamicNodeData;
-      const chatExtension = data.extension;
-      const currentTreeId = chatExtension?.case === "chat" ? chatExtension.value.treeId : "";
+      if (!node) {
+        console.warn("[useChatActions] Node not found for head update:", nodeId);
+        return;
+      }
 
-      useFlowStore.getState().updateNodeData(nodeId, {
-        extension: {
-          case: "chat",
-          value: create(ChatNodeStateSchema, {
-            conversationHeadId: userMsgId,
-            isHistoryCleared: false,
-            treeId: currentTreeId || uuidv4(),
-          }),
-        },
-      });
+      console.log("[useChatActions] Updating head to:", userMsgId);
+      // Use ORM Draft for Chat head updates
+      const res = nodeDraft(node);
+      if (res.ok) {
+        const draft = res.value;
+        if (draft.data.extension?.case === "chat") {
+          console.log("[useChatActions] Found chat extension, setting head...");
+          draft.data.extension.value.conversationHeadId = userMsgId;
+          draft.data.extension.value.isHistoryCleared = false;
+        }
+      }
 
       const localClient = localClients.find((c) => c.id === selectedEndpoint);
       if (localClient) {
@@ -171,6 +179,7 @@ export function useChatActions(
       getHistory,
       handleStreamChunk,
       sendNodeSignal,
+      nodeDraft,
     ],
   );
 
@@ -271,17 +280,15 @@ export function useChatActions(
 
   const clearHistory = useCallback(() => {
     if (!node) return;
-    useFlowStore.getState().updateNodeData(nodeId, {
-      extension: {
-        case: "chat",
-        value: create(ChatNodeStateSchema, {
-          conversationHeadId: "",
-          isHistoryCleared: true,
-          treeId: uuidv4(),
-        }),
-      },
-    });
-  }, [node, nodeId]);
+    const res = nodeDraft(node);
+    if (res.ok) {
+      const draft = res.value;
+      if (draft.data.extension?.case === "chat") {
+        draft.data.extension.value.conversationHeadId = "";
+        draft.data.extension.value.isHistoryCleared = true;
+      }
+    }
+  }, [node, nodeId, nodeDraft]);
 
   return { clearHistory, continueChat, editMessage, sendMessage, switchBranch };
 }

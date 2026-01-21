@@ -4,7 +4,7 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
 
 import { useFlowStore } from "@/store/flowStore";
-import { FlowEvent, type MediaType, type NodeId, type EdgeId } from "@/types";
+import { type EdgeId, FlowEvent, type MediaType, type NodeId } from "@/types";
 
 export const useContextMenu = (): {
   closeContextMenu: () => void;
@@ -87,7 +87,7 @@ export const useContextMenu = (): {
     }
 
     event.preventDefault();
-    setContextMenu({ nodeId: node.id as NodeId, x: event.clientX, y: event.clientY });
+    setContextMenu({ nodeId: node.id, x: event.clientX, y: event.clientY });
   }, []);
 
   const onEdgeContextMenu = useCallback((event: ReactMouseEvent, edge: Edge) => {
@@ -98,7 +98,7 @@ export const useContextMenu = (): {
     }
 
     event.preventDefault();
-    setContextMenu({ edgeId: edge.id as EdgeId, x: event.clientX, y: event.clientY });
+    setContextMenu({ edgeId: edge.id, x: event.clientX, y: event.clientY });
   }, []);
 
   const onSelectionContextMenu = useCallback((event: ReactMouseEvent) => {

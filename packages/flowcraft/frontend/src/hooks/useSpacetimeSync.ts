@@ -1,32 +1,26 @@
-import { create as createProto } from "@bufbuild/protobuf";
+import { create as createProto, fromJson } from "@bufbuild/protobuf";
+import { toJson } from "@bufbuild/protobuf";
+import { ValueSchema } from "@bufbuild/protobuf/wkt";
 import { useReactFlow } from "@xyflow/react";
 import { useCallback, useEffect, useRef } from "react";
 import { useSpacetimeDB, useTable } from "spacetimedb/react";
 
-import { GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
-import { wrapReducers } from "@/utils/pb-client";
+import { PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
+import { NodeDataSchema } from "@/generated/flowcraft/v1/core/node_pb";
+import {
+  AddNodeRequestSchema,
+  PathUpdateRequest_UpdateType,
+  PathUpdateRequestSchema,
+  RemoveNodeRequestSchema,
+} from "@/generated/flowcraft/v1/core/service_pb";
 import { DbConnection, tables } from "@/generated/spacetime";
+import { ChatStreamStatus, useChatStore } from "@/store/chatStore";
 import { useFlowStore } from "@/store/flowStore";
 import { useTaskStore } from "@/store/taskStore";
 import { MutationSource, TaskStatus, TaskType } from "@/types";
-import { convertStdbToPb } from "@/utils/pb-client";
+import { convertStdbToPb, wrapReducers } from "@/utils/pb-client";
 
-const mapSpacetimeStatusToTaskStatus = (stStatus: { tag: string }): TaskStatus => {
-  switch (stStatus.tag) {
-    case "TASK_CANCELLED":
-      return TaskStatus.TASK_CANCELLED;
-    case "TASK_COMPLETED":
-      return TaskStatus.TASK_COMPLETED;
-    case "TASK_FAILED":
-      return TaskStatus.TASK_FAILED;
-    case "TASK_PENDING":
-      return TaskStatus.TASK_PENDING;
-    case "TASK_PROCESSING":
-      return TaskStatus.TASK_PROCESSING;
-    default:
-      return TaskStatus.TASK_PENDING;
-  }
-};
+const safeStringify = (obj: any) => JSON.stringify(obj, (_, v) => (typeof v === "bigint" ? v.toString() : v));
 
 export const useSpacetimeSync = () => {
   const stdb = useSpacetimeDB();
@@ -37,22 +31,30 @@ export const useSpacetimeSync = () => {
   const [stNodes] = useTable(tables.nodes);
   const [stEdges] = useTable(tables.edges);
   const [stTasks] = useTable(tables.tasks);
+  const [stChatMessages] = useTable(tables.chatMessages);
+  const [stChatStreams] = useTable(tables.chatStreams);
 
   const { setViewport } = useReactFlow();
   const updateTask = useTaskStore((state) => state.updateTask);
   const registerTask = useTaskStore((state) => state.registerTask);
+  const setChatMessages = useChatStore((state) => state.setMessages);
+  const setChatStreams = useChatStore((state) => state.setStreams);
 
   const viewportInitializedRef = useRef(false);
 
+  const connInitializedRef = useRef<boolean>(false);
+
   useEffect(() => {
     const conn = getConnection();
-    if (conn && isActive) {
+    if (conn && isActive && !connInitializedRef.current) {
       const pbConn = wrapReducers(conn);
       useFlowStore.setState({ spacetimeConn: pbConn });
+      connInitializedRef.current = true;
 
       const sessionTaskId = `user-session-${crypto.randomUUID()}`;
       pbConn.reducers.assignCurrentTask({ taskId: sessionTaskId });
 
+      console.log("[Sync] Subscribing to tables...");
       void conn
         .subscriptionBuilder()
         .subscribe([
@@ -60,18 +62,23 @@ export const useSpacetimeSync = () => {
           "SELECT * FROM edges",
           "SELECT * FROM viewport_state",
           "SELECT * FROM tasks",
+          "SELECT * FROM workers",
+          "SELECT * FROM task_audit_log",
           "SELECT * FROM chat_messages",
         ]);
+
+      conn.db.chatMessages.onInsert((_, row) => {
+        console.log("[Sync] Chat Message INSERTED:", row.id, row.state);
+      });
 
       const onViewportInsert = (_ctx: unknown, row: { id: string; state: unknown }) => {
         if (row.id === "default" && !viewportInitializedRef.current) {
           const viewportState = convertStdbToPb("viewportState", row);
           if (viewportState) {
-            void setViewport({
-              x: viewportState.x,
-              y: viewportState.y,
-              zoom: viewportState.zoom,
-            });
+            if (isNaN(viewportState.x) || isNaN(viewportState.y) || isNaN(viewportState.zoom)) {
+              throw new Error("[Sync] Received NaN Viewport from server");
+            }
+            void setViewport({ x: viewportState.x, y: viewportState.y, zoom: viewportState.zoom });
             viewportInitializedRef.current = true;
           }
         }
@@ -81,17 +88,55 @@ export const useSpacetimeSync = () => {
     }
   }, [getConnection, isActive, setViewport]);
 
+  const lastProcessedMessagesRef = useRef<string>("");
   useEffect(() => {
+    const messagesJson = safeStringify(stChatMessages);
+    if (messagesJson === lastProcessedMessagesRef.current) return;
+    lastProcessedMessagesRef.current = messagesJson;
+
+    const pbMessages = stChatMessages
+      .map((row) => {
+        const pb = convertStdbToPb("chatMessages", row);
+        if (pb && !pb.id && row.id) pb.id = row.id;
+        return pb;
+      })
+      .filter(Boolean);
+    setChatMessages(pbMessages);
+  }, [stChatMessages, setChatMessages]);
+
+  const lastProcessedStreamsRef = useRef<string>("");
+  useEffect(() => {
+    const streamsJson = safeStringify(stChatStreams);
+    if (streamsJson === lastProcessedStreamsRef.current) return;
+    lastProcessedStreamsRef.current = streamsJson;
+
+    const streams = stChatStreams.map((row) => ({
+      content: row.content,
+      nodeId: row.nodeId,
+      status: row.status as ChatStreamStatus,
+    }));
+    setChatStreams(streams);
+  }, [stChatStreams, setChatStreams]);
+
+  const lastProcessedTasksRef = useRef<string>("");
+  useEffect(() => {
+    const tasksJson = safeStringify(stTasks);
+    if (tasksJson === lastProcessedTasksRef.current) return;
+    lastProcessedTasksRef.current = tasksJson;
+
     stTasks.forEach((stTask) => {
       const taskStore = useTaskStore.getState();
       const existingTask = taskStore.tasks[stTask.id];
-      const status = stTask.status as { tag: string };
-      const newStatus = mapSpacetimeStatusToTaskStatus(status);
+      const statusTag = stTask.status.tag;
+
+      // Map TASK_STATUS_X to TaskStatus.TASK_X
+      const legacyStatusName = statusTag.replace("TASK_STATUS_", "TASK_");
+      const newStatus = TaskStatus[legacyStatusName as keyof typeof TaskStatus] as unknown as TaskStatus;
 
       if (!existingTask) {
         registerTask({
-          label: `Remote Action: ${stTask.request.actionId}`,
-          nodeId: stTask.request.sourceNodeId,
+          label: `Task: ${stTask.taskType}`,
+          nodeId: stTask.nodeId,
           status: newStatus,
           taskId: stTask.id,
           type: TaskType.REMOTE,
@@ -105,80 +150,90 @@ export const useSpacetimeSync = () => {
     });
   }, [stTasks, updateTask, registerTask]);
 
+  const lastProcessedNodesRef = useRef<string>("");
+  const processingRemoteUpdateRef = useRef(false);
   useEffect(() => {
-    if (stNodes.length === 0 && stEdges.length === 0) return;
+    const nodesJson = safeStringify(stNodes);
+    const edgesJson = safeStringify(stEdges);
+    const combinedJson = nodesJson + edgesJson;
 
-    const { applyMutations, nodes: localNodes } = useFlowStore.getState();
+    if (combinedJson === lastProcessedNodesRef.current) return;
+    lastProcessedNodesRef.current = combinedJson;
+
+    if (stNodes.length === 0 && stEdges.length === 0) return;
+    if (processingRemoteUpdateRef.current) return;
+
+    const { allNodes: localNodes, applyMutations } = useFlowStore.getState();
     const remoteNodeIds = new Set(stNodes.map((n) => n.nodeId));
     const conn = getConnection();
 
-    stNodes.forEach((nodeRow) => {
-      if (!conn) return;
-      const node = convertStdbToPb("nodes", nodeRow);
-      if (!node) return;
+    processingRemoteUpdateRef.current = true;
+    try {
+      const allMutations: any[] = [];
 
-      const localNode = localNodes.find((ln) => ln.id === node.nodeId);
+      stNodes.forEach((nodeRow) => {
+        if (!conn) return;
+        const node = convertStdbToPb("nodes", nodeRow);
+        if (!node) return;
 
-      const state = node.state;
-      const presentation = node.presentation;
+        const localNode = localNodes.find((ln) => ln.id === node.nodeId);
 
-      if (!localNode) {
-        applyMutations(
-          [
-            createProto(GraphMutationSchema, {
-              operation: {
-                case: "addNode",
-                value: {
-                  node: {
-                    isSelected: node.isSelected,
-                    nodeId: node.nodeId,
-                    nodeKind: node.nodeKind,
-                    presentation: presentation,
-                    state: state,
-                    templateId: node.templateId,
-                  },
-                },
+        if (!localNode) {
+          allMutations.push(
+            createProto(AddNodeRequestSchema, {
+              node: {
+                nodeId: node.nodeId,
+                nodeKind: node.nodeKind,
+                presentation: node.presentation,
+                state: node.state,
+                templateId: node.templateId,
               },
             }),
-          ],
-          { source: MutationSource.SOURCE_SYNC },
-        );
-      } else {
-        const isInteracting = (localNode.dragging ?? false) || (localNode.resizing ?? false);
-        if (!isInteracting) {
-          applyMutations(
-            [
-              createProto(GraphMutationSchema, {
-                operation: {
-                  case: "updateNode",
-                  value: {
-                    data: state,
-                    id: node.nodeId,
-                    presentation: presentation,
-                  },
-                },
-              }),
-            ],
-            { source: MutationSource.SOURCE_SYNC },
           );
-        }
-      }
-    });
+        } else {
+          const { lastLocalUpdate } = useFlowStore.getState();
+          const lastUpdate = lastLocalUpdate[node.nodeId] || 0;
+          const isRecentlyUpdatedLocally = Date.now() - lastUpdate < 3000;
+          const isInteracting = (localNode.dragging ?? false) || (localNode.resizing ?? false) || localNode.selected;
 
-    localNodes.forEach((ln) => {
-      if (!remoteNodeIds.has(ln.id)) {
-        applyMutations(
-          [
-            createProto(GraphMutationSchema, {
-              operation: {
-                case: "removeNode",
-                value: { id: ln.id },
-              },
-            }),
-          ],
-          { source: MutationSource.SOURCE_SYNC },
-        );
+          if (!isInteracting && !isRecentlyUpdatedLocally) {
+            // Check for actual changes before applying mutations to prevent loops
+            const hasPresentationChanged = safeStringify(localNode.presentation) !== safeStringify(node.presentation);
+            const hasStateChanged = safeStringify(localNode.data) !== safeStringify(node.state);
+
+            if (hasPresentationChanged || hasStateChanged) {
+              allMutations.push(
+                createProto(PathUpdateRequestSchema, {
+                  path: "presentation",
+                  targetId: node.nodeId,
+                  type: PathUpdateRequest_UpdateType.REPLACE,
+                  value: fromJson(ValueSchema, toJson(PresentationSchema, node.presentation)),
+                }),
+              );
+              allMutations.push(
+                createProto(PathUpdateRequestSchema, {
+                  path: "data",
+                  targetId: node.nodeId,
+                  type: PathUpdateRequest_UpdateType.REPLACE,
+                  value: fromJson(ValueSchema, toJson(NodeDataSchema, node.state)),
+                }),
+              );
+            }
+          }
+        }
+      });
+
+      localNodes.forEach((ln) => {
+        if (!remoteNodeIds.has(ln.id)) {
+          allMutations.push(createProto(RemoveNodeRequestSchema, { id: ln.id }));
+        }
+      });
+
+      if (allMutations.length > 0) {
+        applyMutations(allMutations, { source: MutationSource.SOURCE_SYNC });
       }
-    });
-  }, [stNodes, stEdges]);
+    } finally {
+      processingRemoteUpdateRef.current = false;
+    }
+  }, [stNodes, stEdges, getConnection]);
 };

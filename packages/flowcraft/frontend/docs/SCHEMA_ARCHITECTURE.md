@@ -29,16 +29,9 @@
 
 该脚本通过 `buf build` 捕获二进制描述符流，直接在内存中解析并映射为 SpacetimeDB 类型。
 
+- **层次化命名映射**：自动将 Protobuf 的多级包名映射为 SpacetimeDB 安全的下划线名称。例如 `flowcraft.v1.core.Node` 会被映射为 `core_Node`。
 - **Oneof 支持**：自动将 Protobuf 的 `oneof` 展开为 SpacetimeDB 的 `t.enum` 和可选字段组合。
-- **循环依赖处理**：自动识别递归引用（如 `google.protobuf.Value`）并降级为 `t.string()` 存储，确保数据库引擎稳定性。
-
-### 2.2 智能客户端生成 (`generate-pb-client.ts`)
-
-生成对齐官方 SDK 规范的 `PbConnection` 包装类：
-
-- **命名对齐**：自动将后端 `snake_case` 方法名和参数名转换为前端 `camelCase`。
-- **多文件内省**：自动识别类型所属的 `.proto` 文件，生成精确的 `@/generated/...` 导入语句。
-- **类型合并**：利用 TypeScript 交叉类型，使包装器既具备官方 `DbConnection` 的功能，又拥有增强后的强类型 Reducers。
+- **循环依赖处理**：自动识别递归引用（如 `google.protobuf.Value`）并映射为预定义的 `Value`、`Struct` 类型，内部降级为 `t.string()` 存储。
 
 ---
 
@@ -50,14 +43,13 @@
 
 ```typescript
 import { t, table } from "spacetimedb/server";
-import { Node } from "../generated/generated_schema";
+import { core_Node } from "../generated/generated_schema";
 
 export const nodes = table(
   { name: "nodes", public: true },
   {
-    node_id: t.string().primaryKey(),
-    state: Node, // 引用生成的强类型结构
-    // ...
+    nodeId: t.string().primaryKey(),
+    state: core_Node, // 引用生成的层次化强类型结构
   },
 );
 ```

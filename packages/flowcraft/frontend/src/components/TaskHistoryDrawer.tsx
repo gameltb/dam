@@ -37,7 +37,7 @@ export const TaskHistoryDrawer: React.FC = () => {
   const taskList = useMemo(() => Object.values(tasks).sort((a, b) => b.createdAt - a.createdAt), [tasks]);
 
   const activeInstances = useMemo(
-    () => taskList.filter((t) => t.status === TaskStatus.TASK_PROCESSING || t.status === TaskStatus.TASK_PENDING),
+    () => taskList.filter((t) => t.status === TaskStatus.RUNNING || t.status === TaskStatus.PENDING),
     [taskList],
   );
 
@@ -186,7 +186,7 @@ export const TaskHistoryDrawer: React.FC = () => {
 
                         <div className="flex items-center gap-4">
                           <StatusBadge status={selectedTask.status} />
-                          {selectedTask.status === TaskStatus.TASK_PROCESSING && (
+                          {selectedTask.status === TaskStatus.RUNNING && (
                             <div className="flex items-center gap-2 w-32">
                               <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
                                 <div
@@ -215,8 +215,7 @@ export const TaskHistoryDrawer: React.FC = () => {
                             <RotateCw size={12} /> Restart
                           </Button>
                         )}
-                        {(selectedTask.status === TaskStatus.TASK_PROCESSING ||
-                          selectedTask.status === TaskStatus.TASK_PENDING) && (
+                        {(selectedTask.status === TaskStatus.RUNNING || selectedTask.status === TaskStatus.PENDING) && (
                           <Button
                             className="h-8 gap-1.5 text-xs"
                             onClick={() => {

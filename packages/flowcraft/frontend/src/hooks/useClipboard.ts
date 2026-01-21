@@ -1,14 +1,14 @@
 import type { Edge as RFEdge } from "@xyflow/react";
 
-import { create } from "@bufbuild/protobuf";
+import { create as createProto } from "@bufbuild/protobuf";
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { useShallow } from "zustand/react/shallow";
 
 import type { AppNode, DynamicNodeData } from "@/types";
 
 import { ActionExecutionRequestSchema } from "@/generated/flowcraft/v1/core/action_pb";
-import { EdgeSchema } from "@/generated/flowcraft/v1/core/node_pb";
-import { type GraphMutation, GraphMutationSchema } from "@/generated/flowcraft/v1/core/service_pb";
+import { AddEdgeRequestSchema, AddNodeRequestSchema } from "@/generated/flowcraft/v1/core/service_pb";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
 import { appNodeToProto } from "@/utils/nodeProtoUtils";
@@ -18,8 +18,21 @@ import { appNodeToProto } from "@/utils/nodeProtoUtils";
  * Supports remapping IDs and maintaining relative positions.
  */
 export function useClipboard() {
-  const { applyMutations, edges, nodes, spacetimeConn } = useFlowStore();
-  const { clipboard, setClipboard } = useUiStore();
+  const { applyMutations, edges, nodeDraft, nodes, spacetimeConn } = useFlowStore(
+    useShallow((s) => ({
+      applyMutations: s.applyMutations,
+      edges: s.edges,
+      nodeDraft: s.nodeDraft,
+      nodes: s.nodes,
+      spacetimeConn: s.spacetimeConn,
+    })),
+  );
+  const { clipboard, setClipboard } = useUiStore(
+    useShallow((s) => ({
+      clipboard: s.clipboard,
+      setClipboard: s.setClipboard,
+    })),
+  );
 
   const copy = useCallback(() => {
     const selectedNodes = nodes.filter((n) => n.selected);
@@ -49,7 +62,6 @@ export function useClipboard() {
         const newId = uuidv4();
         idMap[node.id] = newId;
 
-        // If it's a chat node, prepare for branch duplication
         const ext = (node.data as DynamicNodeData).extension;
         if (ext?.case === "chat") {
           const chatData = ext.value;
@@ -79,56 +91,40 @@ export function useClipboard() {
         target: idMap[edge.target] ?? edge.target,
       }));
 
-      // Deselect existing
-      const deselectMutations: GraphMutation[] = nodes
+      // Deselect existing via ORM
+      nodes
         .filter((n) => n.selected)
-        .map((n) =>
-          create(GraphMutationSchema, {
-            operation: {
-              case: "updateNode",
-              value: { id: n.id },
-            },
-          }),
-        );
+        .forEach((n) => {
+          const res = nodeDraft(n);
+          if (res.ok) {
+            res.value.selected = false;
+          }
+        });
 
-      const addMutations: GraphMutation[] = [
-        ...newNodes.map((n) =>
-          create(GraphMutationSchema, {
-            operation: {
-              case: "addNode",
-              value: { node: appNodeToProto(n) },
-            },
-          }),
-        ),
+      const addMutations = [
+        ...newNodes.map((n) => createProto(AddNodeRequestSchema, { node: appNodeToProto(n) })),
         ...newEdges.map((e) =>
-          create(GraphMutationSchema, {
-            operation: {
-              case: "addEdge",
-              value: {
-                edge: create(EdgeSchema, {
-                  edgeId: e.id,
-                  metadata: {},
-                  sourceHandle: e.sourceHandle ?? "",
-                  sourceNodeId: e.source,
-                  targetHandle: e.targetHandle ?? "",
-                  targetNodeId: e.target,
-                }),
-              },
+          createProto(AddEdgeRequestSchema, {
+            edge: {
+              edgeId: e.id,
+              metadata: {},
+              sourceHandle: e.sourceHandle ?? "",
+              sourceNodeId: e.source,
+              targetHandle: e.targetHandle ?? "",
+              targetNodeId: e.target,
             },
           }),
         ),
       ];
 
-      applyMutations([...deselectMutations, ...addMutations], {
+      applyMutations(addMutations, {
         description: "Paste subgraph",
       });
 
-      // Trigger asynchronous branch duplication for Chat nodes
       chatNodesToDuplicate.forEach((item) => {
         if (item.oldHeadId && item.treeId) {
-          // Trigger a specialized action that Worker handles to COW clone the branch
           if (spacetimeConn) {
-            const request = create(ActionExecutionRequestSchema, {
+            const request = createProto(ActionExecutionRequestSchema, {
               actionId: "chat.duplicateBranch",
               params: {
                 case: "paramsStruct",
@@ -154,7 +150,7 @@ export function useClipboard() {
         }
       });
     },
-    [clipboard, nodes, applyMutations, spacetimeConn],
+    [clipboard, nodes, applyMutations, spacetimeConn, nodeDraft],
   );
 
   const duplicate = useCallback(() => {

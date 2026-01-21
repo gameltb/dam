@@ -1,162 +1,157 @@
-import { create as createProto, type MessageShape, toJson } from "@bufbuild/protobuf";
+import { create as createProto, toJson } from "@bufbuild/protobuf";
 import { ValueSchema } from "@bufbuild/protobuf/wkt";
 import { type Edge } from "@xyflow/react";
 
-import { NodeKind } from "@/generated/flowcraft/v1/core/base_pb";
+import { NodeKind, PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import { NodeDataSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import {
-  type GraphMutation,
+  AddEdgeRequestSchema,
+  AddNodeRequestSchema,
+  ClearGraphRequestSchema,
   GraphMutationSchema,
-  PathUpdate_UpdateType,
+  PathUpdateRequest_UpdateType,
+  PathUpdateRequestSchema,
+  RemoveEdgeRequestSchema,
+  RemoveNodeRequestSchema,
+  ReparentNodeRequestSchema,
 } from "@/generated/flowcraft/v1/core/service_pb";
-import { assertNever } from "@/lib/utils";
-import { type NodeId, type AppNode, AppNodeType, type DynamicNodeData } from "@/types";
+import { type AppNode, AppNodeType, type DynamicNodeData } from "@/types";
+import { protoToAppEdge } from "@/utils/nodeProtoUtils";
 
-const KIND_TO_NODE_TYPE: Record<NodeKind, AppNodeType> = {
+import { type MutationInput } from "./types";
+
+const KIND_TO_NODE_TYPE: Record<number, AppNodeType> = {
   [NodeKind.DYNAMIC]: AppNodeType.DYNAMIC,
   [NodeKind.GROUP]: AppNodeType.GROUP,
-  [NodeKind.PROCESS]: AppNodeType.PROCESSING,
   [NodeKind.NOTE]: AppNodeType.DYNAMIC,
+  [NodeKind.PROCESS]: AppNodeType.PROCESSING,
   [NodeKind.UNSPECIFIED]: AppNodeType.DYNAMIC,
 };
 
-function setByPath(obj: Record<string, unknown>, path: string, value: unknown, merge = false) {
-  const parts = path.split(".");
-  let current = obj;
-  for (let i = 0; i < parts.length - 1; i++) {
-    const part = parts[i];
-    if (!part) continue;
-    if (!(part in current) || typeof current[part] !== "object") {
-      current[part] = {};
-    }
-    current = current[part] as Record<string, unknown>;
-  }
-  const lastPart = parts[parts.length - 1];
-  if (!lastPart) return;
-  if (merge && typeof value === "object" && value !== null) {
-    current[lastPart] = { ...(current[lastPart] as object), ...value };
-  } else {
-    current[lastPart] = value;
-  }
-}
-
-export const handleGraphMutation = (
-  mutInput: GraphMutation,
+export const handleMutation = (
+  input: MutationInput,
   currentNodes: AppNode[],
   currentEdges: Edge[],
 ): { edges: Edge[]; nodes: AppNode[] } => {
-  const mut = createProto(GraphMutationSchema, mutInput);
-  const op = mut.operation;
   let nodes = [...currentNodes];
   let edges = [...currentEdges];
 
-  if (!op.case) return { edges, nodes };
-
-  switch (op.case) {
-    case "addEdge":
-      if (op.value.edge) {
-        const e = op.value.edge;
-        edges = [
-          ...edges.filter((ex) => ex.id !== e.edgeId),
-          {
-            data: e.metadata,
-            id: e.edgeId,
-            source: e.sourceNodeId,
-            sourceHandle: e.sourceHandle || undefined,
-            target: e.targetNodeId,
-            targetHandle: e.targetHandle || undefined,
-          },
-        ];
+  switch (input.$typeName) {
+    case AddEdgeRequestSchema.typeName:
+      if (input.edge) {
+        const e = protoToAppEdge(input.edge);
+        edges = [...edges.filter((ex) => ex.id !== e.id), e];
       }
       break;
 
-    case "addNode":
-      if (op.value.node) {
-        const n = op.value.node;
-        const appData = (n.state ?? createProto(NodeDataSchema, { displayName: "New Node" })) as DynamicNodeData;
-        appData.templateId = n.templateId as any;
-
+    case AddNodeRequestSchema.typeName:
+      if (input.node) {
+        const n = input.node;
         const newNode: AppNode = {
-          data: appData,
-          id: n.nodeId as NodeId,
-          measured: n.presentation?.width ? { height: n.presentation.height, width: n.presentation.width } : undefined,
+          data: createProto(NodeDataSchema, n.state) as unknown as DynamicNodeData,
+          height: n.presentation?.height || 400,
+          id: n.nodeId,
           parentId: n.presentation?.parentId || undefined,
-          position: {
-            x: n.presentation?.position?.x ?? 0,
-            y: n.presentation?.position?.y ?? 0,
-          },
-          selected: n.isSelected,
+          position: { x: n.presentation?.position?.x ?? 0, y: n.presentation?.position?.y ?? 0 },
+          presentation: n.presentation ?? createProto(PresentationSchema, {}),
+          selected: n.presentation?.isSelected,
           type: KIND_TO_NODE_TYPE[n.nodeKind] ?? AppNodeType.DYNAMIC,
+          width: n.presentation?.width || 500,
         };
         nodes = [...nodes.filter((ex) => ex.id !== newNode.id), newNode];
       }
       break;
 
-    case "clearGraph":
-      nodes = [];
-      edges = [];
+    case ClearGraphRequestSchema.typeName:
+      return { edges: [], nodes: [] };
+
+    case GraphMutationSchema.typeName:
+      if (input.operation.case) return handleMutation(input.operation.value as any, nodes, edges);
       break;
 
-    case "pathUpdate": {
-      const { path, targetId, type, value } = op.value;
-      const idx = nodes.findIndex((n) => n.id === targetId);
-      if (idx !== -1 && value) {
-        const val = toJson(ValueSchema, value);
-        const existingNode = nodes[idx];
-        if (!existingNode) break;
-        const updatedData = createProto(
-          NodeDataSchema,
-          existingNode.data as unknown as MessageShape<typeof NodeDataSchema>,
-        );
-        // We still need 'as any' for recursive dynamic property access,
-        // but we've narrowed the scope.
-        setByPath(updatedData as unknown as Record<string, unknown>, path, val, type === PathUpdate_UpdateType.MERGE);
-        nodes[idx] = {
-          ...existingNode,
-          data: updatedData as DynamicNodeData,
-        };
-      }
-      break;
-    }
-
-    case "removeEdge":
-      edges = edges.filter((e) => e.id !== op.value.id);
-      break;
-
-    case "removeNode":
-      nodes = nodes.filter((n) => n.id !== op.value.id);
-      edges = edges.filter((e) => e.source !== op.value.id && e.target !== op.value.id);
-      break;
-
-    case "updateNode": {
-      const val = op.value;
-      const idx = nodes.findIndex((n) => n.id === val.id);
+    case PathUpdateRequestSchema.typeName: {
+      const idx = nodes.findIndex((n) => n.id === input.targetId);
       if (idx !== -1) {
-        const existing = nodes[idx];
-        if (!existing) break;
-        const updated = { ...existing };
-        if (val.presentation) {
-          if (val.presentation.position) updated.position = val.presentation.position;
-          if (val.presentation.width)
-            updated.measured = {
-              height: val.presentation.height,
-              width: val.presentation.width,
-            };
-          updated.parentId = val.presentation.parentId || undefined;
+        const jsValue = input.value ? (toJson(ValueSchema, input.value) as any) : null;
+        const pathParts = input.path.split(".");
+
+        const applyPath = (obj: any, parts: string[], value: any): any => {
+          if (parts.length === 0) return value;
+          const [first, ...rest] = parts;
+          if (!first) return value;
+
+          if (input.type === PathUpdateRequest_UpdateType.DELETE) {
+            const { [first]: _, ...newObj } = obj || {};
+            return newObj;
+          }
+          return {
+            ...(obj || {}),
+            [first]: applyPath((obj || {})[first] || {}, rest, value),
+          };
+        };
+
+        const node = nodes[idx]!;
+        const updated = { ...node };
+
+        if (pathParts[0] === "state" || pathParts[0] === "data") {
+          updated.data = applyPath(updated.data, pathParts.slice(1), jsValue);
+        } else if (pathParts[0] === "presentation") {
+          updated.presentation = applyPath(updated.presentation, pathParts.slice(1), jsValue);
+
+          const field = pathParts[1];
+          if (field === "width" || field === "height") {
+            const num = Number(jsValue);
+            if (isNaN(num)) {
+              throw new Error(`[Mutation] CRITICAL: Attempted to set ${field} to NaN for node ${node.id}`);
+            }
+            (updated as any)[field] = num;
+            updated.measured = { ...updated.measured, [field]: num };
+          } else if (field === "isSelected") {
+            updated.selected = !!jsValue;
+          } else if (field === "parentId") {
+            updated.parentId = String(jsValue) || undefined;
+          } else if (field === "position") {
+            const px = Number(updated.presentation.position?.x);
+            const py = Number(updated.presentation.position?.y);
+            if (isNaN(px) || isNaN(py)) {
+              throw new Error(`[Mutation] CRITICAL: Position resulted in NaN for node ${node.id}`);
+            }
+            updated.position = { x: px, y: py };
+          }
         }
-        if (val.data) {
-          updated.data = createProto(NodeDataSchema, {
-            ...(existing.data as unknown as MessageShape<typeof NodeDataSchema>),
-            ...(val.data as unknown as MessageShape<typeof NodeDataSchema>),
-          }) as DynamicNodeData;
-        }
+
         nodes[idx] = updated;
       }
       break;
     }
 
-    default:
-      assertNever(op);
+    case RemoveEdgeRequestSchema.typeName:
+      edges = edges.filter((e) => e.id !== input.id);
+      break;
+
+    case RemoveNodeRequestSchema.typeName:
+      nodes = nodes.filter((n) => n.id !== input.id);
+      edges = edges.filter((e) => e.source !== input.id && e.target !== input.id);
+      break;
+
+    case ReparentNodeRequestSchema.typeName: {
+      const idx = nodes.findIndex((n) => n.id === input.nodeId);
+      if (idx !== -1) {
+        const node = nodes[idx]!;
+        nodes[idx] = {
+          ...node,
+          parentId: input.newParentId || undefined,
+          position: input.newPosition || node.position,
+          presentation: {
+            ...node.presentation,
+            parentId: input.newParentId || "",
+            position: input.newPosition || node.presentation.position,
+          },
+        };
+      }
+      break;
+    }
   }
+
   return { edges, nodes };
 };

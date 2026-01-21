@@ -6,25 +6,25 @@ export const Value = t.string();
 export const Struct = t.string();
 export const ListValue = t.string();
 
-export const NodeKind = t.enum("NodeKind", {
+export const core_NodeKind = t.enum("core_NodeKind", {
   NODE_KIND_UNSPECIFIED: t.unit(),
   NODE_KIND_DYNAMIC: t.unit(),
   NODE_KIND_GROUP: t.unit(),
   NODE_KIND_PROCESS: t.unit(),
   NODE_KIND_NOTE: t.unit(),
 });
-export type NodeKind = Infer<typeof NodeKind>;
+export type core_NodeKind = Infer<typeof core_NodeKind>;
 
-export const MutationSource = t.enum("MutationSource", {
+export const core_MutationSource = t.enum("core_MutationSource", {
   SOURCE_UNSPECIFIED: t.unit(),
   SOURCE_USER: t.unit(),
   SOURCE_REMOTE_TASK: t.unit(),
   SOURCE_SYSTEM: t.unit(),
   SOURCE_SYNC: t.unit(),
 });
-export type MutationSource = Infer<typeof MutationSource>;
+export type core_MutationSource = Infer<typeof core_MutationSource>;
 
-export const PortMainType = t.enum("PortMainType", {
+export const core_PortMainType = t.enum("core_PortMainType", {
   PORT_MAIN_TYPE_UNSPECIFIED: t.unit(),
   PORT_MAIN_TYPE_ANY: t.unit(),
   PORT_MAIN_TYPE_STRING: t.unit(),
@@ -37,51 +37,68 @@ export const PortMainType = t.enum("PortMainType", {
   PORT_MAIN_TYPE_SET: t.unit(),
   PORT_MAIN_TYPE_SYSTEM: t.unit(),
 });
-export type PortMainType = Infer<typeof PortMainType>;
+export type core_PortMainType = Infer<typeof core_PortMainType>;
 
-export const MediaType = t.enum("MediaType", {
+export const core_MediaType = t.enum("core_MediaType", {
   MEDIA_UNSPECIFIED: t.unit(),
   MEDIA_IMAGE: t.unit(),
   MEDIA_VIDEO: t.unit(),
   MEDIA_AUDIO: t.unit(),
   MEDIA_MARKDOWN: t.unit(),
 });
-export type MediaType = Infer<typeof MediaType>;
+export type core_MediaType = Infer<typeof core_MediaType>;
 
-export const VisualHint_Placement = t.enum("VisualHint_Placement", {
+export const core_VisualHint_Placement = t.enum("core_VisualHint_Placement", {
   UNSPECIFIED: t.unit(),
   CENTER_OF_VIEW: t.unit(),
   NEAR_SOURCE_NODE: t.unit(),
   BELOW_SELECTED_NODES: t.unit(),
   MOUSE_CURSOR: t.unit(),
 });
-export type VisualHint_Placement = Infer<typeof VisualHint_Placement>;
+export type core_VisualHint_Placement = Infer<typeof core_VisualHint_Placement>;
 
-export const ActionExecutionStrategy = t.enum("ActionExecutionStrategy", {
+export const core_ActionExecutionStrategy = t.enum("core_ActionExecutionStrategy", {
   EXECUTION_IMMEDIATE: t.unit(),
   EXECUTION_BACKGROUND: t.unit(),
   EXECUTION_STREAMING: t.unit(),
 });
-export type ActionExecutionStrategy = Infer<typeof ActionExecutionStrategy>;
+export type core_ActionExecutionStrategy = Infer<typeof core_ActionExecutionStrategy>;
 
-export const RenderMode = t.enum("RenderMode", {
+export const core_TaskStatus = t.enum("core_TaskStatus", {
+  TASK_STATUS_PENDING: t.unit(),
+  TASK_STATUS_CLAIMED: t.unit(),
+  TASK_STATUS_RUNNING: t.unit(),
+  TASK_STATUS_COMPLETED: t.unit(),
+  TASK_STATUS_FAILED: t.unit(),
+  TASK_STATUS_CANCELLED: t.unit(),
+});
+export type core_TaskStatus = Infer<typeof core_TaskStatus>;
+
+export const core_WorkerLanguage = t.enum("core_WorkerLanguage", {
+  WORKER_LANG_TS: t.unit(),
+  WORKER_LANG_PYTHON: t.unit(),
+  WORKER_LANG_RUST: t.unit(),
+});
+export type core_WorkerLanguage = Infer<typeof core_WorkerLanguage>;
+
+export const core_RenderMode = t.enum("core_RenderMode", {
   MODE_UNSPECIFIED: t.unit(),
   MODE_MEDIA: t.unit(),
   MODE_WIDGETS: t.unit(),
   MODE_MARKDOWN: t.unit(),
   MODE_CHAT: t.unit(),
 });
-export type RenderMode = Infer<typeof RenderMode>;
+export type core_RenderMode = Infer<typeof core_RenderMode>;
 
-export const PortStyle = t.enum("PortStyle", {
+export const core_PortStyle = t.enum("core_PortStyle", {
   CIRCLE: t.unit(),
   SQUARE: t.unit(),
   DIAMOND: t.unit(),
   DASH: t.unit(),
 });
-export type PortStyle = Infer<typeof PortStyle>;
+export type core_PortStyle = Infer<typeof core_PortStyle>;
 
-export const WidgetType = t.enum("WidgetType", {
+export const core_WidgetType = t.enum("core_WidgetType", {
   WIDGET_UNSPECIFIED: t.unit(),
   WIDGET_TEXT: t.unit(),
   WIDGET_SELECT: t.unit(),
@@ -89,43 +106,42 @@ export const WidgetType = t.enum("WidgetType", {
   WIDGET_SLIDER: t.unit(),
   WIDGET_BUTTON: t.unit(),
 });
-export type WidgetType = Infer<typeof WidgetType>;
+export type core_WidgetType = Infer<typeof core_WidgetType>;
 
-export const TaskStatus = t.enum("TaskStatus", {
-  TASK_PENDING: t.unit(),
-  TASK_PROCESSING: t.unit(),
-  TASK_COMPLETED: t.unit(),
-  TASK_FAILED: t.unit(),
-  TASK_CANCELLED: t.unit(),
-  TASK_RESTARTING: t.unit(),
-});
-export type TaskStatus = Infer<typeof TaskStatus>;
-
-export const LogLevel = t.enum("LogLevel", {
+export const services_LogLevel = t.enum("services_LogLevel", {
   INFO: t.unit(),
   WARN: t.unit(),
   ERROR: t.unit(),
   DEBUG: t.unit(),
 });
-export type LogLevel = Infer<typeof LogLevel>;
+export type services_LogLevel = Infer<typeof services_LogLevel>;
 
-export const PathUpdate_UpdateType = t.enum("PathUpdate_UpdateType", {
+export const services_PathUpdateRequest_UpdateType = t.enum("services_PathUpdateRequest_UpdateType", {
   REPLACE: t.unit(),
   MERGE: t.unit(),
   DELETE: t.unit(),
 });
-export type PathUpdate_UpdateType = Infer<typeof PathUpdate_UpdateType>;
+export type services_PathUpdateRequest_UpdateType = Infer<typeof services_PathUpdateRequest_UpdateType>;
 
-// --- Position ---
-export const Position = t.object("Position", {
+// --- core_MutationMetadata ---
+export const core_MutationMetadata = t.object("core_MutationMetadata", {
+  originTaskId: t.string(),
+  timestamp: t.i64(),
+  source: t.option(core_MutationSource),
+  userId: t.string(),
+});
+export type core_MutationMetadata = Infer<typeof core_MutationMetadata>;
+
+// --- core_Position ---
+export const core_Position = t.object("core_Position", {
   x: t.f64(),
   y: t.f64(),
 });
-export type Position = Infer<typeof Position>;
+export type core_Position = Infer<typeof core_Position>;
 
-// --- Presentation ---
-export const Presentation = t.object("Presentation", {
-  position: t.option(Position),
+// --- core_Presentation ---
+export const core_Presentation = t.object("core_Presentation", {
+  position: t.option(core_Position),
   width: t.f64(),
   height: t.f64(),
   parentId: t.string(),
@@ -133,339 +149,199 @@ export const Presentation = t.object("Presentation", {
   isHidden: t.bool(),
   isLocked: t.bool(),
   isInitialized: t.bool(),
+  isSelected: t.bool(),
 });
-export type Presentation = Infer<typeof Presentation>;
+export type core_Presentation = Infer<typeof core_Presentation>;
 
-// --- VisualHint ---
-export const VisualHint = t.object("VisualHint", {
-  placement: t.option(VisualHint_Placement),
+// --- core_VisualHint ---
+export const core_VisualHint = t.object("core_VisualHint", {
+  placement: t.option(core_VisualHint_Placement),
   referenceNodeId: t.string(),
-  offset: t.option(Position),
+  offset: t.option(core_Position),
 });
-export type VisualHint = Infer<typeof VisualHint>;
+export type core_VisualHint = Infer<typeof core_VisualHint>;
 
-// --- Rect ---
-export const Rect = t.object("Rect", {
+// --- core_Rect ---
+export const core_Rect = t.object("core_Rect", {
   x: t.f64(),
   y: t.f64(),
   width: t.f64(),
   height: t.f64(),
 });
-export type Rect = Infer<typeof Rect>;
+export type core_Rect = Infer<typeof core_Rect>;
 
-// --- Viewport ---
-export const Viewport = t.object("Viewport", {
+// --- core_Viewport ---
+export const core_Viewport = t.object("core_Viewport", {
   x: t.f64(),
   y: t.f64(),
   zoom: t.f64(),
 });
-export type Viewport = Infer<typeof Viewport>;
+export type core_Viewport = Infer<typeof core_Viewport>;
 
-// --- MediaContent ---
-export const MediaContent = t.object("MediaContent", {
-  type: t.option(MediaType),
+// --- core_MediaContent ---
+export const core_MediaContent = t.object("core_MediaContent", {
+  type: t.option(core_MediaType),
   url: t.string(),
   content: t.string(),
   aspectRatio: t.f64(),
   galleryUrls: t.array(t.string()),
 });
-export type MediaContent = Infer<typeof MediaContent>;
+export type core_MediaContent = Infer<typeof core_MediaContent>;
 
-// --- ChatMessagePart ---
-export const ChatMessagePart_part = t.enum("ChatMessagePart_part", {
+// --- actions_ChatMessagePart ---
+export const actions_ChatMessagePart_part = t.enum("actions_ChatMessagePart_part", {
   text: t.string(),
-  media: MediaContent,
+  media: core_MediaContent,
 });
-export type ChatMessagePart_part = Infer<typeof ChatMessagePart_part>;
+export type actions_ChatMessagePart_part = Infer<typeof actions_ChatMessagePart_part>;
 
-export const ChatMessagePart = t.object("ChatMessagePart", {
-  part: t.option(ChatMessagePart_part),
+export const actions_ChatMessagePart = t.object("actions_ChatMessagePart", {
+  part: t.option(actions_ChatMessagePart_part),
     });
-export type ChatMessagePart = Infer<typeof ChatMessagePart>;
+export type actions_ChatMessagePart = Infer<typeof actions_ChatMessagePart>;
 
-// --- ChatMessagePreview ---
-export const ChatMessagePreview = t.object("ChatMessagePreview", {
+// --- actions_ChatMessagePreview ---
+export const actions_ChatMessagePreview = t.object("actions_ChatMessagePreview", {
   role: t.string(),
-  parts: t.array(t.option(ChatMessagePart)),
+  parts: t.array(t.option(actions_ChatMessagePart)),
 });
-export type ChatMessagePreview = Infer<typeof ChatMessagePreview>;
+export type actions_ChatMessagePreview = Infer<typeof actions_ChatMessagePreview>;
 
-// --- ChatActionParams ---
-export const ChatActionParams = t.object("ChatActionParams", {
+// --- actions_ChatActionParams ---
+export const actions_ChatActionParams = t.object("actions_ChatActionParams", {
   userContent: t.string(),
   modelId: t.string(),
   endpointId: t.string(),
   useWebSearch: t.bool(),
-  historyOverride: t.array(t.option(ChatMessagePreview)),
+  historyOverride: t.array(t.option(actions_ChatMessagePreview)),
 });
-export type ChatActionParams = Infer<typeof ChatActionParams>;
+export type actions_ChatActionParams = Infer<typeof actions_ChatActionParams>;
 
-// --- ChatEditParams ---
-export const ChatEditParams = t.object("ChatEditParams", {
+// --- actions_ChatEditParams ---
+export const actions_ChatEditParams = t.object("actions_ChatEditParams", {
   messageId: t.string(),
-  newParts: t.array(t.option(ChatMessagePart)),
+  newParts: t.array(t.option(actions_ChatMessagePart)),
 });
-export type ChatEditParams = Infer<typeof ChatEditParams>;
+export type actions_ChatEditParams = Infer<typeof actions_ChatEditParams>;
 
-// --- ChatSwitchBranchParams ---
-export const ChatSwitchBranchParams = t.object("ChatSwitchBranchParams", {
+// --- actions_ChatSwitchBranchParams ---
+export const actions_ChatSwitchBranchParams = t.object("actions_ChatSwitchBranchParams", {
   targetMessageId: t.string(),
 });
-export type ChatSwitchBranchParams = Infer<typeof ChatSwitchBranchParams>;
+export type actions_ChatSwitchBranchParams = Infer<typeof actions_ChatSwitchBranchParams>;
 
-// --- ChatSyncMessage ---
-export const ChatSyncMessage = t.object("ChatSyncMessage", {
+// --- actions_ChatSyncMessage ---
+export const actions_ChatSyncMessage = t.object("actions_ChatSyncMessage", {
   id: t.string(),
   role: t.string(),
-  parts: t.array(t.option(ChatMessagePart)),
+  parts: t.array(t.option(actions_ChatMessagePart)),
   modelId: t.string(),
   timestamp: t.i64(),
+  parentId: t.string(),
 });
-export type ChatSyncMessage = Infer<typeof ChatSyncMessage>;
+export type actions_ChatSyncMessage = Infer<typeof actions_ChatSyncMessage>;
 
-// --- ChatSyncBranchParams ---
-export const ChatSyncBranchParams = t.object("ChatSyncBranchParams", {
+// --- actions_ChatSyncBranchParams ---
+export const actions_ChatSyncBranchParams = t.object("actions_ChatSyncBranchParams", {
   treeId: t.string(),
   anchorMessageId: t.string(),
-  newMessages: t.array(t.option(ChatSyncMessage)),
+  newMessages: t.array(t.option(actions_ChatSyncMessage)),
   idempotencyKey: t.string(),
 });
-export type ChatSyncBranchParams = Infer<typeof ChatSyncBranchParams>;
+export type actions_ChatSyncBranchParams = Infer<typeof actions_ChatSyncBranchParams>;
 
-// --- ImageEnhanceParams ---
-export const ImageEnhanceParams = t.object("ImageEnhanceParams", {
+// --- flowcraft_proto_v1_ImageEnhanceParams ---
+export const flowcraft_proto_v1_ImageEnhanceParams = t.object("flowcraft_proto_v1_ImageEnhanceParams", {
   strength: t.f32(),
   modelName: t.string(),
 });
-export type ImageEnhanceParams = Infer<typeof ImageEnhanceParams>;
+export type flowcraft_proto_v1_ImageEnhanceParams = Infer<typeof flowcraft_proto_v1_ImageEnhanceParams>;
 
-// --- NodeTransformParams ---
-export const NodeTransformParams = t.object("NodeTransformParams", {
+// --- flowcraft_proto_v1_NodeTransformParams ---
+export const flowcraft_proto_v1_NodeTransformParams = t.object("flowcraft_proto_v1_NodeTransformParams", {
   instruction: t.string(),
   style: t.string(),
 });
-export type NodeTransformParams = Infer<typeof NodeTransformParams>;
+export type flowcraft_proto_v1_NodeTransformParams = Infer<typeof flowcraft_proto_v1_NodeTransformParams>;
 
-// --- PromptGenParams ---
-export const PromptGenParams = t.object("PromptGenParams", {
+// --- flowcraft_proto_v1_PromptGenParams ---
+export const flowcraft_proto_v1_PromptGenParams = t.object("flowcraft_proto_v1_PromptGenParams", {
   prompt: t.string(),
   negativePrompt: t.string(),
   steps: t.i32(),
   cfgScale: t.f32(),
 });
-export type PromptGenParams = Infer<typeof PromptGenParams>;
+export type flowcraft_proto_v1_PromptGenParams = Infer<typeof flowcraft_proto_v1_PromptGenParams>;
 
-// --- ActionTemplate ---
-export const ActionTemplate = t.object("ActionTemplate", {
+// --- core_ActionTemplate ---
+export const core_ActionTemplate = t.object("core_ActionTemplate", {
   id: t.string(),
   label: t.string(),
-  path: t.array(t.string()),
-  strategy: t.option(ActionExecutionStrategy),
+  menuPath: t.array(t.string()),
+  strategy: t.option(core_ActionExecutionStrategy),
   paramsSchema: t.option(Struct),
 });
-export type ActionTemplate = Infer<typeof ActionTemplate>;
+export type core_ActionTemplate = Infer<typeof core_ActionTemplate>;
 
-// --- ActionDiscoveryRequest ---
-export const ActionDiscoveryRequest = t.object("ActionDiscoveryRequest", {
+// --- core_ActionDiscoveryRequest ---
+export const core_ActionDiscoveryRequest = t.object("core_ActionDiscoveryRequest", {
   nodeId: t.string(),
   selectedNodeIds: t.array(t.string()),
 });
-export type ActionDiscoveryRequest = Infer<typeof ActionDiscoveryRequest>;
+export type core_ActionDiscoveryRequest = Infer<typeof core_ActionDiscoveryRequest>;
 
-// --- ActionDiscoveryResponse ---
-export const ActionDiscoveryResponse = t.object("ActionDiscoveryResponse", {
-  actions: t.array(t.option(ActionTemplate)),
+// --- core_ActionDiscoveryResponse ---
+export const core_ActionDiscoveryResponse = t.object("core_ActionDiscoveryResponse", {
+  actions: t.array(t.option(core_ActionTemplate)),
 });
-export type ActionDiscoveryResponse = Infer<typeof ActionDiscoveryResponse>;
+export type core_ActionDiscoveryResponse = Infer<typeof core_ActionDiscoveryResponse>;
 
-// --- ActionExecutionRequest ---
-export const ActionExecutionRequest_params = t.enum("ActionExecutionRequest_params", {
+// --- core_PromptGenParams ---
+export const core_PromptGenParams = t.object("core_PromptGenParams", {
+  prompt: t.string(),
+  negativePrompt: t.string(),
+  steps: t.i32(),
+  cfgScale: t.f32(),
+});
+export type core_PromptGenParams = Infer<typeof core_PromptGenParams>;
+
+// --- core_NodeTransformParams ---
+export const core_NodeTransformParams = t.object("core_NodeTransformParams", {
+  instruction: t.string(),
+  style: t.string(),
+});
+export type core_NodeTransformParams = Infer<typeof core_NodeTransformParams>;
+
+// --- core_ImageEnhanceParams ---
+export const core_ImageEnhanceParams = t.object("core_ImageEnhanceParams", {
+  strength: t.f32(),
+  modelName: t.string(),
+});
+export type core_ImageEnhanceParams = Infer<typeof core_ImageEnhanceParams>;
+
+// --- core_ActionExecutionRequest ---
+export const core_ActionExecutionRequest_params = t.enum("core_ActionExecutionRequest_params", {
   paramsStruct: Struct,
-  promptGen: PromptGenParams,
-  transform: NodeTransformParams,
-  enhance: ImageEnhanceParams,
-  chatGenerate: ChatActionParams,
-  chatSync: ChatSyncBranchParams,
+  promptGen: core_PromptGenParams,
+  transform: core_NodeTransformParams,
+  enhance: core_ImageEnhanceParams,
+  chatGenerate: actions_ChatActionParams,
+  chatSync: actions_ChatSyncBranchParams,
 });
-export type ActionExecutionRequest_params = Infer<typeof ActionExecutionRequest_params>;
+export type core_ActionExecutionRequest_params = Infer<typeof core_ActionExecutionRequest_params>;
 
-export const ActionExecutionRequest = t.object("ActionExecutionRequest", {
+export const core_ActionExecutionRequest = t.object("core_ActionExecutionRequest", {
   actionId: t.string(),
   sourceNodeId: t.string(),
   contextNodeIds: t.array(t.string()),
-  params: t.option(ActionExecutionRequest_params),
+  params: t.option(core_ActionExecutionRequest_params),
     });
-export type ActionExecutionRequest = Infer<typeof ActionExecutionRequest>;
+export type core_ActionExecutionRequest = Infer<typeof core_ActionExecutionRequest>;
 
-// --- ChatNodeState ---
-export const ChatNodeState = t.object("ChatNodeState", {
-  treeId: t.string(),
-  conversationHeadId: t.string(),
-  isHistoryCleared: t.bool(),
-});
-export type ChatNodeState = Infer<typeof ChatNodeState>;
-
-// --- AiGenNodeState ---
-export const AiGenNodeState = t.object("AiGenNodeState", {
-  modelId: t.string(),
-  progress: t.f32(),
-  currentStatus: t.string(),
-});
-export type AiGenNodeState = Infer<typeof AiGenNodeState>;
-
-// --- VisualNodeState ---
-export const VisualNodeState = t.object("VisualNodeState", {
-  url: t.string(),
-  mimeType: t.string(),
-  altText: t.string(),
-});
-export type VisualNodeState = Infer<typeof VisualNodeState>;
-
-// --- DocumentNodeState ---
-export const DocumentNodeState = t.object("DocumentNodeState", {
-  content: t.string(),
-  mimeType: t.string(),
-});
-export type DocumentNodeState = Infer<typeof DocumentNodeState>;
-
-// --- AcousticNodeState ---
-export const AcousticNodeState = t.object("AcousticNodeState", {
-  url: t.string(),
-  duration: t.f32(),
-});
-export type AcousticNodeState = Infer<typeof AcousticNodeState>;
-
-// --- WidgetConfig ---
-export const WidgetConfig = t.object("WidgetConfig", {
-  placeholder: t.string(),
-  min: t.f64(),
-  max: t.f64(),
-  step: t.f64(),
-  dynamicOptions: t.bool(),
-  actionTarget: t.string(),
-});
-export type WidgetConfig = Infer<typeof WidgetConfig>;
-
-// --- WidgetOption ---
-export const WidgetOption = t.object("WidgetOption", {
-  label: t.string(),
-  value: t.string(),
-  description: t.string(),
-});
-export type WidgetOption = Infer<typeof WidgetOption>;
-
-// --- Widget ---
-export const Widget = t.object("Widget", {
-  id: t.string(),
-  type: t.option(WidgetType),
-  label: t.string(),
-  value: t.option(Value),
-  config: t.option(WidgetConfig),
-  options: t.array(t.option(WidgetOption)),
-  isReadonly: t.bool(),
-  isLoading: t.bool(),
-  inputPortId: t.string(),
-});
-export type Widget = Infer<typeof Widget>;
-
-// --- PortType ---
-export const PortType = t.object("PortType", {
-  mainType: t.option(PortMainType),
-  itemType: t.string(),
-  isGeneric: t.bool(),
-});
-export type PortType = Infer<typeof PortType>;
-
-// --- Port ---
-export const Port = t.object("Port", {
-  id: t.string(),
-  label: t.string(),
-  type: t.option(PortType),
-  color: t.string(),
-  style: t.option(PortStyle),
-  description: t.string(),
-});
-export type Port = Infer<typeof Port>;
-
-// --- NodeData_MetadataEntry ---
-export const NodeData_MetadataEntry = t.object("NodeData_MetadataEntry", {
-  key: t.string(),
-  value: t.string(),
-});
-export type NodeData_MetadataEntry = Infer<typeof NodeData_MetadataEntry>;
-
-// --- NodeData ---
-export const NodeData_extension = t.enum("NodeData_extension", {
-  chat: ChatNodeState,
-  aiGen: AiGenNodeState,
-  visual: VisualNodeState,
-  document: DocumentNodeState,
-  acoustic: AcousticNodeState,
-});
-export type NodeData_extension = Infer<typeof NodeData_extension>;
-
-export const NodeData = t.object("NodeData", {
-  displayName: t.string(),
-  availableModes: t.array(t.option(RenderMode)),
-  activeMode: t.option(RenderMode),
-  media: t.option(MediaContent),
-  widgets: t.array(t.option(Widget)),
-  inputPorts: t.array(t.option(Port)),
-  outputPorts: t.array(t.option(Port)),
-  metadata: t.array(t.option(NodeData_MetadataEntry)),
+// --- core_TaskUpdate ---
+export const core_TaskUpdate = t.object("core_TaskUpdate", {
   taskId: t.string(),
-  widgetsValues: t.option(Struct),
-  widgetsSchema: t.option(Struct),
-  extension: t.option(NodeData_extension),
-    });
-export type NodeData = Infer<typeof NodeData>;
-
-// --- Node ---
-export const Node = t.object("Node", {
-  nodeId: t.string(),
-  templateId: t.string(),
-  nodeKind: t.option(NodeKind),
-  presentation: t.option(Presentation),
-  state: t.option(NodeData),
-  visualHint: t.option(VisualHint),
-  isSelected: t.bool(),
-});
-export type Node = Infer<typeof Node>;
-
-// --- NodeTemplate ---
-export const NodeTemplate = t.object("NodeTemplate", {
-  templateId: t.string(),
-  displayName: t.string(),
-  menuPath: t.array(t.string()),
-  defaultState: t.option(NodeData),
-  defaultWidth: t.i32(),
-  defaultHeight: t.i32(),
-  widgetsSchema: t.option(Struct),
-});
-export type NodeTemplate = Infer<typeof NodeTemplate>;
-
-// --- Edge_MetadataEntry ---
-export const Edge_MetadataEntry = t.object("Edge_MetadataEntry", {
-  key: t.string(),
-  value: t.string(),
-});
-export type Edge_MetadataEntry = Infer<typeof Edge_MetadataEntry>;
-
-// --- Edge ---
-export const Edge = t.object("Edge", {
-  edgeId: t.string(),
-  sourceNodeId: t.string(),
-  targetNodeId: t.string(),
-  sourceHandle: t.string(),
-  targetHandle: t.string(),
-  metadata: t.array(t.option(Edge_MetadataEntry)),
-});
-export type Edge = Infer<typeof Edge>;
-
-// --- TaskUpdate ---
-export const TaskUpdate = t.object("TaskUpdate", {
-  taskId: t.string(),
-  status: t.option(TaskStatus),
+  status: t.option(core_TaskStatus),
   progress: t.f64(),
   message: t.string(),
   result: t.option(Value),
@@ -473,476 +349,718 @@ export const TaskUpdate = t.object("TaskUpdate", {
   displayLabel: t.string(),
   type: t.string(),
 });
-export type TaskUpdate = Infer<typeof TaskUpdate>;
+export type core_TaskUpdate = Infer<typeof core_TaskUpdate>;
 
-// --- WidgetSignal ---
-export const WidgetSignal_payload = t.enum("WidgetSignal_payload", {
+// --- core_NodeRuntimeState ---
+export const core_NodeRuntimeState = t.object("core_NodeRuntimeState", {
+  nodeId: t.string(),
+  status: t.string(),
+  progress: t.u32(),
+  message: t.string(),
+  error: t.string(),
+  lastUpdated: t.u64(),
+  activeUserId: t.string(),
+});
+export type core_NodeRuntimeState = Infer<typeof core_NodeRuntimeState>;
+
+// --- core_WorkerSelector_MatchTagsEntry ---
+export const core_WorkerSelector_MatchTagsEntry = t.object("core_WorkerSelector_MatchTagsEntry", {
+  key: t.string(),
+  value: t.string(),
+});
+export type core_WorkerSelector_MatchTagsEntry = Infer<typeof core_WorkerSelector_MatchTagsEntry>;
+
+// --- core_WorkerSelector ---
+export const core_WorkerSelector = t.object("core_WorkerSelector", {
+  requiredCapability: t.string(),
+  preferredWorkerId: t.string(),
+  matchTags: t.array(t.option(core_WorkerSelector_MatchTagsEntry)),
+});
+export type core_WorkerSelector = Infer<typeof core_WorkerSelector>;
+
+// --- core_TaskDefinition ---
+export const core_TaskDefinition = t.object("core_TaskDefinition", {
+  taskId: t.string(),
+  nodeId: t.string(),
+  taskType: t.string(),
+  paramsPayload: t.byteArray(),
+  selector: t.option(core_WorkerSelector),
+  createdAt: t.i64(),
+});
+export type core_TaskDefinition = Infer<typeof core_TaskDefinition>;
+
+// --- core_WorkerInfo_TagsEntry ---
+export const core_WorkerInfo_TagsEntry = t.object("core_WorkerInfo_TagsEntry", {
+  key: t.string(),
+  value: t.string(),
+});
+export type core_WorkerInfo_TagsEntry = Infer<typeof core_WorkerInfo_TagsEntry>;
+
+// --- core_WorkerInfo ---
+export const core_WorkerInfo = t.object("core_WorkerInfo", {
+  workerId: t.string(),
+  lang: t.option(core_WorkerLanguage),
+  capabilities: t.array(t.string()),
+  tags: t.array(t.option(core_WorkerInfo_TagsEntry)),
+  lastHeartbeat: t.i64(),
+});
+export type core_WorkerInfo = Infer<typeof core_WorkerInfo>;
+
+// --- core_TaskAuditLog ---
+export const core_TaskAuditLog = t.object("core_TaskAuditLog", {
+  id: t.string(),
+  taskId: t.string(),
+  nodeId: t.string(),
+  eventType: t.string(),
+  message: t.string(),
+  timestamp: t.i64(),
+});
+export type core_TaskAuditLog = Infer<typeof core_TaskAuditLog>;
+
+// --- nodes_ChatNodeState ---
+export const nodes_ChatNodeState = t.object("nodes_ChatNodeState", {
+  treeId: t.string(),
+  conversationHeadId: t.string(),
+  isHistoryCleared: t.bool(),
+});
+export type nodes_ChatNodeState = Infer<typeof nodes_ChatNodeState>;
+
+// --- nodes_AiGenNodeState ---
+export const nodes_AiGenNodeState = t.object("nodes_AiGenNodeState", {
+  modelId: t.string(),
+  progress: t.f32(),
+  currentStatus: t.string(),
+});
+export type nodes_AiGenNodeState = Infer<typeof nodes_AiGenNodeState>;
+
+// --- nodes_VisualNodeState ---
+export const nodes_VisualNodeState = t.object("nodes_VisualNodeState", {
+  url: t.string(),
+  mimeType: t.string(),
+  altText: t.string(),
+});
+export type nodes_VisualNodeState = Infer<typeof nodes_VisualNodeState>;
+
+// --- nodes_DocumentNodeState ---
+export const nodes_DocumentNodeState = t.object("nodes_DocumentNodeState", {
+  content: t.string(),
+  mimeType: t.string(),
+});
+export type nodes_DocumentNodeState = Infer<typeof nodes_DocumentNodeState>;
+
+// --- nodes_AcousticNodeState ---
+export const nodes_AcousticNodeState = t.object("nodes_AcousticNodeState", {
+  url: t.string(),
+  duration: t.f32(),
+});
+export type nodes_AcousticNodeState = Infer<typeof nodes_AcousticNodeState>;
+
+// --- core_WidgetConfig ---
+export const core_WidgetConfig = t.object("core_WidgetConfig", {
+  placeholder: t.string(),
+  min: t.f64(),
+  max: t.f64(),
+  step: t.f64(),
+  dynamicOptions: t.bool(),
+  actionTarget: t.string(),
+});
+export type core_WidgetConfig = Infer<typeof core_WidgetConfig>;
+
+// --- core_WidgetOption ---
+export const core_WidgetOption = t.object("core_WidgetOption", {
+  label: t.string(),
+  value: t.string(),
+  description: t.string(),
+});
+export type core_WidgetOption = Infer<typeof core_WidgetOption>;
+
+// --- core_Widget ---
+export const core_Widget = t.object("core_Widget", {
+  id: t.string(),
+  type: t.option(core_WidgetType),
+  label: t.string(),
+  value: t.option(Value),
+  config: t.option(core_WidgetConfig),
+  options: t.array(t.option(core_WidgetOption)),
+  isReadonly: t.bool(),
+  isLoading: t.bool(),
+  inputPortId: t.string(),
+});
+export type core_Widget = Infer<typeof core_Widget>;
+
+// --- core_PortType ---
+export const core_PortType = t.object("core_PortType", {
+  mainType: t.option(core_PortMainType),
+  itemType: t.string(),
+  isGeneric: t.bool(),
+});
+export type core_PortType = Infer<typeof core_PortType>;
+
+// --- core_Port ---
+export const core_Port = t.object("core_Port", {
+  id: t.string(),
+  label: t.string(),
+  type: t.option(core_PortType),
+  color: t.string(),
+  style: t.option(core_PortStyle),
+  description: t.string(),
+});
+export type core_Port = Infer<typeof core_Port>;
+
+// --- core_NodeData_MetadataEntry ---
+export const core_NodeData_MetadataEntry = t.object("core_NodeData_MetadataEntry", {
+  key: t.string(),
+  value: t.string(),
+});
+export type core_NodeData_MetadataEntry = Infer<typeof core_NodeData_MetadataEntry>;
+
+// --- core_NodeData ---
+export const core_NodeData_extension = t.enum("core_NodeData_extension", {
+  chat: nodes_ChatNodeState,
+  aiGen: nodes_AiGenNodeState,
+  visual: nodes_VisualNodeState,
+  document: nodes_DocumentNodeState,
+  acoustic: nodes_AcousticNodeState,
+});
+export type core_NodeData_extension = Infer<typeof core_NodeData_extension>;
+
+export const core_NodeData = t.object("core_NodeData", {
+  displayName: t.string(),
+  activeMode: t.option(core_RenderMode),
+  taskId: t.string(),
+  schemaVersion: t.i32(),
+  availableModes: t.array(t.option(core_RenderMode)),
+  media: t.option(core_MediaContent),
+  widgets: t.array(t.option(core_Widget)),
+  inputPorts: t.array(t.option(core_Port)),
+  outputPorts: t.array(t.option(core_Port)),
+  metadata: t.array(t.option(core_NodeData_MetadataEntry)),
+  widgetsValues: t.option(Struct),
+  widgetsSchema: t.option(Struct),
+  extension: t.option(core_NodeData_extension),
+    });
+export type core_NodeData = Infer<typeof core_NodeData>;
+
+// --- core_Node ---
+export const core_Node = t.object("core_Node", {
+  nodeId: t.string(),
+  templateId: t.string(),
+  nodeKind: t.option(core_NodeKind),
+  presentation: t.option(core_Presentation),
+  state: t.option(core_NodeData),
+  visualHint: t.option(core_VisualHint),
+});
+export type core_Node = Infer<typeof core_Node>;
+
+// --- core_NodeTemplate ---
+export const core_NodeTemplate = t.object("core_NodeTemplate", {
+  templateId: t.string(),
+  displayName: t.string(),
+  menuPath: t.array(t.string()),
+  defaultState: t.option(core_NodeData),
+  defaultWidth: t.i32(),
+  defaultHeight: t.i32(),
+  widgetsSchema: t.option(Struct),
+});
+export type core_NodeTemplate = Infer<typeof core_NodeTemplate>;
+
+// --- core_Edge_MetadataEntry ---
+export const core_Edge_MetadataEntry = t.object("core_Edge_MetadataEntry", {
+  key: t.string(),
+  value: t.string(),
+});
+export type core_Edge_MetadataEntry = Infer<typeof core_Edge_MetadataEntry>;
+
+// --- core_Edge ---
+export const core_Edge = t.object("core_Edge", {
+  edgeId: t.string(),
+  sourceNodeId: t.string(),
+  targetNodeId: t.string(),
+  sourceHandle: t.string(),
+  targetHandle: t.string(),
+  metadata: t.array(t.option(core_Edge_MetadataEntry)),
+});
+export type core_Edge = Infer<typeof core_Edge>;
+
+// --- core_RestartInstance ---
+export const core_RestartInstance = t.object("core_RestartInstance", {
+});
+export type core_RestartInstance = Infer<typeof core_RestartInstance>;
+
+// --- core_WidgetSignal ---
+export const core_WidgetSignal_payload = t.enum("core_WidgetSignal_payload", {
   dataJson: t.string(),
   data: t.byteArray(),
+  parameters: Struct,
 });
-export type WidgetSignal_payload = Infer<typeof WidgetSignal_payload>;
+export type core_WidgetSignal_payload = Infer<typeof core_WidgetSignal_payload>;
 
-export const WidgetSignal = t.object("WidgetSignal", {
+export const core_WidgetSignal = t.object("core_WidgetSignal", {
   nodeId: t.string(),
   widgetId: t.string(),
-  payload: t.option(WidgetSignal_payload),
+  payload: t.option(core_WidgetSignal_payload),
     });
-export type WidgetSignal = Infer<typeof WidgetSignal>;
+export type core_WidgetSignal = Infer<typeof core_WidgetSignal>;
 
-// --- RestartInstance ---
-export const RestartInstance = t.object("RestartInstance", {
-});
-export type RestartInstance = Infer<typeof RestartInstance>;
-
-// --- NodeSignal ---
-export const NodeSignal_payload = t.enum("NodeSignal_payload", {
+// --- core_NodeSignal ---
+export const core_NodeSignal_payload = t.enum("core_NodeSignal_payload", {
   parameters: Struct,
-  chatGenerate: ChatActionParams,
-  chatSync: ChatSyncBranchParams,
-  chatEdit: ChatEditParams,
-  chatSwitch: ChatSwitchBranchParams,
-  restartInstance: RestartInstance,
+  chatGenerate: actions_ChatActionParams,
+  chatSync: actions_ChatSyncBranchParams,
+  chatEdit: actions_ChatEditParams,
+  chatSwitch: actions_ChatSwitchBranchParams,
+  restartInstance: core_RestartInstance,
+  widgetSignal: core_WidgetSignal,
 });
-export type NodeSignal_payload = Infer<typeof NodeSignal_payload>;
+export type core_NodeSignal_payload = Infer<typeof core_NodeSignal_payload>;
 
-export const NodeSignal = t.object("NodeSignal", {
+export const core_NodeSignal = t.object("core_NodeSignal", {
   nodeId: t.string(),
-  payload: t.option(NodeSignal_payload),
+  payload: t.option(core_NodeSignal_payload),
     });
-export type NodeSignal = Infer<typeof NodeSignal>;
+export type core_NodeSignal = Infer<typeof core_NodeSignal>;
 
-// --- NodeIdList ---
-export const NodeIdList = t.object("NodeIdList", {
+// --- services_NodeIdList ---
+export const services_NodeIdList = t.object("services_NodeIdList", {
   ids: t.array(t.string()),
 });
-export type NodeIdList = Infer<typeof NodeIdList>;
+export type services_NodeIdList = Infer<typeof services_NodeIdList>;
 
-// --- HierarchyFilter ---
-export const HierarchyFilter = t.object("HierarchyFilter", {
+// --- services_HierarchyFilter ---
+export const services_HierarchyFilter = t.object("services_HierarchyFilter", {
   rootNodeId: t.string(),
   depth: t.i32(),
 });
-export type HierarchyFilter = Infer<typeof HierarchyFilter>;
+export type services_HierarchyFilter = Infer<typeof services_HierarchyFilter>;
 
-// --- SyncRequest ---
-export const SyncRequest_filter = t.enum("SyncRequest_filter", {
-  targetArea: Rect,
-  nodeIds: NodeIdList,
-  hierarchy: HierarchyFilter,
+// --- services_SyncRequest ---
+export const services_SyncRequest_filter = t.enum("services_SyncRequest_filter", {
+  targetArea: core_Rect,
+  nodeIds: services_NodeIdList,
+  hierarchy: services_HierarchyFilter,
 });
-export type SyncRequest_filter = Infer<typeof SyncRequest_filter>;
+export type services_SyncRequest_filter = Infer<typeof services_SyncRequest_filter>;
 
-export const SyncRequest = t.object("SyncRequest", {
+export const services_SyncRequest = t.object("services_SyncRequest", {
   graphId: t.string(),
   subscribeToUpdates: t.bool(),
-  filter: t.option(SyncRequest_filter),
+  filter: t.option(services_SyncRequest_filter),
     });
-export type SyncRequest = Infer<typeof SyncRequest>;
+export type services_SyncRequest = Infer<typeof services_SyncRequest>;
 
-// --- UpdateNodeRequest ---
-export const UpdateNodeRequest = t.object("UpdateNodeRequest", {
-  nodeId: t.string(),
-  data: t.option(NodeData),
-  presentation: t.option(Presentation),
-});
-export type UpdateNodeRequest = Infer<typeof UpdateNodeRequest>;
-
-// --- UpdateWidgetRequest ---
-export const UpdateWidgetRequest = t.object("UpdateWidgetRequest", {
-  nodeId: t.string(),
-  widgetId: t.string(),
-  value: t.option(Value),
-});
-export type UpdateWidgetRequest = Infer<typeof UpdateWidgetRequest>;
-
-// --- TaskCancelRequest ---
-export const TaskCancelRequest = t.object("TaskCancelRequest", {
+// --- services_TaskCancelRequest ---
+export const services_TaskCancelRequest = t.object("services_TaskCancelRequest", {
   taskId: t.string(),
 });
-export type TaskCancelRequest = Infer<typeof TaskCancelRequest>;
+export type services_TaskCancelRequest = Infer<typeof services_TaskCancelRequest>;
 
-// --- ViewportUpdate ---
-export const ViewportUpdate = t.object("ViewportUpdate", {
-  viewport: t.option(Viewport),
-  visibleBounds: t.option(Rect),
+// --- services_ViewportUpdate ---
+export const services_ViewportUpdate = t.object("services_ViewportUpdate", {
+  viewport: t.option(core_Viewport),
+  visibleBounds: t.option(core_Rect),
 });
-export type ViewportUpdate = Infer<typeof ViewportUpdate>;
+export type services_ViewportUpdate = Infer<typeof services_ViewportUpdate>;
 
-// --- TemplateDiscoveryRequest ---
-export const TemplateDiscoveryRequest = t.object("TemplateDiscoveryRequest", {
+// --- services_TemplateDiscoveryRequest ---
+export const services_TemplateDiscoveryRequest = t.object("services_TemplateDiscoveryRequest", {
 });
-export type TemplateDiscoveryRequest = Infer<typeof TemplateDiscoveryRequest>;
+export type services_TemplateDiscoveryRequest = Infer<typeof services_TemplateDiscoveryRequest>;
 
-// --- InferenceConfigDiscoveryRequest ---
-export const InferenceConfigDiscoveryRequest = t.object("InferenceConfigDiscoveryRequest", {
+// --- services_InferenceConfigDiscoveryRequest ---
+export const services_InferenceConfigDiscoveryRequest = t.object("services_InferenceConfigDiscoveryRequest", {
 });
-export type InferenceConfigDiscoveryRequest = Infer<typeof InferenceConfigDiscoveryRequest>;
+export type services_InferenceConfigDiscoveryRequest = Infer<typeof services_InferenceConfigDiscoveryRequest>;
 
-// --- GraphSnapshot ---
-export const GraphSnapshot = t.object("GraphSnapshot", {
-  nodes: t.array(t.option(Node)),
-  edges: t.array(t.option(Edge)),
+// --- services_GraphSnapshot ---
+export const services_GraphSnapshot = t.object("services_GraphSnapshot", {
+  nodes: t.array(t.option(core_Node)),
+  edges: t.array(t.option(core_Edge)),
   version: t.i64(),
 });
-export type GraphSnapshot = Infer<typeof GraphSnapshot>;
+export type services_GraphSnapshot = Infer<typeof services_GraphSnapshot>;
 
-// --- AddNode ---
-export const AddNode = t.object("AddNode", {
-  node: t.option(Node),
+// --- services_AddNodeRequest ---
+export const services_AddNodeRequest = t.object("services_AddNodeRequest", {
+  metadata: t.option(core_MutationMetadata),
+  node: t.option(core_Node),
 });
-export type AddNode = Infer<typeof AddNode>;
+export type services_AddNodeRequest = Infer<typeof services_AddNodeRequest>;
 
-// --- UpdateNode ---
-export const UpdateNode = t.object("UpdateNode", {
-  id: t.string(),
-  data: t.option(NodeData),
-  presentation: t.option(Presentation),
-});
-export type UpdateNode = Infer<typeof UpdateNode>;
-
-// --- RemoveNode ---
-export const RemoveNode = t.object("RemoveNode", {
+// --- services_RemoveNodeRequest ---
+export const services_RemoveNodeRequest = t.object("services_RemoveNodeRequest", {
+  metadata: t.option(core_MutationMetadata),
   id: t.string(),
 });
-export type RemoveNode = Infer<typeof RemoveNode>;
+export type services_RemoveNodeRequest = Infer<typeof services_RemoveNodeRequest>;
 
-// --- AddEdge ---
-export const AddEdge = t.object("AddEdge", {
-  edge: t.option(Edge),
+// --- services_AddEdgeRequest ---
+export const services_AddEdgeRequest = t.object("services_AddEdgeRequest", {
+  metadata: t.option(core_MutationMetadata),
+  edge: t.option(core_Edge),
 });
-export type AddEdge = Infer<typeof AddEdge>;
+export type services_AddEdgeRequest = Infer<typeof services_AddEdgeRequest>;
 
-// --- RemoveEdge ---
-export const RemoveEdge = t.object("RemoveEdge", {
+// --- services_RemoveEdgeRequest ---
+export const services_RemoveEdgeRequest = t.object("services_RemoveEdgeRequest", {
+  metadata: t.option(core_MutationMetadata),
   id: t.string(),
 });
-export type RemoveEdge = Infer<typeof RemoveEdge>;
+export type services_RemoveEdgeRequest = Infer<typeof services_RemoveEdgeRequest>;
 
-// --- ClearGraph ---
-export const ClearGraph = t.object("ClearGraph", {
+// --- services_ClearGraphRequest ---
+export const services_ClearGraphRequest = t.object("services_ClearGraphRequest", {
+  metadata: t.option(core_MutationMetadata),
 });
-export type ClearGraph = Infer<typeof ClearGraph>;
+export type services_ClearGraphRequest = Infer<typeof services_ClearGraphRequest>;
 
-// --- PathUpdate ---
-export const PathUpdate = t.object("PathUpdate", {
+// --- services_PathUpdateRequest ---
+export const services_PathUpdateRequest = t.object("services_PathUpdateRequest", {
+  metadata: t.option(core_MutationMetadata),
   targetId: t.string(),
   path: t.string(),
   value: t.option(Value),
-  type: t.option(PathUpdate_UpdateType),
+  type: t.option(services_PathUpdateRequest_UpdateType),
 });
-export type PathUpdate = Infer<typeof PathUpdate>;
+export type services_PathUpdateRequest = Infer<typeof services_PathUpdateRequest>;
 
-// --- GraphMutation ---
-export const GraphMutation_operation = t.enum("GraphMutation_operation", {
-  addNode: AddNode,
-  updateNode: UpdateNode,
-  removeNode: RemoveNode,
-  addEdge: AddEdge,
-  removeEdge: RemoveEdge,
-  clearGraph: ClearGraph,
-  pathUpdate: PathUpdate,
+// --- services_AddSubGraphRequest ---
+export const services_AddSubGraphRequest = t.object("services_AddSubGraphRequest", {
+  metadata: t.option(core_MutationMetadata),
+  nodes: t.array(t.option(core_Node)),
+  edges: t.array(t.option(core_Edge)),
 });
-export type GraphMutation_operation = Infer<typeof GraphMutation_operation>;
+export type services_AddSubGraphRequest = Infer<typeof services_AddSubGraphRequest>;
 
-export const GraphMutation = t.object("GraphMutation", {
-  originTaskId: t.string(),
-  operation: t.option(GraphMutation_operation),
+// --- services_ReparentNodeRequest ---
+export const services_ReparentNodeRequest = t.object("services_ReparentNodeRequest", {
+  metadata: t.option(core_MutationMetadata),
+  nodeId: t.string(),
+  newParentId: t.string(),
+  newPosition: t.option(core_Position),
+});
+export type services_ReparentNodeRequest = Infer<typeof services_ReparentNodeRequest>;
+
+// --- services_GraphMutation ---
+export const services_GraphMutation_operation = t.enum("services_GraphMutation_operation", {
+  addNode: services_AddNodeRequest,
+  removeNode: services_RemoveNodeRequest,
+  addEdge: services_AddEdgeRequest,
+  removeEdge: services_RemoveEdgeRequest,
+  clearGraph: services_ClearGraphRequest,
+  pathUpdate: services_PathUpdateRequest,
+  addSubGraph: services_AddSubGraphRequest,
+  reparentNode: services_ReparentNodeRequest,
+});
+export type services_GraphMutation_operation = Infer<typeof services_GraphMutation_operation>;
+
+export const services_GraphMutation = t.object("services_GraphMutation", {
+  operation: t.option(services_GraphMutation_operation),
     });
-export type GraphMutation = Infer<typeof GraphMutation>;
+export type services_GraphMutation = Infer<typeof services_GraphMutation>;
 
-// --- MutationList ---
-export const MutationList = t.object("MutationList", {
-  mutations: t.array(t.option(GraphMutation)),
+// --- services_MutationList ---
+export const services_MutationList = t.object("services_MutationList", {
+  mutations: t.array(t.option(services_GraphMutation)),
   sequenceNumber: t.i64(),
-  source: t.option(MutationSource),
+  source: t.option(core_MutationSource),
 });
-export type MutationList = Infer<typeof MutationList>;
+export type services_MutationList = Infer<typeof services_MutationList>;
 
-// --- TemplateDiscoveryResponse ---
-export const TemplateDiscoveryResponse = t.object("TemplateDiscoveryResponse", {
-  templates: t.array(t.option(NodeTemplate)),
+// --- services_TemplateDiscoveryResponse ---
+export const services_TemplateDiscoveryResponse = t.object("services_TemplateDiscoveryResponse", {
+  templates: t.array(t.option(core_NodeTemplate)),
 });
-export type TemplateDiscoveryResponse = Infer<typeof TemplateDiscoveryResponse>;
+export type services_TemplateDiscoveryResponse = Infer<typeof services_TemplateDiscoveryResponse>;
 
-// --- InferenceEndpointSummary ---
-export const InferenceEndpointSummary = t.object("InferenceEndpointSummary", {
+// --- services_InferenceEndpointSummary ---
+export const services_InferenceEndpointSummary = t.object("services_InferenceEndpointSummary", {
   id: t.string(),
   name: t.string(),
   models: t.array(t.string()),
 });
-export type InferenceEndpointSummary = Infer<typeof InferenceEndpointSummary>;
+export type services_InferenceEndpointSummary = Infer<typeof services_InferenceEndpointSummary>;
 
-// --- InferenceConfigDiscoveryResponse ---
-export const InferenceConfigDiscoveryResponse = t.object("InferenceConfigDiscoveryResponse", {
-  endpoints: t.array(t.option(InferenceEndpointSummary)),
+// --- services_InferenceConfigDiscoveryResponse ---
+export const services_InferenceConfigDiscoveryResponse = t.object("services_InferenceConfigDiscoveryResponse", {
+  endpoints: t.array(t.option(services_InferenceEndpointSummary)),
   defaultEndpointId: t.string(),
   defaultModel: t.string(),
 });
-export type InferenceConfigDiscoveryResponse = Infer<typeof InferenceConfigDiscoveryResponse>;
+export type services_InferenceConfigDiscoveryResponse = Infer<typeof services_InferenceConfigDiscoveryResponse>;
 
-// --- ClearChatHistoryRequest ---
-export const ClearChatHistoryRequest = t.object("ClearChatHistoryRequest", {
+// --- services_ClearChatHistoryRequest ---
+export const services_ClearChatHistoryRequest = t.object("services_ClearChatHistoryRequest", {
   nodeId: t.string(),
 });
-export type ClearChatHistoryRequest = Infer<typeof ClearChatHistoryRequest>;
+export type services_ClearChatHistoryRequest = Infer<typeof services_ClearChatHistoryRequest>;
 
-// --- ChatStreamEvent ---
-export const ChatStreamEvent = t.object("ChatStreamEvent", {
+// --- services_ResetNodeRequest ---
+export const services_ResetNodeRequest = t.object("services_ResetNodeRequest", {
+  nodeId: t.string(),
+  clearData: t.bool(),
+});
+export type services_ResetNodeRequest = Infer<typeof services_ResetNodeRequest>;
+
+// --- services_ChatStreamEvent ---
+export const services_ChatStreamEvent = t.object("services_ChatStreamEvent", {
   chunkData: t.string(),
   isDone: t.bool(),
   messageId: t.string(),
 });
-export type ChatStreamEvent = Infer<typeof ChatStreamEvent>;
+export type services_ChatStreamEvent = Infer<typeof services_ChatStreamEvent>;
 
-// --- LogEvent ---
-export const LogEvent = t.object("LogEvent", {
+// --- services_LogEvent ---
+export const services_LogEvent = t.object("services_LogEvent", {
   message: t.string(),
-  level: t.option(LogLevel),
+  level: t.option(services_LogLevel),
 });
-export type LogEvent = Infer<typeof LogEvent>;
+export type services_LogEvent = Infer<typeof services_LogEvent>;
 
-// --- NodeProgress ---
-export const NodeProgress = t.object("NodeProgress", {
+// --- services_NodeProgress ---
+export const services_NodeProgress = t.object("services_NodeProgress", {
   percentage: t.f32(),
   statusText: t.string(),
 });
-export type NodeProgress = Infer<typeof NodeProgress>;
+export type services_NodeProgress = Infer<typeof services_NodeProgress>;
 
-// --- WidgetStreamEvent ---
-export const WidgetStreamEvent = t.object("WidgetStreamEvent", {
+// --- services_WidgetStreamEvent ---
+export const services_WidgetStreamEvent = t.object("services_WidgetStreamEvent", {
   widgetId: t.string(),
   chunkData: t.string(),
   isDone: t.bool(),
 });
-export type WidgetStreamEvent = Infer<typeof WidgetStreamEvent>;
+export type services_WidgetStreamEvent = Infer<typeof services_WidgetStreamEvent>;
 
-// --- NodeEvent ---
-export const NodeEvent_payload = t.enum("NodeEvent_payload", {
-  chatStream: ChatStreamEvent,
-  log: LogEvent,
-  progress: NodeProgress,
-  widgetStream: WidgetStreamEvent,
+// --- services_NodeEvent ---
+export const services_NodeEvent_payload = t.enum("services_NodeEvent_payload", {
+  chatStream: services_ChatStreamEvent,
+  log: services_LogEvent,
+  progress: services_NodeProgress,
+  widgetStream: services_WidgetStreamEvent,
   data: t.byteArray(),
 });
-export type NodeEvent_payload = Infer<typeof NodeEvent_payload>;
+export type services_NodeEvent_payload = Infer<typeof services_NodeEvent_payload>;
 
-export const NodeEvent = t.object("NodeEvent", {
+export const services_NodeEvent = t.object("services_NodeEvent", {
   nodeId: t.string(),
-  payload: t.option(NodeEvent_payload),
+  payload: t.option(services_NodeEvent_payload),
     });
-export type NodeEvent = Infer<typeof NodeEvent>;
+export type services_NodeEvent = Infer<typeof services_NodeEvent>;
 
-// --- ErrorResponse ---
-export const ErrorResponse = t.object("ErrorResponse", {
+// --- services_ErrorResponse ---
+export const services_ErrorResponse = t.object("services_ErrorResponse", {
   code: t.string(),
   message: t.string(),
 });
-export type ErrorResponse = Infer<typeof ErrorResponse>;
+export type services_ErrorResponse = Infer<typeof services_ErrorResponse>;
 
-// --- FlowMessage ---
-export const FlowMessage_payload = t.enum("FlowMessage_payload", {
-  syncRequest: SyncRequest,
-  nodeUpdate: UpdateNodeRequest,
-  widgetUpdate: UpdateWidgetRequest,
-  actionExecute: ActionExecutionRequest,
-  actionDiscovery: ActionDiscoveryRequest,
-  taskCancel: TaskCancelRequest,
-  viewportUpdate: ViewportUpdate,
-  widgetSignal: WidgetSignal,
-  nodeSignal: NodeSignal,
-  templateDiscovery: TemplateDiscoveryRequest,
-  inferenceDiscovery: InferenceConfigDiscoveryRequest,
-  snapshot: GraphSnapshot,
-  mutations: MutationList,
-  actions: ActionDiscoveryResponse,
-  templates: TemplateDiscoveryResponse,
-  inferenceConfig: InferenceConfigDiscoveryResponse,
-  taskUpdate: TaskUpdate,
-  chatClear: ClearChatHistoryRequest,
-  nodeEvent: NodeEvent,
-  error: ErrorResponse,
+// --- services_FlowMessage ---
+export const services_FlowMessage_payload = t.enum("services_FlowMessage_payload", {
+  syncRequest: services_SyncRequest,
+  actionExecute: core_ActionExecutionRequest,
+  actionDiscovery: core_ActionDiscoveryRequest,
+  taskCancel: services_TaskCancelRequest,
+  viewportUpdate: services_ViewportUpdate,
+  widgetSignal: core_WidgetSignal,
+  nodeSignal: core_NodeSignal,
+  templateDiscovery: services_TemplateDiscoveryRequest,
+  inferenceDiscovery: services_InferenceConfigDiscoveryRequest,
+  snapshot: services_GraphSnapshot,
+  mutations: services_MutationList,
+  actions: core_ActionDiscoveryResponse,
+  templates: services_TemplateDiscoveryResponse,
+  inferenceConfig: services_InferenceConfigDiscoveryResponse,
+  taskUpdate: core_TaskUpdate,
+  chatClear: services_ClearChatHistoryRequest,
+  resetNode: services_ResetNodeRequest,
+  nodeEvent: services_NodeEvent,
+  error: services_ErrorResponse,
 });
-export type FlowMessage_payload = Infer<typeof FlowMessage_payload>;
+export type services_FlowMessage_payload = Infer<typeof services_FlowMessage_payload>;
 
-export const FlowMessage = t.object("FlowMessage", {
+export const services_FlowMessage = t.object("services_FlowMessage", {
   messageId: t.string(),
   timestamp: t.i64(),
-  payload: t.option(FlowMessage_payload),
+  payload: t.option(services_FlowMessage_payload),
     });
-export type FlowMessage = Infer<typeof FlowMessage>;
+export type services_FlowMessage = Infer<typeof services_FlowMessage>;
 
-// --- GetHistoryRequest ---
-export const GetHistoryRequest = t.object("GetHistoryRequest", {
+// --- services_GetHistoryRequest ---
+export const services_GetHistoryRequest = t.object("services_GetHistoryRequest", {
   graphId: t.string(),
   fromSeq: t.i64(),
   toSeq: t.i64(),
 });
-export type GetHistoryRequest = Infer<typeof GetHistoryRequest>;
+export type services_GetHistoryRequest = Infer<typeof services_GetHistoryRequest>;
 
-// --- MutationLogEntry ---
-export const MutationLogEntry = t.object("MutationLogEntry", {
+// --- services_MutationLogEntry ---
+export const services_MutationLogEntry = t.object("services_MutationLogEntry", {
   seq: t.i64(),
-  mutation: t.option(GraphMutation),
+  mutation: t.option(services_GraphMutation),
   timestamp: t.i64(),
-  source: t.option(MutationSource),
+  source: t.option(core_MutationSource),
   description: t.string(),
   userId: t.string(),
 });
-export type MutationLogEntry = Infer<typeof MutationLogEntry>;
+export type services_MutationLogEntry = Infer<typeof services_MutationLogEntry>;
 
-// --- HistoryResponse ---
-export const HistoryResponse = t.object("HistoryResponse", {
-  entries: t.array(t.option(MutationLogEntry)),
+// --- services_HistoryResponse ---
+export const services_HistoryResponse = t.object("services_HistoryResponse", {
+  entries: t.array(t.option(services_MutationLogEntry)),
 });
-export type HistoryResponse = Infer<typeof HistoryResponse>;
+export type services_HistoryResponse = Infer<typeof services_HistoryResponse>;
 
-// --- RollbackRequest ---
-export const RollbackRequest = t.object("RollbackRequest", {
+// --- services_RollbackRequest ---
+export const services_RollbackRequest = t.object("services_RollbackRequest", {
   graphId: t.string(),
   targetSeq: t.i64(),
 });
-export type RollbackRequest = Infer<typeof RollbackRequest>;
+export type services_RollbackRequest = Infer<typeof services_RollbackRequest>;
 
-// --- GetChatHistoryRequest ---
-export const GetChatHistoryRequest = t.object("GetChatHistoryRequest", {
+// --- services_GetChatHistoryRequest ---
+export const services_GetChatHistoryRequest = t.object("services_GetChatHistoryRequest", {
   headId: t.string(),
 });
-export type GetChatHistoryRequest = Infer<typeof GetChatHistoryRequest>;
+export type services_GetChatHistoryRequest = Infer<typeof services_GetChatHistoryRequest>;
 
-// --- ChatMsgMetadata ---
-export const ChatMsgMetadata = t.object("ChatMsgMetadata", {
+// --- services_ChatMsgMetadata ---
+export const services_ChatMsgMetadata = t.object("services_ChatMsgMetadata", {
   modelId: t.string(),
   attachmentUrls: t.array(t.string()),
 });
-export type ChatMsgMetadata = Infer<typeof ChatMsgMetadata>;
+export type services_ChatMsgMetadata = Infer<typeof services_ChatMsgMetadata>;
 
-// --- ChatMessage ---
-export const ChatMessage_metadata = t.enum("ChatMessage_metadata", {
+// --- services_ChatMessage ---
+export const services_ChatMessage_metadata = t.enum("services_ChatMessage_metadata", {
   metadataStruct: Struct,
-  chatMetadata: ChatMsgMetadata,
+  chatMetadata: services_ChatMsgMetadata,
 });
-export type ChatMessage_metadata = Infer<typeof ChatMessage_metadata>;
+export type services_ChatMessage_metadata = Infer<typeof services_ChatMessage_metadata>;
 
-export const ChatMessage = t.object("ChatMessage", {
+export const services_ChatMessage = t.object("services_ChatMessage", {
   id: t.string(),
   role: t.string(),
-  parts: t.array(t.option(ChatMessagePart)),
+  parts: t.array(t.option(actions_ChatMessagePart)),
   timestamp: t.i64(),
   parentId: t.string(),
   siblingIds: t.array(t.string()),
   treeId: t.string(),
-  metadata: t.option(ChatMessage_metadata),
+  metadata: t.option(services_ChatMessage_metadata),
     });
-export type ChatMessage = Infer<typeof ChatMessage>;
+export type services_ChatMessage = Infer<typeof services_ChatMessage>;
 
-// --- ChatHistoryResponse ---
-export const ChatHistoryResponse = t.object("ChatHistoryResponse", {
-  entries: t.array(t.option(ChatMessage)),
+// --- services_ChatHistoryResponse ---
+export const services_ChatHistoryResponse = t.object("services_ChatHistoryResponse", {
+  entries: t.array(t.option(services_ChatMessage)),
 });
-export type ChatHistoryResponse = Infer<typeof ChatHistoryResponse>;
-
-// --- AddSubGraph ---
-export const AddSubGraph = t.object("AddSubGraph", {
-  nodes: t.array(t.option(Node)),
-  edges: t.array(t.option(Edge)),
-});
-export type AddSubGraph = Infer<typeof AddSubGraph>;
+export type services_ChatHistoryResponse = Infer<typeof services_ChatHistoryResponse>;
 
 
 export const SCHEMA_METADATA = {
   messages: {
-    "Position": Position,
-    "Presentation": Presentation,
-    "VisualHint": VisualHint,
-    "Rect": Rect,
-    "Viewport": Viewport,
-    "MediaContent": MediaContent,
-    "ChatMessagePart": ChatMessagePart,
-    "ChatMessagePreview": ChatMessagePreview,
-    "ChatActionParams": ChatActionParams,
-    "ChatEditParams": ChatEditParams,
-    "ChatSwitchBranchParams": ChatSwitchBranchParams,
-    "ChatSyncMessage": ChatSyncMessage,
-    "ChatSyncBranchParams": ChatSyncBranchParams,
-    "ImageEnhanceParams": ImageEnhanceParams,
-    "NodeTransformParams": NodeTransformParams,
-    "PromptGenParams": PromptGenParams,
-    "ActionTemplate": ActionTemplate,
-    "ActionDiscoveryRequest": ActionDiscoveryRequest,
-    "ActionDiscoveryResponse": ActionDiscoveryResponse,
-    "ActionExecutionRequest": ActionExecutionRequest,
-    "ChatNodeState": ChatNodeState,
-    "AiGenNodeState": AiGenNodeState,
-    "VisualNodeState": VisualNodeState,
-    "DocumentNodeState": DocumentNodeState,
-    "AcousticNodeState": AcousticNodeState,
-    "WidgetConfig": WidgetConfig,
-    "WidgetOption": WidgetOption,
-    "Widget": Widget,
-    "PortType": PortType,
-    "Port": Port,
-    "NodeData_MetadataEntry": NodeData_MetadataEntry,
-    "NodeData": NodeData,
-    "Node": Node,
-    "NodeTemplate": NodeTemplate,
-    "Edge_MetadataEntry": Edge_MetadataEntry,
-    "Edge": Edge,
-    "TaskUpdate": TaskUpdate,
-    "WidgetSignal": WidgetSignal,
-    "RestartInstance": RestartInstance,
-    "NodeSignal": NodeSignal,
-    "NodeIdList": NodeIdList,
-    "HierarchyFilter": HierarchyFilter,
-    "SyncRequest": SyncRequest,
-    "UpdateNodeRequest": UpdateNodeRequest,
-    "UpdateWidgetRequest": UpdateWidgetRequest,
-    "TaskCancelRequest": TaskCancelRequest,
-    "ViewportUpdate": ViewportUpdate,
-    "TemplateDiscoveryRequest": TemplateDiscoveryRequest,
-    "InferenceConfigDiscoveryRequest": InferenceConfigDiscoveryRequest,
-    "GraphSnapshot": GraphSnapshot,
-    "AddNode": AddNode,
-    "UpdateNode": UpdateNode,
-    "RemoveNode": RemoveNode,
-    "AddEdge": AddEdge,
-    "RemoveEdge": RemoveEdge,
-    "ClearGraph": ClearGraph,
-    "PathUpdate": PathUpdate,
-    "GraphMutation": GraphMutation,
-    "MutationList": MutationList,
-    "TemplateDiscoveryResponse": TemplateDiscoveryResponse,
-    "InferenceEndpointSummary": InferenceEndpointSummary,
-    "InferenceConfigDiscoveryResponse": InferenceConfigDiscoveryResponse,
-    "ClearChatHistoryRequest": ClearChatHistoryRequest,
-    "ChatStreamEvent": ChatStreamEvent,
-    "LogEvent": LogEvent,
-    "NodeProgress": NodeProgress,
-    "WidgetStreamEvent": WidgetStreamEvent,
-    "NodeEvent": NodeEvent,
-    "ErrorResponse": ErrorResponse,
-    "FlowMessage": FlowMessage,
-    "GetHistoryRequest": GetHistoryRequest,
-    "MutationLogEntry": MutationLogEntry,
-    "HistoryResponse": HistoryResponse,
-    "RollbackRequest": RollbackRequest,
-    "GetChatHistoryRequest": GetChatHistoryRequest,
-    "ChatMsgMetadata": ChatMsgMetadata,
-    "ChatMessage": ChatMessage,
-    "ChatHistoryResponse": ChatHistoryResponse,
-    "AddSubGraph": AddSubGraph,
+    "core_MutationMetadata": core_MutationMetadata,
+    "core_Position": core_Position,
+    "core_Presentation": core_Presentation,
+    "core_VisualHint": core_VisualHint,
+    "core_Rect": core_Rect,
+    "core_Viewport": core_Viewport,
+    "core_MediaContent": core_MediaContent,
+    "actions_ChatMessagePart": actions_ChatMessagePart,
+    "actions_ChatMessagePreview": actions_ChatMessagePreview,
+    "actions_ChatActionParams": actions_ChatActionParams,
+    "actions_ChatEditParams": actions_ChatEditParams,
+    "actions_ChatSwitchBranchParams": actions_ChatSwitchBranchParams,
+    "actions_ChatSyncMessage": actions_ChatSyncMessage,
+    "actions_ChatSyncBranchParams": actions_ChatSyncBranchParams,
+    "flowcraft_proto_v1_ImageEnhanceParams": flowcraft_proto_v1_ImageEnhanceParams,
+    "flowcraft_proto_v1_NodeTransformParams": flowcraft_proto_v1_NodeTransformParams,
+    "flowcraft_proto_v1_PromptGenParams": flowcraft_proto_v1_PromptGenParams,
+    "core_ActionTemplate": core_ActionTemplate,
+    "core_ActionDiscoveryRequest": core_ActionDiscoveryRequest,
+    "core_ActionDiscoveryResponse": core_ActionDiscoveryResponse,
+    "core_PromptGenParams": core_PromptGenParams,
+    "core_NodeTransformParams": core_NodeTransformParams,
+    "core_ImageEnhanceParams": core_ImageEnhanceParams,
+    "core_ActionExecutionRequest": core_ActionExecutionRequest,
+    "core_TaskUpdate": core_TaskUpdate,
+    "core_NodeRuntimeState": core_NodeRuntimeState,
+    "core_WorkerSelector_MatchTagsEntry": core_WorkerSelector_MatchTagsEntry,
+    "core_WorkerSelector": core_WorkerSelector,
+    "core_TaskDefinition": core_TaskDefinition,
+    "core_WorkerInfo_TagsEntry": core_WorkerInfo_TagsEntry,
+    "core_WorkerInfo": core_WorkerInfo,
+    "core_TaskAuditLog": core_TaskAuditLog,
+    "nodes_ChatNodeState": nodes_ChatNodeState,
+    "nodes_AiGenNodeState": nodes_AiGenNodeState,
+    "nodes_VisualNodeState": nodes_VisualNodeState,
+    "nodes_DocumentNodeState": nodes_DocumentNodeState,
+    "nodes_AcousticNodeState": nodes_AcousticNodeState,
+    "core_WidgetConfig": core_WidgetConfig,
+    "core_WidgetOption": core_WidgetOption,
+    "core_Widget": core_Widget,
+    "core_PortType": core_PortType,
+    "core_Port": core_Port,
+    "core_NodeData_MetadataEntry": core_NodeData_MetadataEntry,
+    "core_NodeData": core_NodeData,
+    "core_Node": core_Node,
+    "core_NodeTemplate": core_NodeTemplate,
+    "core_Edge_MetadataEntry": core_Edge_MetadataEntry,
+    "core_Edge": core_Edge,
+    "core_RestartInstance": core_RestartInstance,
+    "core_WidgetSignal": core_WidgetSignal,
+    "core_NodeSignal": core_NodeSignal,
+    "services_NodeIdList": services_NodeIdList,
+    "services_HierarchyFilter": services_HierarchyFilter,
+    "services_SyncRequest": services_SyncRequest,
+    "services_TaskCancelRequest": services_TaskCancelRequest,
+    "services_ViewportUpdate": services_ViewportUpdate,
+    "services_TemplateDiscoveryRequest": services_TemplateDiscoveryRequest,
+    "services_InferenceConfigDiscoveryRequest": services_InferenceConfigDiscoveryRequest,
+    "services_GraphSnapshot": services_GraphSnapshot,
+    "services_AddNodeRequest": services_AddNodeRequest,
+    "services_RemoveNodeRequest": services_RemoveNodeRequest,
+    "services_AddEdgeRequest": services_AddEdgeRequest,
+    "services_RemoveEdgeRequest": services_RemoveEdgeRequest,
+    "services_ClearGraphRequest": services_ClearGraphRequest,
+    "services_PathUpdateRequest": services_PathUpdateRequest,
+    "services_AddSubGraphRequest": services_AddSubGraphRequest,
+    "services_ReparentNodeRequest": services_ReparentNodeRequest,
+    "services_GraphMutation": services_GraphMutation,
+    "services_MutationList": services_MutationList,
+    "services_TemplateDiscoveryResponse": services_TemplateDiscoveryResponse,
+    "services_InferenceEndpointSummary": services_InferenceEndpointSummary,
+    "services_InferenceConfigDiscoveryResponse": services_InferenceConfigDiscoveryResponse,
+    "services_ClearChatHistoryRequest": services_ClearChatHistoryRequest,
+    "services_ResetNodeRequest": services_ResetNodeRequest,
+    "services_ChatStreamEvent": services_ChatStreamEvent,
+    "services_LogEvent": services_LogEvent,
+    "services_NodeProgress": services_NodeProgress,
+    "services_WidgetStreamEvent": services_WidgetStreamEvent,
+    "services_NodeEvent": services_NodeEvent,
+    "services_ErrorResponse": services_ErrorResponse,
+    "services_FlowMessage": services_FlowMessage,
+    "services_GetHistoryRequest": services_GetHistoryRequest,
+    "services_MutationLogEntry": services_MutationLogEntry,
+    "services_HistoryResponse": services_HistoryResponse,
+    "services_RollbackRequest": services_RollbackRequest,
+    "services_GetChatHistoryRequest": services_GetChatHistoryRequest,
+    "services_ChatMsgMetadata": services_ChatMsgMetadata,
+    "services_ChatMessage": services_ChatMessage,
+    "services_ChatHistoryResponse": services_ChatHistoryResponse,
   },
   enums: {
-    "NodeKind": NodeKind,
-    "MutationSource": MutationSource,
-    "PortMainType": PortMainType,
-    "MediaType": MediaType,
-    "VisualHint_Placement": VisualHint_Placement,
-    "ActionExecutionStrategy": ActionExecutionStrategy,
-    "RenderMode": RenderMode,
-    "PortStyle": PortStyle,
-    "WidgetType": WidgetType,
-    "TaskStatus": TaskStatus,
-    "LogLevel": LogLevel,
-    "PathUpdate_UpdateType": PathUpdate_UpdateType,
+    "core_NodeKind": core_NodeKind,
+    "core_MutationSource": core_MutationSource,
+    "core_PortMainType": core_PortMainType,
+    "core_MediaType": core_MediaType,
+    "core_VisualHint_Placement": core_VisualHint_Placement,
+    "core_ActionExecutionStrategy": core_ActionExecutionStrategy,
+    "core_TaskStatus": core_TaskStatus,
+    "core_WorkerLanguage": core_WorkerLanguage,
+    "core_RenderMode": core_RenderMode,
+    "core_PortStyle": core_PortStyle,
+    "core_WidgetType": core_WidgetType,
+    "services_LogLevel": services_LogLevel,
+    "services_PathUpdateRequest_UpdateType": services_PathUpdateRequest_UpdateType,
   }
 } as const;

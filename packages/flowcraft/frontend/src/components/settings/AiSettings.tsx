@@ -1,5 +1,6 @@
 import { Check, Edit2, Plus, Trash2 } from "lucide-react";
 import React, { useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import { useUiStore } from "@/store/uiStore";
 import { type LocalLLMClientConfig } from "@/types";
@@ -8,7 +9,15 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
 export const AiSettings: React.FC = () => {
-  const { addLocalClient, removeLocalClient, setActiveLocalClient, settings, updateLocalClient } = useUiStore();
+  const { addLocalClient, removeLocalClient, setActiveLocalClient, settings, updateLocalClient } = useUiStore(
+    useShallow((s) => ({
+      addLocalClient: s.addLocalClient,
+      removeLocalClient: s.removeLocalClient,
+      setActiveLocalClient: s.setActiveLocalClient,
+      settings: s.settings,
+      updateLocalClient: s.updateLocalClient,
+    })),
+  );
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<null | string>(null);

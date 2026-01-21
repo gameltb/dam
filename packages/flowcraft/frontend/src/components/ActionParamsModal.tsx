@@ -16,7 +16,7 @@ interface ActionParamsModalProps {
 
 export const ActionParamsModal: React.FC<ActionParamsModalProps> = ({ action, onCancel, onConfirm }) => {
   const schema = React.useMemo(() => {
-    return getSchemaForTemplate(action.id, action.paramsSchema);
+    return getSchemaForTemplate(action.id);
   }, [action]);
 
   React.useEffect(() => {

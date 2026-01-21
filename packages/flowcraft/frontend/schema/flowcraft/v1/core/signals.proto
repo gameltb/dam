@@ -1,32 +1,30 @@
 syntax = "proto3";
 
-package flowcraft_proto.v1;
+package flowcraft.v1.core;
 
 import "google/protobuf/struct.proto";
 import "flowcraft/v1/actions/chat_actions.proto";
 
-message WidgetSignal {
-  string node_id = 1;
-  string widget_id = 2;
-  
-  oneof payload {
-    /**
-     * @deprecated Use typed payloads instead.
-     */
-    string data_json = 10;
-    bytes data = 11;
-  }
-}
-
 message NodeSignal {
   string node_id = 1;
   oneof payload {
-    google.protobuf.Struct parameters = 2;
-    flowcraft_proto.v1.ChatActionParams chat_generate = 10;
-    flowcraft_proto.v1.ChatSyncBranchParams chat_sync = 11;
-    flowcraft_proto.v1.ChatEditParams chat_edit = 12;
-    flowcraft_proto.v1.ChatSwitchBranchParams chat_switch = 13;
-    RestartInstance restart_instance = 14;
+    google.protobuf.Struct parameters = 10;
+    flowcraft.v1.actions.ChatActionParams chat_generate = 11;
+    flowcraft.v1.actions.ChatSyncBranchParams chat_sync = 12;
+    flowcraft.v1.actions.ChatEditParams chat_edit = 13;
+    flowcraft.v1.actions.ChatSwitchBranchParams chat_switch = 14;
+    RestartInstance restart_instance = 15;
+    WidgetSignal widget_signal = 16;
+  }
+}
+
+message WidgetSignal {
+  string node_id = 1;
+  string widget_id = 2;
+  oneof payload {
+    string data_json = 10;
+    bytes data = 11;
+    google.protobuf.Struct parameters = 12;
   }
 }
 

@@ -1,4 +1,4 @@
-import { type PbConnection } from "../../utils/pb-client";
+import { type PbConnection } from "@/utils/pb-client";
 
 import logger from "../utils/logger";
 
