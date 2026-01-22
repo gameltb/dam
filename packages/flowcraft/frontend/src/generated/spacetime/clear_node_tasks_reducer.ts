@@ -9,17 +9,7 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
-import CoreWorkerLanguage from "./core_worker_language_type";
 
-
-export default __t.object("Workers", {
-  capabilities: __t.string(),
-  get lang() {
-    return CoreWorkerLanguage;
-  },
-  lastHeartbeat: __t.u64(),
-  tagsJson: __t.string(),
-  workerId: __t.string(),
-});
-
-
+export default {
+  nodeId: __t.string(),
+};

@@ -13,11 +13,11 @@ import CoreWorkerLanguage from "./core_worker_language_type";
 
 
 export default __t.row({
-  workerId: __t.string().primaryKey(),
+  capabilities: __t.string(),
   get lang() {
     return CoreWorkerLanguage;
   },
-  capabilities: __t.string(),
-  tagsJson: __t.string(),
   lastHeartbeat: __t.u64(),
+  tagsJson: __t.string(),
+  workerId: __t.string().primaryKey(),
 });

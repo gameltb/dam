@@ -11,8 +11,8 @@ import {
 } from "spacetimedb";
 
 export default __t.object("FailTask", {
-  taskId: __t.string(),
   error: __t.string(),
+  taskId: __t.string(),
 });
 
 

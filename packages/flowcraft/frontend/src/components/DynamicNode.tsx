@@ -1,5 +1,5 @@
 import { type NodeProps, NodeResizer } from "@xyflow/react";
-import { memo, useMemo } from "react";
+import { memo, useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
@@ -45,9 +45,9 @@ const ContentRenderer: React.FC<{
   id: string;
   onToggleMode: () => void;
   selected?: boolean;
-}> = (props) => {
+}> = memo((props) => {
   const { data, id, onToggleMode, selected } = props;
-  const mode = mapToRenderMode(data.activeMode as any, id);
+  const mode = mapToRenderMode(data.activeMode, id);
 
   return (
     <NodeErrorBoundary nodeId={id}>
@@ -67,7 +67,7 @@ const ContentRenderer: React.FC<{
       </div>
     </NodeErrorBoundary>
   );
-};
+});
 
 export const DynamicNode = memo(
   ({ data, id, positionAbsoluteX, positionAbsoluteY, selected }: NodeProps<DynamicNodeType>) => {
@@ -89,9 +89,9 @@ export const DynamicNode = memo(
 
     // Calculate effective constraints from registry
     const { minHeight, minWidth } = useMemo(() => {
-      const mode = mapToRenderMode(data.activeMode as any, id);
-      const constraints = MEDIA_CONFIGS[mode as any] || { minHeight: 150, minWidth: 200 };
-      const modeSpecific = (constraints as any).modeConstraints?.[mode as any];
+      const mode = mapToRenderMode(data.activeMode, id);
+      const constraints = MEDIA_CONFIGS[mode as number] || { minHeight: 150, minWidth: 200 };
+      const modeSpecific = (constraints as any).modeConstraints?.[mode as number];
 
       if (modeSpecific) {
         return { minHeight: modeSpecific.minHeight, minWidth: modeSpecific.minWidth };
@@ -106,8 +106,8 @@ export const DynamicNode = memo(
       }
 
       return {
-        minHeight: constraints.minHeight ?? 150,
-        minWidth: constraints.minWidth ?? 200,
+        minHeight: (constraints as any).minHeight ?? 150,
+        minWidth: (constraints as any).minWidth ?? 200,
       };
     }, [data.activeMode, data.templateId, data.media?.type, data.extension, id]);
 
@@ -115,7 +115,7 @@ export const DynamicNode = memo(
       Object.values(s.tasks).some((t) => t.nodeId === id && t.status === TaskStatus.FAILED),
     );
 
-    const onToggleMode = () => {
+    const onToggleMode = useCallback(() => {
       const node = allNodes.find((n) => n.id === id);
       if (!node) return;
 
@@ -127,19 +127,22 @@ export const DynamicNode = memo(
       if (res.ok) {
         res.value.data.activeMode = nextMode;
       }
-    };
+    }, [allNodes, data.activeMode, id, nodeDraft]);
 
-    const handleResizeEnd = (_: any, params: { height: number; width: number }) => {
-      const node = allNodes.find((n) => n.id === id);
-      if (!node) return;
+    const handleResizeEnd = useCallback(
+      (_: any, params: { height: number; width: number }) => {
+        const node = allNodes.find((n) => n.id === id);
+        if (!node) return;
 
-      const res = nodeDraft(node);
-      if (res.ok) {
-        const draft = res.value;
-        draft.presentation.width = params.width;
-        draft.presentation.height = params.height;
-      }
-    };
+        const res = nodeDraft(node);
+        if (res.ok) {
+          const draft = res.value;
+          draft.presentation.width = params.width;
+          draft.presentation.height = params.height;
+        }
+      },
+      [allNodes, id, nodeDraft],
+    );
 
     return (
       <BaseNode

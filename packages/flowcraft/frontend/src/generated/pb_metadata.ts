@@ -24,29 +24,29 @@ export const PB_REDUCERS_MAP = {
   "updateInferenceConfig": {
       config: { schema: InferenceConfigDiscoveryResponseSchema } 
   },
-  "submitTask": {
-      task: { schema: TaskDefinitionSchema } 
+  "logTaskEvent": {
+      log: { schema: TaskAuditLogSchema } 
   },
   "registerWorker": {
       info: { schema: WorkerInfoSchema } 
   },
+  "submitTask": {
+      task: { schema: TaskDefinitionSchema } 
+  },
   "updateTaskProgress": {
       update: { schema: TaskUpdateSchema } 
-  },
-  "logTaskEvent": {
-      log: { schema: TaskAuditLogSchema } 
-  },
-  "pathUpdatePb": {
-      req: { schema: PathUpdateRequestSchema } 
-  },
-  "reparentNodePb": {
-      req: { schema: ReparentNodeRequestSchema } 
   },
   "addEdgePb": {
       edge: { schema: EdgeSchema } 
   },
   "createNodePb": {
       node: { schema: NodeSchema } 
+  },
+  "pathUpdatePb": {
+      req: { schema: PathUpdateRequestSchema } 
+  },
+  "reparentNodePb": {
+      req: { schema: ReparentNodeRequestSchema } 
   },
   "updateViewport": {
       viewport: { schema: ViewportSchema } 

@@ -19,6 +19,10 @@ export const initSpacetime = () => {
     .withToken("")
     .onConnect((c) => {
       logger.info("Connected to SpacetimeDB");
+
+      // Global subscriptions for server services
+      void c.subscriptionBuilder().subscribe(["SELECT * FROM nodes", "SELECT * FROM tasks", "SELECT * FROM workers"]);
+
       pbClient = wrapReducers(c);
       connectListeners.forEach((l) => {
         l(pbClient!);

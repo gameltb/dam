@@ -1,4 +1,5 @@
 import { BaseWorker } from "@/kernel/BaseWorker";
+import { TaskQueue } from "@/kernel/protocol";
 import { type TaskContext } from "@/kernel/TaskContext";
 import { mapHistoryToOpenAI } from "@/utils/chatUtils";
 import { type PbConnection } from "@/utils/pb-client";
@@ -9,11 +10,11 @@ import logger from "../utils/logger";
 
 export class ChatWorker extends BaseWorker {
   constructor(conn: PbConnection) {
-    super(conn, ["chat.openai"]);
+    super(conn, [TaskQueue.CHAT_GENERATE, "chat.openai"]);
   }
 
   async handleTask(type: string, ctx: TaskContext): Promise<void> {
-    if (type !== "chat.openai") return;
+    if (type !== TaskQueue.CHAT_GENERATE && type !== "chat.openai") return;
 
     const { nodeId, params } = ctx;
     const { endpointId, modelId } = params as any;

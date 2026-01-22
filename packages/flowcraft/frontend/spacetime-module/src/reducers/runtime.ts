@@ -1,13 +1,14 @@
 import { type ReducerCtx } from "spacetimedb/server";
-import { type AppSchema } from "../schema";
+
 import { services_ResetNodeRequest } from "../generated/generated_schema";
+import { type AppSchema } from "../schema";
 
 export const runtimeReducers = {
   reset_node: {
     args: { req: services_ResetNodeRequest },
     handler: (ctx: ReducerCtx<AppSchema>, params: { req: services_ResetNodeRequest }) => {
       const { req } = params;
-      
+
       // 1. 清除运行时状态
       const existing = ctx.db.nodeRuntimeStates.nodeId.find(req.nodeId);
       if (existing) {
@@ -25,6 +26,6 @@ export const runtimeReducers = {
       if (req.clearData) {
         // Implementation for clearing node data if requested
       }
-    }
-  }
+    },
+  },
 };

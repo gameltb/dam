@@ -10,6 +10,7 @@ import { wrapReducers } from "../utils/pb-client";
 import { SERVER_CONFIG } from "./config";
 import { AssetService } from "./services/AssetService";
 import { initConfigSync } from "./services/ConfigSyncService";
+import { DurableWorkflowService } from "./services/DurableWorkflowService";
 import { FlowServiceImpl } from "./services/FlowService";
 import { loadFromDisk } from "./services/PersistenceService";
 import { initTaskWatcher } from "./services/TaskService";
@@ -23,6 +24,7 @@ const app = fastify();
 initSpacetime();
 initTaskWatcher();
 initConfigSync();
+DurableWorkflowService.start();
 
 onSpacetimeConnect((conn) => {
   const pbConn = wrapReducers(conn as any);

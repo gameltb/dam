@@ -6,6 +6,7 @@ import { NodeEventSchema } from "@/generated/flowcraft/v1/core/service_pb";
 import { type NodeSignal } from "@/generated/flowcraft/v1/core/signals_pb";
 import { type AppNode, isChatNode, NodeSignalCase } from "@/types";
 import { mapHistoryToOpenAI } from "@/utils/chatUtils";
+import { wrapReducers } from "@/utils/pb-client";
 
 import { addChatMessage, getChatHistory } from "../services/ChatService";
 import { inferenceService } from "../services/InferenceService";
@@ -50,17 +51,21 @@ export class ChatNodeInstance extends NodeInstance {
         if (signal.case !== "chatGenerate") return;
         const { endpointId, modelId, userContent } = signal.value;
 
-        if (!userContent.trim() && chatData.conversationHeadId) {
-          const history = await getChatHistory(this.treeId);
-          const headMsg = history.pop();
-          if (headMsg?.role === "user") {
-            await this.generateResponse(chatData.conversationHeadId, modelId, endpointId);
+        await this.runTask("chat.generate", { endpointId, modelId, userContent }, async (ctx) => {
+          let currentHeadId = chatData.conversationHeadId;
+
+          if (userContent.trim()) {
+            const userMsgId = await addChatMessage(node.id, "user", userContent.trim(), currentHeadId);
+            if (userMsgId) {
+              currentHeadId = userMsgId;
+              this.updateNodeHead(userMsgId);
+            }
+          } else if (!currentHeadId) {
             return;
           }
-        }
 
-        await addChatMessage(node.id, "user", userContent);
-        await this.generateResponse(chatData.conversationHeadId, modelId, endpointId);
+          await this.generateResponse(currentHeadId, modelId, endpointId, ctx);
+        });
       },
       [NodeSignalCase.CHAT_SWITCH]: () => {
         if (signal.case !== "chatSwitch") return;
@@ -111,18 +116,23 @@ export class ChatNodeInstance extends NodeInstance {
     return Promise.resolve();
   }
 
-  private async generateResponse(headId: string, modelId: string, endpointId: string) {
-    logger.info(`generateResponse started. Head: ${headId}, Model: ${modelId}`);
-    this.updateStatus(TaskStatus.RUNNING, "AI is thinking...");
-    const conn = getSpacetimeConn();
+  private async generateResponse(headId: string, modelId: string, endpointId: string, ctx: any) {
+    const genTaskId = ctx.taskId;
+    logger.info(`generateResponse started for task ${genTaskId}. Head: ${headId}`);
 
-    if (conn) {
-      conn.reducers.updateChatStream({
-        content: "",
-        nodeId: this.nodeId ?? "",
-        status: "thinking",
-      });
-    }
+    const conn = getSpacetimeConn();
+    if (!conn) return;
+    const pbConn = wrapReducers(conn as any);
+
+    let fullContent = "";
+
+    await ctx.updateProgress(10, "AI is thinking...");
+
+    pbConn.pbreducers.updateChatStream({
+      content: "",
+      nodeId: this.nodeId ?? "",
+      status: "thinking",
+    });
 
     const history = await getChatHistory(this.treeId);
 
@@ -138,26 +148,21 @@ export class ChatNodeInstance extends NodeInstance {
 
       if (!("controller" in stream)) throw new Error("Stream failed");
 
-      if (conn) {
-        conn.reducers.updateChatStream({
-          content: "",
-          nodeId: this.nodeId ?? "",
-          status: "streaming",
-        });
-      }
+      pbConn.pbreducers.updateChatStream({
+        content: "",
+        nodeId: this.nodeId ?? "",
+        status: "streaming",
+      });
 
-      let fullContent = "";
       for await (const chunk of stream) {
         const content = chunk.choices[0]?.delta.content ?? "";
         if (content) {
           fullContent += content;
-          if (conn) {
-            conn.reducers.updateChatStream({
-              content: fullContent,
-              nodeId: this.nodeId ?? "",
-              status: "streaming",
-            });
-          }
+          pbConn.pbreducers.updateChatStream({
+            content: fullContent,
+            nodeId: this.nodeId ?? "",
+            status: "streaming",
+          });
 
           eventBus.emit(
             "nodeEvent",
@@ -172,15 +177,13 @@ export class ChatNodeInstance extends NodeInstance {
         }
       }
 
-      await addChatMessage(this.nodeId ?? "unknown", "assistant", fullContent);
+      await addChatMessage(this.nodeId ?? "unknown", "assistant", fullContent, headId);
 
-      if (conn) {
-        conn.reducers.updateChatStream({
-          content: "",
-          nodeId: this.nodeId ?? "",
-          status: "idle",
-        });
-      }
+      pbConn.pbreducers.updateChatStream({
+        content: "",
+        nodeId: this.nodeId ?? "",
+        status: "idle",
+      });
 
       eventBus.emit(
         "nodeEvent",
@@ -193,18 +196,35 @@ export class ChatNodeInstance extends NodeInstance {
         }),
       );
 
-      this.updateStatus(TaskStatus.RUNNING, "AI Answered");
+      await ctx.complete("Success");
     } catch (err: unknown) {
-      logger.error(`Generation failed:`, err);
-      if (conn) {
-        conn.reducers.updateChatStream({
-          content: "",
-          nodeId: this.nodeId ?? "",
-          status: "idle",
-        });
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      logger.error(`Generation failed for task ${genTaskId}:`, err);
+
+      pbConn.pbreducers.updateChatStream({
+        content: fullContent,
+        nodeId: this.nodeId ?? "",
+        status: "error",
+      });
+
+      // Save partial content if available to ensure it persists after refresh
+      if (fullContent.trim()) {
+        const assistantMsgId = await addChatMessage(
+          this.nodeId ?? "unknown",
+          "assistant",
+          `${fullContent}\n\n[Generation Interrupted]`,
+          headId,
+        );
+        if (assistantMsgId) {
+          this.updateNodeHead(assistantMsgId);
+        }
       }
 
-      this.updateStatus(TaskStatus.FAILED, err instanceof Error ? err.message : String(err));
+      await pbConn.pbreducers.failTask({
+        error: `Generation Error: ${errorMsg}`,
+        taskId: genTaskId,
+      });
+
       throw err;
     }
   }

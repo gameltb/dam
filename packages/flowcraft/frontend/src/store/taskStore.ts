@@ -10,6 +10,7 @@ interface TaskState {
 
   // Actions
   registerTask: (task: Partial<TaskDefinition> & { label: string; taskId: string }) => void;
+  removeTasksForNode: (nodeId: string) => void;
   resetStore: () => void;
   selectedTaskId: null | string;
   setDrawerOpen: (open: boolean) => void;
@@ -49,7 +50,7 @@ export const useTaskStore = create<TaskState>((set) => ({
         [task.taskId]: {
           createdAt: Date.now(),
           label: task.label,
-          message: task.message ?? "Registered",
+          message: task.message ?? "Initializing...",
           mutationIds: [],
           nodeId: task.nodeId,
           progress: task.progress ?? 0,
@@ -61,6 +62,15 @@ export const useTaskStore = create<TaskState>((set) => ({
         },
       },
     }));
+  },
+
+  removeTasksForNode: (nodeId) => {
+    set((state) => {
+      const remainingTasks = Object.fromEntries(
+        Object.entries(state.tasks).filter(([_, task]) => task.nodeId !== nodeId),
+      );
+      return { tasks: remainingTasks };
+    });
   },
 
   resetStore: () => {

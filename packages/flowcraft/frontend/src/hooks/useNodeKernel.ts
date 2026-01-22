@@ -29,10 +29,12 @@ export function useNodeKernel() {
       }
 
       const taskId = crypto.randomUUID();
+      const idempotencyKey = `${taskType}-${nodeId}-${JSON.stringify(params)}`;
 
       // 2. Submit
       try {
         await spacetimeConn.pbreducers.submitTask({
+          idempotencyKey,
           task: {
             createdAt: BigInt(Date.now()),
             nodeId,

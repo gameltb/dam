@@ -11,10 +11,10 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
-  id: __t.string().primaryKey(),
-  taskId: __t.string(),
-  nodeId: __t.string(),
   eventType: __t.string(),
+  id: __t.string().primaryKey(),
   message: __t.string(),
+  nodeId: __t.string(),
+  taskId: __t.string(),
   timestamp: __t.u64(),
 });

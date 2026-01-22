@@ -46,6 +46,7 @@ interface UIState {
   // Transient state
   isSettingsOpen: boolean;
   isSidebarOpen: boolean;
+  kernelExplorerHeight: number;
   removeLocalClient: (id: string) => void;
   saveViewportForScope: (scopeId: null | string, viewport: { x: number; y: number; zoom: number }) => void;
   scopedViewports: Record<string, { x: number; y: number; zoom: number }>;
@@ -58,6 +59,7 @@ interface UIState {
   setConnectionStartHandle: (handle: UIState["connectionStartHandle"]) => void;
 
   setDragMode: (mode: DragMode) => void;
+  setKernelExplorerHeight: (height: number) => void;
   // Actions for persistence
   setSettings: (settings: Partial<UISettings>) => void;
   // Actions for transient state
@@ -124,6 +126,7 @@ export const useUiStore = create<UIState>()(
       isChatFullscreen: false,
       isSettingsOpen: false,
       isSidebarOpen: false,
+      kernelExplorerHeight: 500,
       removeLocalClient: (id) => {
         set((state) => ({
           settings: {
@@ -160,6 +163,7 @@ export const useUiStore = create<UIState>()(
       setConnectionStartHandle: (handle) => set({ connectionStartHandle: handle }),
 
       setDragMode: (mode) => set({ dragMode: mode }),
+      setKernelExplorerHeight: (height) => set({ kernelExplorerHeight: height }),
 
       setSettings: (newSettings) =>
         set((state) => {
@@ -199,6 +203,7 @@ export const useUiStore = create<UIState>()(
       partialize: (state) => ({
         activeScopeId: state.activeScopeId,
         dragMode: state.dragMode,
+        kernelExplorerHeight: state.kernelExplorerHeight,
         scopedViewports: state.scopedViewports,
         settings: state.settings,
       }),

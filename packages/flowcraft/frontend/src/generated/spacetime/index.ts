@@ -32,18 +32,18 @@ import {
 } from "spacetimedb";
 
 // Import and reexport all reducer arg types
-import PathUpdatePbReducer from "./path_update_pb_reducer";
-export { PathUpdatePbReducer };
-import ReparentNodePbReducer from "./reparent_node_pb_reducer";
-export { ReparentNodePbReducer };
 import AddEdgePbReducer from "./add_edge_pb_reducer";
 export { AddEdgePbReducer };
 import CreateNodePbReducer from "./create_node_pb_reducer";
 export { CreateNodePbReducer };
+import PathUpdatePbReducer from "./path_update_pb_reducer";
+export { PathUpdatePbReducer };
 import RemoveEdgeReducer from "./remove_edge_reducer";
 export { RemoveEdgeReducer };
 import RemoveNodeReducer from "./remove_node_reducer";
 export { RemoveNodeReducer };
+import ReparentNodePbReducer from "./reparent_node_pb_reducer";
+export { ReparentNodePbReducer };
 import UpdateViewportReducer from "./update_viewport_reducer";
 export { UpdateViewportReducer };
 import AddChatMessageReducer from "./add_chat_message_reducer";
@@ -58,6 +58,8 @@ import UpdateInferenceConfigReducer from "./update_inference_config_reducer";
 export { UpdateInferenceConfigReducer };
 import AssignCurrentTaskReducer from "./assign_current_task_reducer";
 export { AssignCurrentTaskReducer };
+import ClearNodeTasksReducer from "./clear_node_tasks_reducer";
+export { ClearNodeTasksReducer };
 import ExecuteActionReducer from "./execute_action_reducer";
 export { ExecuteActionReducer };
 import SendNodeSignalReducer from "./send_node_signal_reducer";
@@ -66,20 +68,20 @@ import UpdateTaskStatusReducer from "./update_task_status_reducer";
 export { UpdateTaskStatusReducer };
 import ResetNodeReducer from "./reset_node_reducer";
 export { ResetNodeReducer };
-import SubmitTaskReducer from "./submit_task_reducer";
-export { SubmitTaskReducer };
-import RegisterWorkerReducer from "./register_worker_reducer";
-export { RegisterWorkerReducer };
 import ClaimTaskReducer from "./claim_task_reducer";
 export { ClaimTaskReducer };
-import UpdateTaskProgressReducer from "./update_task_progress_reducer";
-export { UpdateTaskProgressReducer };
 import CompleteTaskReducer from "./complete_task_reducer";
 export { CompleteTaskReducer };
 import FailTaskReducer from "./fail_task_reducer";
 export { FailTaskReducer };
 import LogTaskEventReducer from "./log_task_event_reducer";
 export { LogTaskEventReducer };
+import RegisterWorkerReducer from "./register_worker_reducer";
+export { RegisterWorkerReducer };
+import SubmitTaskReducer from "./submit_task_reducer";
+export { SubmitTaskReducer };
+import UpdateTaskProgressReducer from "./update_task_progress_reducer";
+export { UpdateTaskProgressReducer };
 import OnDisconnectReducer from "./on_disconnect_reducer";
 export { OnDisconnectReducer };
 
@@ -132,6 +134,8 @@ import ClaimTask from "./claim_task_type";
 export { ClaimTask };
 import ClearChatHistory from "./clear_chat_history_type";
 export { ClearChatHistory };
+import ClearNodeTasks from "./clear_node_tasks_type";
+export { ClearNodeTasks };
 import ClientTaskAssignments from "./client_task_assignments_type";
 export { ClientTaskAssignments };
 import CompleteTask from "./complete_task_type";
@@ -424,6 +428,9 @@ const tablesSchema = __schema(
       { name: 'id', algorithm: 'btree', columns: [
         'id',
       ] },
+      { name: 'idempotencyKey', algorithm: 'btree', columns: [
+        'idempotencyKey',
+      ] },
     ],
     constraints: [
       { name: 'tasks_id_key', constraint: 'unique', columns: ['id'] },
@@ -466,12 +473,12 @@ const tablesSchema = __schema(
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
-  __reducerSchema("path_update_pb", PathUpdatePbReducer),
-  __reducerSchema("reparent_node_pb", ReparentNodePbReducer),
   __reducerSchema("add_edge_pb", AddEdgePbReducer),
   __reducerSchema("create_node_pb", CreateNodePbReducer),
+  __reducerSchema("path_update_pb", PathUpdatePbReducer),
   __reducerSchema("remove_edge", RemoveEdgeReducer),
   __reducerSchema("remove_node", RemoveNodeReducer),
+  __reducerSchema("reparent_node_pb", ReparentNodePbReducer),
   __reducerSchema("update_viewport", UpdateViewportReducer),
   __reducerSchema("add_chat_message", AddChatMessageReducer),
   __reducerSchema("clear_chat_history", ClearChatHistoryReducer),
@@ -479,17 +486,18 @@ const reducersSchema = __reducers(
   __reducerSchema("register_template", RegisterTemplateReducer),
   __reducerSchema("update_inference_config", UpdateInferenceConfigReducer),
   __reducerSchema("assignCurrentTask", AssignCurrentTaskReducer),
+  __reducerSchema("clear_node_tasks", ClearNodeTasksReducer),
   __reducerSchema("executeAction", ExecuteActionReducer),
   __reducerSchema("sendNodeSignal", SendNodeSignalReducer),
   __reducerSchema("updateTaskStatus", UpdateTaskStatusReducer),
   __reducerSchema("reset_node", ResetNodeReducer),
-  __reducerSchema("submitTask", SubmitTaskReducer),
-  __reducerSchema("registerWorker", RegisterWorkerReducer),
   __reducerSchema("claimTask", ClaimTaskReducer),
-  __reducerSchema("updateTaskProgress", UpdateTaskProgressReducer),
   __reducerSchema("completeTask", CompleteTaskReducer),
   __reducerSchema("failTask", FailTaskReducer),
   __reducerSchema("logTaskEvent", LogTaskEventReducer),
+  __reducerSchema("registerWorker", RegisterWorkerReducer),
+  __reducerSchema("submitTask", SubmitTaskReducer),
+  __reducerSchema("updateTaskProgress", UpdateTaskProgressReducer),
 );
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */

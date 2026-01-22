@@ -29,10 +29,11 @@ export function useChatController(conversationHeadId: string | undefined, nodeId
     let effectiveHeadId = conversationHeadId;
 
     if (!effectiveHeadId && allMessages.length > 0) {
-      const sorted = [...allMessages].sort((a: any, b: any) => {
+      // Sort by timestamp DESC to get the latest message
+      const sorted = [...allMessages].sort((a, b) => {
         const tA = BigInt(a.timestamp || 0n);
         const tB = BigInt(b.timestamp || 0n);
-        return Number(tB - tA);
+        return tA > tB ? -1 : tA < tB ? 1 : 0;
       });
       effectiveHeadId = sorted[0]?.id;
     }
@@ -83,6 +84,9 @@ export function useChatController(conversationHeadId: string | undefined, nodeId
     }
     if (streamEntry?.status === "thinking") {
       return ChatStatus.SUBMITTED;
+    }
+    if (streamEntry?.status === "error") {
+      return ChatStatus.ERROR;
     }
     return ChatStatus.READY;
   }, [streamEntry]);

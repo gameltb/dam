@@ -13,8 +13,7 @@ import {
 } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
 import { NodeSignalSchema } from "@/generated/flowcraft/v1/core/signals_pb";
-import { TaskQueue } from "@/shared/task-protocol";
-import { TaskDispatcher } from "@/shared/TaskDispatcher";
+import { TaskQueue } from "@/kernel/protocol";
 import { useFlowStore } from "@/store/flowStore";
 import { ChatStatus } from "@/types";
 import { uploadFile } from "@/utils/assetUtils";
@@ -29,10 +28,11 @@ export function useChatActions(
   handleStreamChunk: (chunk: string) => void,
   getHistory: () => ChatMessage[],
 ) {
-  const { allNodes, nodeDraft } = useFlowStore(
+  const { allNodes, nodeDraft, spacetimeConn } = useFlowStore(
     useShallow((s) => ({
       allNodes: s.allNodes,
       nodeDraft: s.nodeDraft,
+      spacetimeConn: s.spacetimeConn,
     })),
   );
   const node = allNodes.find((n) => n.id === nodeId);
@@ -133,10 +133,8 @@ export function useChatActions(
         return;
       }
 
-      const conn = useFlowStore.getState().spacetimeConn;
-      if (conn) {
-        const dispatcher = new TaskDispatcher(conn);
-        dispatcher.submit(
+      if (spacetimeConn) {
+        spacetimeConn.kernel.submit(
           TaskQueue.CHAT_GENERATE,
           {
             endpointId: selectedEndpoint,
@@ -187,10 +185,8 @@ export function useChatActions(
     (selectedModel: string, selectedEndpoint: string) => {
       setStatus(ChatStatus.SUBMITTED);
 
-      const conn = useFlowStore.getState().spacetimeConn;
-      if (conn) {
-        const dispatcher = new TaskDispatcher(conn);
-        dispatcher.submit(
+      if (spacetimeConn) {
+        spacetimeConn.kernel.submit(
           TaskQueue.CHAT_GENERATE,
           {
             endpointId: selectedEndpoint,

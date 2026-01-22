@@ -11,13 +11,13 @@ import {
 } from "spacetimedb";
 
 export default __t.object("NodeRuntimeStates", {
-  nodeId: __t.string(),
-  status: __t.string(),
-  progress: __t.u32(),
-  message: __t.string(),
+  activeUserId: __t.option(__t.string()),
   error: __t.option(__t.string()),
   lastUpdated: __t.u64(),
-  activeUserId: __t.option(__t.string()),
+  message: __t.string(),
+  nodeId: __t.string(),
+  progress: __t.u32(),
+  status: __t.string(),
 });
 
 

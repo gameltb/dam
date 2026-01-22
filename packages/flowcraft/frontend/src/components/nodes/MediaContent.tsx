@@ -2,9 +2,10 @@ import React, { memo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
+import { type Port } from "@/generated/flowcraft/v1/core/node_pb";
 import { useNodeHandlers } from "@/hooks/useNodeHandlers";
 import { useFlowStore } from "@/store/flowStore";
-import { type DynamicNodeData, FlowEvent } from "@/types";
+import { type DynamicNodeData, FlowEvent, OverflowMode } from "@/types";
 import { getPortColor, getPortShape } from "@/utils/themeUtils";
 
 import { PortHandle } from "../base/PortHandle";
@@ -16,7 +17,7 @@ interface MediaContentProps {
   data: DynamicNodeData;
   height?: number;
   id: string;
-  onOverflowChange?: (o: any) => void;
+  onOverflowChange?: (o: OverflowMode) => void;
   width?: number;
 }
 
@@ -81,7 +82,7 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
   const handleDimensionsLoad = (ratio: number) => {
     if (Math.abs((media.aspectRatio ?? 0) - ratio) > 0.01) {
       onChange(id, {
-        media: { ...media, aspectRatio: ratio } as any,
+        media: { ...media, aspectRatio: ratio },
       });
 
       const currentWidth = width ?? 240;
@@ -155,7 +156,7 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
             mediaType={media.type}
             nodeHeight={nodeHeight}
             nodeWidth={nodeWidth}
-            onExpand={() => onOverflowChange?.("visible")}
+            onExpand={() => onOverflowChange?.(OverflowMode.VISIBLE)}
             onGalleryItemContext={onGalleryItemContext}
             renderItem={(url) => (
               <div className="h-full w-full overflow-hidden rounded-sm">
@@ -166,7 +167,7 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
         )}
 
         <div className="pointer-events-none">
-          {data.outputPorts?.map((port: any, idx: number) => (
+          {data.outputPorts?.map((port: Port, idx: number) => (
             <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-auto" key={port.id || idx}>
               <PortHandle
                 color={getPortColor(port.type)}
@@ -178,7 +179,7 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
               />
             </div>
           ))}
-          {data.inputPorts?.map((port: any, idx: number) => (
+          {data.inputPorts?.map((port: Port, idx: number) => (
             <div className="absolute left-0 top-1/2 -translate-y-1/2 pointer-events-auto" key={port.id || idx}>
               <PortHandle
                 color={getPortColor(port.type)}

@@ -71,6 +71,13 @@ export const useSpacetimeSync = () => {
         console.log("[Sync] Chat Message INSERTED:", row.id, row.state);
       });
 
+      conn.db.tasks.onDelete((_, row) => {
+        console.log(`[Sync] Task DELETED from STDB: ${row.id}, nodeId: ${row.nodeId}`);
+        if (row.nodeId) {
+          useTaskStore.getState().removeTasksForNode(row.nodeId);
+        }
+      });
+
       const onViewportInsert = (_ctx: unknown, row: { id: string; state: unknown }) => {
         if (row.id === "default" && !viewportInitializedRef.current) {
           const viewportState = convertStdbToPb("viewportState", row);
@@ -129,26 +136,58 @@ export const useSpacetimeSync = () => {
       const existingTask = taskStore.tasks[stTask.id];
       const statusTag = stTask.status.tag;
 
-      // Map TASK_STATUS_X to TaskStatus.TASK_X
-      const legacyStatusName = statusTag.replace("TASK_STATUS_", "TASK_");
-      const newStatus = TaskStatus[legacyStatusName as keyof typeof TaskStatus] as unknown as TaskStatus;
+      // Map TASK_STATUS_X to TaskStatus.X (e.g. TASK_STATUS_PENDING -> TaskStatus.PENDING)
+      // Also handle numeric tags just in case
+      const STATUS_NUM_MAP: Record<number, string> = {
+        0: "PENDING",
+        1: "CLAIMED",
+        2: "RUNNING",
+        3: "COMPLETED",
+        4: "FAILED",
+        5: "CANCELLED",
+      };
+
+      const statusName =
+        typeof statusTag === "number" ? STATUS_NUM_MAP[statusTag] : statusTag.replace("TASK_STATUS_", "");
+
+      const newStatus = TaskStatus[statusName as keyof typeof TaskStatus] as unknown as TaskStatus;
+      const currentResult = stTask.result || (newStatus === TaskStatus.PENDING ? "Initializing..." : "");
 
       if (!existingTask) {
+        console.log(
+          `[Sync] Registering NEW task: ${stTask.id}, status: ${statusName}, nodeId: ${stTask.nodeId}, result: "${stTask.result}"`,
+        );
         registerTask({
           label: `Task: ${stTask.taskType}`,
+          message: currentResult,
           nodeId: stTask.nodeId,
           status: newStatus,
           taskId: stTask.id,
           type: TaskType.REMOTE,
         });
-      } else if (existingTask.status !== newStatus) {
+      } else if (existingTask.status !== newStatus || existingTask.message !== currentResult) {
+        console.log(
+          `[Sync] UPDATING task: ${stTask.id}, status: ${statusName}, message changed: ${existingTask.message !== currentResult}, new message: "${currentResult}"`,
+        );
         updateTask(stTask.id, {
-          message: typeof stTask.result === "string" ? stTask.result : JSON.stringify(stTask.result),
+          message: currentResult,
           status: newStatus,
         });
       }
     });
   }, [stTasks, updateTask, registerTask]);
+
+  useEffect(() => {
+    const conn = getConnection();
+    if (conn && isActive) {
+      conn.db.tasks.onDelete((_, row) => {
+        console.log(`[Sync] Task DELETED from STDB: ${row.id}, nodeId: ${row.nodeId}`);
+        if (row.nodeId) {
+          useTaskStore.getState().removeTasksForNode(row.nodeId);
+        }
+      });
+    }
+  }, [getConnection, isActive]);
 
   const lastProcessedNodesRef = useRef<string>("");
   const processingRemoteUpdateRef = useRef(false);

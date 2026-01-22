@@ -1,4 +1,5 @@
-import { type DescMessage, type DescEnum, type DescField } from "@bufbuild/protobuf";
+import { type DescEnum, type DescField, type DescMessage } from "@bufbuild/protobuf";
+
 import { unwrapPbValue } from "./path-utils";
 
 /**
@@ -7,8 +8,8 @@ import { unwrapPbValue } from "./path-utils";
 export function validateValueByPath(schema: DescMessage, path: string[], value: unknown): void {
   // 使用统一的解包逻辑进行校验
   const rawValue = unwrapPbValue(value);
-  
-  let current: DescMessage | DescEnum = schema;
+
+  let current: DescEnum | DescMessage = schema;
 
   for (let i = 0; i < path.length; i++) {
     const part = path[i];
@@ -18,8 +19,8 @@ export function validateValueByPath(schema: DescMessage, path: string[], value: 
       throw new Error(`[Validator] Cannot traverse path '${part}' on a non-message type`);
     }
 
-    const field: DescField | undefined = current.fields.find(f => f.name === part || f.jsonName === part);
-    
+    const field: DescField | undefined = current.fields.find((f) => f.name === part || f.jsonName === part);
+
     if (!field) {
       throw new Error(`[Validator] Field '${part}' not found in message ${current.name}`);
     }
@@ -41,22 +42,26 @@ function checkType(field: DescField, value: unknown): void {
   if (value === null || value === undefined) return;
 
   switch (field.fieldKind) {
-    case "scalar": {
-      const scalarType = field.scalar; 
-      if (scalarType === 9) { // TYPE_STRING
-        if (typeof value !== "string") throw TypeError(`Expected string, got ${typeof value}`);
-      } else if ([1, 2, 3, 4, 5, 13].includes(scalarType)) { // Numeric types
-        if (typeof value !== "number" && typeof value !== "bigint") throw TypeError(`Expected number, got ${typeof value}`);
-      } else if (scalarType === 8) { // TYPE_BOOL
-        if (typeof value !== "boolean") throw TypeError(`Expected boolean, got ${typeof value}`);
-      }
-      break;
-    }
     case "enum":
       if (typeof value !== "number") throw TypeError(`Expected enum (number), got ${typeof value}`);
       break;
     case "message":
       if (typeof value !== "object") throw TypeError(`Expected object/message, got ${typeof value}`);
       break;
+    case "scalar": {
+      const scalarType = field.scalar;
+      if (scalarType === 9) {
+        // TYPE_STRING
+        if (typeof value !== "string") throw TypeError(`Expected string, got ${typeof value}`);
+      } else if ([1, 2, 3, 4, 5, 13].includes(scalarType)) {
+        // Numeric types
+        if (typeof value !== "number" && typeof value !== "bigint")
+          throw TypeError(`Expected number, got ${typeof value}`);
+      } else if (scalarType === 8) {
+        // TYPE_BOOL
+        if (typeof value !== "boolean") throw TypeError(`Expected boolean, got ${typeof value}`);
+      }
+      break;
+    }
   }
 }

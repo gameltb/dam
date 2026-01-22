@@ -14,16 +14,18 @@ import CoreTaskStatus from "./core_task_status_type";
 
 export default __t.object("Tasks", {
   id: __t.string(),
+  idempotencyKey: __t.string(),
+  lastHeartbeat: __t.u64(),
   nodeId: __t.string(),
-  taskType: __t.string(),
+  ownerId: __t.string(),
   paramsPayload: __t.byteArray(),
-  selectorJson: __t.string(),
+  result: __t.string(),
   get status() {
     return CoreTaskStatus;
   },
-  ownerId: __t.string(),
-  result: __t.string(),
+  taskType: __t.string(),
   timestamp: __t.u64(),
+  version: __t.u32(),
 });
 
 

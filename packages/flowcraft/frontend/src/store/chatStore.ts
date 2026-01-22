@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { type ChatMessage } from "@/generated/flowcraft/v1/core/service_pb";
 
 export enum ChatStreamStatus {
+  ERROR = "error",
   IDLE = "idle",
   STREAMING = "streaming",
   THINKING = "thinking",

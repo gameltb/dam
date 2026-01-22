@@ -11,8 +11,8 @@ import {
 } from "spacetimedb";
 
 export default __t.object("CompleteTask", {
-  taskId: __t.string(),
   result: __t.string(),
+  taskId: __t.string(),
 });
 
 

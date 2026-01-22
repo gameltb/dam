@@ -6,12 +6,12 @@ export const nodeRuntimeStates = table(
     public: true,
   },
   {
-    nodeId: t.string().primaryKey(),
-    status: t.string(), // "idle" | "busy" | "error"
-    progress: t.u32(),
-    message: t.string(),
+    activeUserId: t.option(t.string()),
     error: t.option(t.string()),
     lastUpdated: t.u64(),
-    activeUserId: t.option(t.string()),
+    message: t.string(),
+    nodeId: t.string().primaryKey(),
+    progress: t.u32(),
+    status: t.string(), // "idle" | "busy" | "error"
   },
 );

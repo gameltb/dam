@@ -1,13 +1,13 @@
-import { fromJson, type JsonObject, toJson } from "@bufbuild/protobuf";
+import { create, fromJson, type JsonObject, type JsonValue, toJson } from "@bufbuild/protobuf";
 import { ValueSchema } from "@bufbuild/protobuf/wkt";
 import { memo } from "react";
 
 import { PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
-import { PortStyle, type Widget } from "@/generated/flowcraft/v1/core/node_pb";
+import { PortStyle, PortTypeSchema, type Widget } from "@/generated/flowcraft/v1/core/node_pb";
 import { useNodeHandlers } from "@/hooks/useNodeHandlers";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
-import { type DynamicNodeData } from "@/types";
+import { ChatViewMode, type DynamicNodeData } from "@/types";
 import { getSchemaForTemplate } from "@/utils/schemaRegistry";
 import { getPortColor } from "@/utils/themeUtils";
 
@@ -34,7 +34,7 @@ const WidgetRenderer: React.FC<WidgetRendererProps> = memo(({ onClick, onValueCh
 
   return (
     <Component
-      config={widget.config as any}
+      config={widget.config}
       label={widget.label}
       nodeId=""
       onChange={onValueChange}
@@ -68,8 +68,8 @@ const WidgetContentComponent: React.FC<{
   );
 
   const isChatNode = data.templateId?.toLowerCase().includes("chat");
-  const isSidebarMode = activeChatNodeId === id && chatViewMode === "sidebar";
-  const isActiveExternally = isSidebarMode || (activeChatNodeId === id && chatViewMode === "fullscreen");
+  const isSidebarMode = activeChatNodeId === id && chatViewMode === ChatViewMode.SIDEBAR;
+  const isActiveExternally = isSidebarMode || (activeChatNodeId === id && chatViewMode === ChatViewMode.FULLSCREEN);
 
   const isSwitchable = data.availableModes.length > 1;
   const inputs = data.inputPorts ?? [];
@@ -106,6 +106,8 @@ const WidgetContentComponent: React.FC<{
                   if (node) {
                     const res = nodeDraft(node);
                     if (res.ok) {
+                      // Using 'as any' here because the Draftable type recursive nesting
+                      // is too deep for TS to resolve for widgetsValues specifically.
                       (res.value.data as any).widgetsValues = val as JsonObject;
                     }
                   }
@@ -130,7 +132,7 @@ const WidgetContentComponent: React.FC<{
           </div>
         )}
 
-        {data.widgets?.map((w: any) => (
+        {data.widgets?.map((w: Widget) => (
           <WidgetWrapper
             inputPortId={w.inputPortId}
             isSwitchable={isSwitchable}
@@ -141,7 +143,9 @@ const WidgetContentComponent: React.FC<{
             <div className="relative w-full">
               {w.inputPortId && (
                 <PortHandle
-                  color={getPortColor({ mainType: PortMainType.STRING } as any)}
+                  color={getPortColor(
+                    create(PortTypeSchema, { isGeneric: false, itemType: "", mainType: PortMainType.STRING }),
+                  )}
                   isImplicit={true}
                   nodeId={id}
                   portId={w.inputPortId}
@@ -155,16 +159,19 @@ const WidgetContentComponent: React.FC<{
                 onClick={() => {
                   onWidgetClick?.(id, w.id);
                 }}
-                onValueChange={(val: any) => {
+                onValueChange={(val: unknown) => {
                   const node = allNodes.find((n) => n.id === id);
                   if (!node) return;
 
                   const res = nodeDraft(node);
                   if (res.ok) {
                     const draft = res.value;
-                    const idx = (draft.data.widgets as any[]).findIndex((item: any) => item.id === w.id);
+                    const idx = draft.data.widgets.findIndex((item: Widget) => item.id === w.id);
                     if (idx !== -1) {
-                      (draft.data.widgets as any[])[idx].value = fromJson(ValueSchema, val);
+                      const widget = draft.data.widgets[idx];
+                      if (widget) {
+                        widget.value = fromJson(ValueSchema, val as JsonValue);
+                      }
                     }
                   }
                 }}

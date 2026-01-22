@@ -59,13 +59,31 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
 
   // Combine chat status with global node runtime status
   const effectiveStatus = useMemo(() => {
-    if (nodeController.status === "busy") return ChatStatusEnum.SUBMITTED;
-    return chatStatus;
-  }, [nodeController.status, chatStatus]);
+    const status = nodeController.status === "busy" ? ChatStatusEnum.SUBMITTED : chatStatus;
+    console.log(
+      `[ChatBot] effectiveStatus for ${nodeId}:`,
+      status,
+      " (nodeController:",
+      nodeController.status,
+      "chatStatus:",
+      chatStatus,
+      ")",
+    );
+    return status;
+  }, [nodeController.status, chatStatus, nodeId]);
 
-  const failedTask = useTaskStore((s) =>
-    Object.values(s.tasks).find((t) => t.nodeId === nodeId && t.status === TaskStatus.FAILED),
-  );
+  const failedTask = useTaskStore((s) => {
+    const task = Object.values(s.tasks).find((t) => t.nodeId === nodeId && t.status === TaskStatus.FAILED);
+    if (task) {
+      console.log(`[ChatBot] Found FAILED task for ${nodeId}:`, task);
+    }
+    return task;
+  });
+
+  const displayErrorMessage = useMemo(() => {
+    if (!failedTask) return undefined;
+    return failedTask.message || (failedTask as any).error || "Unknown execution error";
+  }, [failedTask]);
 
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
   const [selectedEndpoint, setSelectedEndpoint] = useState("openai");
@@ -238,7 +256,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
       onDrop={handleDrop}
     >
       <ChatConversationArea
-        errorMessage={failedTask?.message}
+        errorMessage={displayErrorMessage}
         history={messages}
         isUploading={false}
         onDelete={handleDeleteBranch}

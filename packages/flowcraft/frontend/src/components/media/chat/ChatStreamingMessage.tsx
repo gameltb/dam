@@ -1,4 +1,4 @@
-import { Bot, Check, Edit2, Play, RotateCcw, X } from "lucide-react";
+import { AlertCircle, Bot, Check, Edit2, Play, RotateCcw, X } from "lucide-react";
 import React, { useState } from "react";
 
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/ai-elements/message";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { ChatStatus } from "@/types";
 
 import { type ChatStatus as ChatStatusType } from "./types";
@@ -55,14 +56,28 @@ export const ChatStreamingMessage: React.FC<Props> = ({
       <Message from="assistant">
         <MessageContent>
           {/* Status Indicator */}
-          {!isEditing && (status === ChatStatus.SUBMITTED || status === ChatStatus.STREAMING) && (
-            <div className="flex items-center gap-2 mb-2 opacity-50">
-              <Bot className="animate-pulse" size={14} />
-              <span className="text-[10px] uppercase tracking-wider font-bold">
-                {status === ChatStatus.SUBMITTED ? "Thinking..." : "Generating..."}
-              </span>
-            </div>
-          )}
+          {!isEditing &&
+            (status === ChatStatus.SUBMITTED || status === ChatStatus.STREAMING || status === ChatStatus.ERROR) && (
+              <div className="flex items-center gap-2 mb-2 opacity-50">
+                {status === ChatStatus.ERROR ? (
+                  <AlertCircle className="text-destructive" size={14} />
+                ) : (
+                  <Bot className="animate-pulse" size={14} />
+                )}
+                <span
+                  className={cn(
+                    "text-[10px] uppercase tracking-wider font-bold",
+                    status === ChatStatus.ERROR ? "text-destructive" : "",
+                  )}
+                >
+                  {status === ChatStatus.SUBMITTED
+                    ? "Thinking..."
+                    : status === ChatStatus.STREAMING
+                      ? "Generating..."
+                      : "Generation Failed"}
+                </span>
+              </div>
+            )}
 
           {isEditing ? (
             <div className="flex flex-col gap-2 min-w-[300px]">

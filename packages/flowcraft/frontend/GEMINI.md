@@ -77,8 +77,8 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 - **Modularity & File Size:** Keep components small and focused. **A single file should ideally not exceed 300 lines of code.**
   - **Exemption:** Components in `src/components/ui/` and `src/components/ai-elements/` (typically introduced via shadcn or external libraries) are exempt from this line limit and should not be refactored solely to satisfy this rule.
 - **Imports & Path Aliases:** Use the `@/` alias for all absolute imports from the `src` directory (e.g., `import { useFlowStore } from "@/store/flowStore"`). Avoid deep relative paths (e.g., `../../hooks/...`) whenever possible to improve maintainability and readability.
-- **Structural Refactoring (ast-grep):** Use `npx ast-grep` for precise, syntax-aware code transformations across the project. 
-  - *Example:* `npx ast-grep --pattern '$O.reducers.$M($$A)' --rewrite '$O.pbreducers.$M($$A)'` helps migrate legacy calls.
+- **Structural Refactoring (ast-grep):** Use `npx ast-grep` for precise, syntax-aware code transformations across the project.
+  - _Example:_ `npx ast-grep --pattern '$O.reducers.$M($$A)' --rewrite '$O.pbreducers.$M($$A)'` helps migrate legacy calls.
   - Prefer AST-based tools over simple regex/sed for complex nested structures to avoid breaking code context.
 - **Polymorphism over Conditionals:**
   - **Avoid `if/else` or `switch` on node types** in shared logic (hooks, stores, utils).
@@ -88,31 +88,40 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 ## Advanced Bridging & Communication
 
 ### 1. Dual-Track Reducers (PB + Native)
+
 The system supports two parallel ways to call SpacetimeDB reducers:
+
 - **`conn.reducers`**: Original SpacetimeDB accessors. Expects `Uint8Array` for Protobuf-backed fields.
 - **`conn.pbreducers`**: Enhanced accessors. Transparently accepts standard Protobuf Message objects and performs serialization automatically.
 - **Type Safety**: The type of `pbreducers` is automatically projected from the native definition via `PbReducersProjection`. NEVER manually define `interface PbReducers`.
 
 ### 2. Automatic Metadata Discovery
+
 The generation pipeline (`scripts/generate-pb-client.ts`) automatically discovers mappings between STDB Tables/Reducers and Protobuf Schemas by:
+
 - Mocking the STDB server environment and capturing table definitions.
 - Heuristically matching TypeNames (e.g., `Node` in STDB maps to `NodeSchema` in PB).
 - Generating a pure metadata file `src/generated/pb_metadata.ts`.
 
 ### 3. Data Normalization
-Always use `convertStdbToPb` (from `@/utils/pb-client`) to ingest data from SpacetimeDB subscriptions. 
+
+Always use `convertStdbToPb` (from `@/utils/pb-client`) to ingest data from SpacetimeDB subscriptions.
+
 - **Reason**: SpacetimeDB may represent Enums as objects (e.g., `{ mode: 1 }`). This utility "washes" the data back into standard Protobuf primitive format before it hits the store.
 - **Consistency**: Use the bridge at the entry point (`useSpacetimeSync`) so that the rest of the application (UI components and stores) only deals with standardized Protobuf shapes.
 
 ## Quality & Development Workflow
 
 ### 1. Design Principles
+
 - **Fail-Fast & No Fallbacks**: For "impossible" or unsupported scenarios (e.g., missing metadata mappings, invalid Protobuf states, unsupported render modes), **prohibit any silent fallback logic**. Throw explicit `Error` objects immediately with clear descriptions. If a component or handler cannot fulfill its contract, it must fail loud to prevent data corruption or UI inconsistency.
 - **Static-Type Friendly**: Leverage Protobuf v2 `$typeName` fields for native type narrowing. Use `switch (input.$typeName)` for mutations and signals to enable native TypeScript exhaustiveness checking and auto-completion. Minimize `as any`. Perform generic operations through type guards or the schema registry (`SCHEMA_MAP`).
 - **Contract-First Logic**: UI components and stores must consume generated Protobuf types directly, ensuring that any schema changes are caught during the compilation phase.
 
 ### 2. Iterative Development Process
+
 Follow this process for every feature or bug fix:
+
 1.  **Analyze & Reproduce:** Understand the requirement or bug.
 2.  **Write Tests First (or during):** Create a test file in `__tests__/` that explicitly describes the **Problem** and the **Requirement** in a header comment.
 3.  **Implement Fix:** Code the solution following the design principles above.
@@ -122,7 +131,9 @@ Follow this process for every feature or bug fix:
 5.  **Commit:** Ensure the test remains as a permanent artifact to prevent future regressions.
 
 ### 3. Debugging Tests
+
 To debug tests using the Gemini CLI `node-debugger` tool:
+
 - **Step 1:** Start the test in the background using `run_shell_command`:
   `node node_modules/vitest/vitest.mjs --inspect-brk=9229 --no-file-parallelism run <path_to_test> &`
 - **Step 2:** Attach to the worker's debug port using `attach_debugger` (usually port `9229` as specified in the command).

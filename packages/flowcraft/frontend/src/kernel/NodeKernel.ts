@@ -6,10 +6,29 @@ import { NodeSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import { createNodeDraft, type Draftable, type Result } from "@/utils/draft";
 import { type PbConnection } from "@/utils/pb-client";
 
+import { type TaskPayloads, type TaskQueue } from "./protocol";
 import { type TaskContext } from "./TaskContext";
 
 export class NodeKernel {
   constructor(private conn: PbConnection) {}
+
+  /**
+   * Cancels a pending or running task.
+   */
+  public cancel(taskId: string) {
+    this.conn.pbreducers.updateTaskStatus({
+      update: {
+        displayLabel: "",
+        message: "Cancelled by user",
+        nodeId: "",
+        progress: 0,
+        result: undefined,
+        status: TaskStatus.CANCELLED,
+        taskId,
+        type: "",
+      } as any,
+    });
+  }
 
   /**
    * Pre-execution guard to prevent concurrent tasks on the same node.
@@ -96,6 +115,28 @@ export class NodeKernel {
         } as any,
       });
     });
+  }
+
+  /**
+   * Submits a new task to the SpacetimeDB task queue.
+   */
+  public submit<Q extends TaskQueue>(queue: Q, payload: TaskPayloads[Q], nodeId = "") {
+    const taskId = crypto.randomUUID();
+
+    this.conn.pbreducers.executeAction({
+      id: taskId,
+      request: {
+        actionId: queue,
+        contextNodeIds: [],
+        params: {
+          case: "paramsStruct",
+          value: payload as any,
+        },
+        sourceNodeId: nodeId,
+      } as any,
+    });
+
+    return taskId;
   }
 }
 

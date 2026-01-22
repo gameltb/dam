@@ -6,11 +6,11 @@
 
 所有业务对象必须严格划分为三个逻辑层，禁止跨层混用字段：
 
-| 层次 | 职责 | 字段示例 | 存储位置 |
-| :--- | :--- | :--- | :--- |
-| **Identity (身份层)** | 唯一标识、关系引用、查询索引 | `node_id`, `parent_id` | SpacetimeDB 顶层列 (PK/Indexed) |
-| **Presentation (表现层)** | 视觉状态（客户端主控，后端透传） | `position`, `width` | `Node.presentation` (嵌套 Record) |
-| **Domain (领域层)** | 业务逻辑核心（Worker/Reducer 修改） | `tree_id`, `extension` | `NodeData` (嵌套 Record) |
+| 层次                      | 职责                                | 字段示例               | 存储位置                          |
+| :------------------------ | :---------------------------------- | :--------------------- | :-------------------------------- |
+| **Identity (身份层)**     | 唯一标识、关系引用、查询索引        | `node_id`, `parent_id` | SpacetimeDB 顶层列 (PK/Indexed)   |
+| **Presentation (表现层)** | 视觉状态（客户端主控，后端透传）    | `position`, `width`    | `Node.presentation` (嵌套 Record) |
+| **Domain (领域层)**       | 业务逻辑核心（Worker/Reducer 修改） | `tree_id`, `extension` | `NodeData` (嵌套 Record)          |
 
 ## 2. 命名与语义规范 (Naming & Semantics)
 

@@ -4,8 +4,8 @@ import { chatReducers } from "./reducers/chat";
 import { configReducers } from "./reducers/config";
 import { kernelReducers } from "./reducers/kernel";
 import { nodeReducers } from "./reducers/node";
-import { taskReducers } from "./reducers/task";
 import { runtimeReducers } from "./reducers/runtime";
+import { taskReducers } from "./reducers/task";
 import { type AppSchema, spacetimedb } from "./schema";
 import { wrapPbHandler } from "./utils/reducer-wrapper";
 

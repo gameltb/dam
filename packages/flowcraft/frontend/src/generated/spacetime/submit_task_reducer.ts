@@ -11,5 +11,6 @@ import {
 } from "spacetimedb";
 
 export default {
+  idempotencyKey: __t.string(),
   task: __t.byteArray(),
 };

@@ -1,6 +1,6 @@
 import { t, table } from "spacetimedb/server";
 
-import { core_TaskStatus, core_NodeSignal_payload, core_WorkerLanguage } from "../generated/generated_schema";
+import { core_NodeSignal_payload, core_TaskStatus, core_WorkerLanguage } from "../generated/generated_schema";
 
 export const tasks = table(
   {
@@ -9,14 +9,16 @@ export const tasks = table(
   },
   {
     id: t.string().primaryKey(),
+    idempotencyKey: t.string().index(), // 幂等键
+    lastHeartbeat: t.u64(), // 任务级心跳
     nodeId: t.string(),
-    taskType: t.string(),
-    paramsPayload: t.byteArray(),
-    selectorJson: t.string(), // Opaque JSON for selector
-    status: core_TaskStatus,
     ownerId: t.string(),
+    paramsPayload: t.byteArray(),
     result: t.string(),
+    status: core_TaskStatus,
+    taskType: t.string(),
     timestamp: t.u64(),
+    version: t.u32(), // 状态版本
   },
 );
 
@@ -26,12 +28,12 @@ export const workers = table(
     public: true,
   },
   {
-    workerId: t.string().primaryKey(),
-    lang: core_WorkerLanguage,
     capabilities: t.string(), // Comma separated for simplicity in indexing
-    tagsJson: t.string(),
+    lang: core_WorkerLanguage,
     lastHeartbeat: t.u64(),
-  }
+    tagsJson: t.string(),
+    workerId: t.string().primaryKey(),
+  },
 );
 
 export const taskAuditLog = table(
@@ -40,13 +42,13 @@ export const taskAuditLog = table(
     public: true,
   },
   {
-    id: t.string().primaryKey(),
-    taskId: t.string(),
-    nodeId: t.string(),
     eventType: t.string(),
+    id: t.string().primaryKey(),
     message: t.string(),
+    nodeId: t.string(),
+    taskId: t.string(),
     timestamp: t.u64(),
-  }
+  },
 );
 
 export const nodeSignals = table(

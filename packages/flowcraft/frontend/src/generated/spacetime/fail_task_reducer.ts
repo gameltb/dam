@@ -11,6 +11,6 @@ import {
 } from "spacetimedb";
 
 export default {
-  taskId: __t.string(),
   error: __t.string(),
+  taskId: __t.string(),
 };

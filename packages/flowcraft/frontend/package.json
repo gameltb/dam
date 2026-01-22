@@ -21,7 +21,7 @@
     "type-check": "tsc --build",
     "knip": "knip",
     "test": "vitest run",
-    "verify": "set -ex; npm run lint:fix; npm run test; npm run build; npm run format",
+    "verify": "set -ex; npm run lint:fix; npm run test; npm run type-check; npm run format",
     "preview": "vite preview",
     "gen": "npm run scripts:check && npm run proto:generate && npm run proto:sync && npm run spacetime:generate-schema && npm run spacetime:generate-client && npm run spacetime:generate",
     "scripts:type-check": "tsc -p tsconfig.scripts.json",

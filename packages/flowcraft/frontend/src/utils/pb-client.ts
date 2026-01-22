@@ -1,5 +1,6 @@
 import { PB_REDUCERS_MAP, TABLE_TO_PROTO } from "@/generated/pb_metadata";
 import { type DbConnection, tables } from "@/generated/spacetime";
+import { NodeKernel } from "@/kernel/NodeKernel";
 
 import { convertStdbToPbInternal, type PbReducersProjection, wrapReducersInternal } from "./pb-client-utils";
 
@@ -10,6 +11,7 @@ export type PbClient = PbConnection;
  * 包装后的连接器类型
  */
 export type PbConnection = DbConnection & {
+  kernel: NodeKernel;
   pbreducers: ProjectedReducers;
 };
 
@@ -30,5 +32,7 @@ export function convertStdbToPb(tableName: string, row: any): any {
  * 核心包装函数：将 DbConnection 升级为支持 PB 自动序列化的版本
  */
 export function wrapReducers(conn: DbConnection): PbConnection {
-  return wrapReducersInternal(conn, PB_REDUCERS_MAP) as PbConnection;
+  const wrapped = wrapReducersInternal(conn, PB_REDUCERS_MAP);
+  wrapped.kernel = new NodeKernel(wrapped);
+  return wrapped as PbConnection;
 }

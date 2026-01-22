@@ -14,10 +14,6 @@ export interface ChatGeneratePayload {
   modelId: string;
   userContent: string;
   useWebSearch: boolean;
-
-  // Legacy fields to support existing code if needed?
-  // messages?: any[];
-  // system?: string;
 }
 
 export interface TaskPayloads {

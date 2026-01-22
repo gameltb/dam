@@ -5,8 +5,10 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  Code2,
   Database,
   Link,
+  ListTree,
   Logs,
   Maximize,
   MessageCircle,
@@ -16,13 +18,15 @@ import {
   Sliders,
   Wind,
 } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { toast } from "react-hot-toast";
 import { useTable } from "spacetimedb/react";
 
 import { tables } from "@/generated/spacetime";
 import { cn } from "@/lib/utils";
 
-import { ScrollArea } from "../ui/scroll-area";
+import { ScrollArea, ScrollBar } from "../ui/scroll-area";
+import { JsonTreeView } from "./JsonTreeView";
 
 const AVAILABLE_TABLES = [
   { icon: Logs, id: "operationLogs", label: "operation_logs" },
@@ -43,6 +47,92 @@ interface SortConfig {
 }
 
 type TableId = (typeof AVAILABLE_TABLES)[number]["id"];
+
+/**
+ * Enhanced cell component that can toggle between JSON Tree and Text view.
+ */
+const JsonCell: React.FC<{ value: any }> = ({ value }) => {
+  const [viewMode, setViewMode] = useState<"text" | "tree">("text");
+
+  // BigInts are returned as objects sometimes in STDB JS
+  const isObject = value !== null && typeof value === "object" && !(typeof value === "bigint");
+
+  const onContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isObject) return;
+      e.preventDefault();
+      setViewMode((prev) => (prev === "text" ? "tree" : "text"));
+      toast.success(`Switched to ${viewMode === "text" ? "Tree" : "Text"} view`, {
+        duration: 1000,
+        icon: viewMode === "text" ? <ListTree size={14} /> : <Code2 size={14} />,
+        id: "view-toggle",
+      });
+    },
+    [isObject, viewMode],
+  );
+
+  const copyValue = useCallback(() => {
+    navigator.clipboard.writeText(formatCellValue(value));
+    toast.success("Copied to clipboard", { id: "cell-copy" });
+  }, [value]);
+
+  if (!isObject) {
+    return (
+      <div
+        className="truncate group relative flex items-center min-w-0"
+        onDoubleClick={copyValue}
+        title="Double click to copy"
+      >
+        <span
+          className={cn(
+            "font-mono truncate",
+            value === null || value === undefined ? "text-muted-foreground/40 italic" : "",
+          )}
+        >
+          {formatCellValue(value)}
+        </span>
+      </div>
+    );
+  }
+
+  const jsonString = useMemo(() => {
+    try {
+      return JSON.stringify(value, (_, v) => (typeof v === "bigint" ? v.toString() : v));
+    } catch {
+      return "[Complex Object]";
+    }
+  }, [value]);
+
+  return (
+    <div
+      className={cn("min-w-0 transition-all overflow-hidden", viewMode === "tree" ? "py-1" : "")}
+      onContextMenu={onContextMenu}
+      title="Right-click to toggle Tree/Text view"
+    >
+      {viewMode === "tree" ? (
+        <div className="bg-muted/30 p-2 rounded border border-border/50 max-h-[300px] overflow-auto min-w-[200px]">
+          <JsonTreeView data={value} />
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 group min-w-0">
+          <Code2 className="text-muted-foreground/50 shrink-0" size={12} />
+          <span className="truncate font-mono text-muted-foreground/80 italic">
+            {jsonString.slice(0, 100)}
+            {jsonString.length > 100 ? "..." : ""}
+          </span>
+          <button
+            className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-primary transition-opacity shrink-0"
+            onClick={() => {
+              setViewMode("tree");
+            }}
+          >
+            <ListTree size={10} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 /**
  * Isolated viewer component for a single table to ensure clean useTable subscription.
@@ -126,22 +216,22 @@ const TableDataView: React.FC<{ filterText: string; tableId: TableId }> = ({ fil
   const keys = Object.keys(firstRow);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <ScrollArea className="flex-1 w-full" type="always">
+    <div className="flex flex-col h-full overflow-hidden min-w-0">
+      <ScrollArea className="flex-1 w-full p-1 min-w-0" type="always">
         <div className="min-w-max">
-          <table className="text-[10px] font-mono border-collapse relative min-w-full">
+          <table className="text-[10px] font-mono border-collapse relative">
             <thead className="sticky top-0 z-30 bg-background shadow-sm">
               <tr className="bg-muted shadow-sm">
                 {keys.map((key) => (
                   <th
-                    className="px-4 py-2 text-left font-bold border-r border-border last:border-r-0 whitespace-nowrap cursor-pointer hover:bg-muted-foreground/10 transition-colors select-none"
+                    className="px-4 py-2 text-left font-bold border-r border-border last:border-r-0 whitespace-nowrap cursor-pointer hover:bg-muted-foreground/10 transition-colors select-none min-w-[150px]"
                     key={key}
                     onClick={() => {
                       handleSort(key);
                     }}
                   >
-                    <div className="flex items-center gap-1">
-                      {key}
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="truncate">{key}</span>
                       {sortConfig?.key === key &&
                         (sortConfig.direction === "asc" ? <ArrowUp size={10} /> : <ArrowDown size={10} />)}
                     </div>
@@ -149,15 +239,15 @@ const TableDataView: React.FC<{ filterText: string; tableId: TableId }> = ({ fil
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border/30">
               {paginatedRows.map((row, i) => (
-                <tr className="border-b border-border/50 hover:bg-primary/5 transition-colors" key={i}>
+                <tr className="hover:bg-primary/5 transition-colors group" key={i}>
                   {keys.map((key, j) => (
                     <td
-                      className="px-4 py-1.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-[400px] border-r border-border/20 last:border-r-0"
+                      className="px-4 py-1.5 border-r border-border/20 last:border-r-0 align-top max-w-[400px] min-w-0"
                       key={j}
                     >
-                      {formatCellValue(row[key])}
+                      <JsonCell value={row[key]} />
                     </td>
                   ))}
                 </tr>
@@ -165,17 +255,18 @@ const TableDataView: React.FC<{ filterText: string; tableId: TableId }> = ({ fil
             </tbody>
           </table>
         </div>
+        <ScrollBar className="z-50" orientation="horizontal" />
       </ScrollArea>
 
       {/* Pagination Controls */}
-      <div className="p-2 border-t border-border bg-muted/5 flex items-center justify-between text-[10px]">
+      <div className="p-2 border-t border-border bg-muted/5 flex items-center justify-between text-[10px] shrink-0">
         <div className="text-muted-foreground">
           Showing {Math.min(processedRows.length, (currentPage - 1) * pageSize + 1)} -{" "}
           {Math.min(processedRows.length, currentPage * pageSize)} of {processedRows.length} rows
         </div>
         <div className="flex items-center gap-2">
           <button
-            className="p-1 hover:bg-muted rounded disabled:opacity-30"
+            className="p-1 hover:bg-muted rounded disabled:opacity-30 transition-colors"
             disabled={currentPage === 1}
             onClick={() => {
               setCurrentPage((p) => p - 1);
@@ -183,11 +274,11 @@ const TableDataView: React.FC<{ filterText: string; tableId: TableId }> = ({ fil
           >
             <ChevronLeft size={14} />
           </button>
-          <span className="font-bold">
+          <span className="font-bold bg-muted/50 px-2 py-0.5 rounded border border-border/50">
             Page {currentPage} of {totalPages || 1}
           </span>
           <button
-            className="p-1 hover:bg-muted rounded disabled:opacity-30"
+            className="p-1 hover:bg-muted rounded disabled:opacity-30 transition-colors"
             disabled={currentPage >= totalPages}
             onClick={() => {
               setCurrentPage((p) => p + 1);
@@ -206,7 +297,7 @@ export const SpacetimeTableBrowser: React.FC = () => {
   const [filterText, setFilterText] = useState("");
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full overflow-hidden min-w-0 w-full">
       {/* Table Sidebar */}
       <div className="w-52 border-r border-border bg-muted/5 flex flex-col shrink-0">
         <div className="p-3 border-b border-border flex items-center gap-2">
@@ -245,8 +336,8 @@ export const SpacetimeTableBrowser: React.FC = () => {
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-background">
-        <div className="p-3 border-b border-border bg-muted/10 flex justify-between items-center">
+      <div className="flex-1 flex flex-col min-w-0 bg-background overflow-hidden max-w-full">
+        <div className="p-3 border-b border-border bg-muted/10 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold font-mono text-primary uppercase">{selectedTableId}</span>
           </div>
@@ -263,7 +354,7 @@ export const SpacetimeTableBrowser: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
           {/* We use tableId as KEY to force complete component remount on switch,
               ensuring useTable re-subscribes correctly to the new table handle. */}
           <TableDataView filterText={filterText} key={selectedTableId} tableId={selectedTableId} />
@@ -278,7 +369,7 @@ function formatCellValue(val: unknown): string {
   if (typeof val === "bigint") return val.toString();
   if (typeof val === "object") {
     try {
-      return JSON.stringify(val);
+      return JSON.stringify(val, (_, v) => (typeof v === "bigint" ? v.toString() : v));
     } catch {
       return "[Object]";
     }

@@ -11,6 +11,7 @@ import {
 } from "spacetimedb";
 
 export default __t.object("SubmitTask", {
+  idempotencyKey: __t.string(),
   task: __t.byteArray(),
 });
 

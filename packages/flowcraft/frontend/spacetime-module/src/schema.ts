@@ -3,8 +3,16 @@ import { type InferSchema, schema } from "spacetimedb/server";
 import { edges, nodes, viewportState } from "./tables/base";
 import { chatMessages, chatStreams } from "./tables/chat";
 import { inferenceConfig, nodeTemplates } from "./tables/config";
-import { clientTaskAssignments, nodeSignals, operationLogs, taskAuditLog, tasks, widgetValues, workers } from "./tables/task";
 import { nodeRuntimeStates } from "./tables/runtime";
+import {
+  clientTaskAssignments,
+  nodeSignals,
+  operationLogs,
+  taskAuditLog,
+  tasks,
+  widgetValues,
+  workers,
+} from "./tables/task";
 
 export const spacetimedb = schema(
   nodes,

@@ -1,6 +1,6 @@
 import { t, table } from "spacetimedb/server";
 
-import { services_InferenceConfigDiscoveryResponse, core_NodeTemplate } from "../generated/generated_schema";
+import { core_NodeTemplate, services_InferenceConfigDiscoveryResponse } from "../generated/generated_schema";
 
 export const nodeTemplates = table(
   {
