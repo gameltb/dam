@@ -1,37 +1,36 @@
 import { type ReducerCtx, t } from "spacetimedb/server";
 
 import {
+  type TaskAuditLog as ProtoTaskAuditLog,
+  type TaskDefinition as ProtoTaskDefinition,
+  type TaskUpdate as ProtoTaskUpdate,
+  type WorkerInfo as ProtoWorkerInfo,
   TaskAuditLogSchema,
   TaskDefinitionSchema,
+  TaskStatus,
   TaskUpdateSchema,
   WorkerInfoSchema,
+  WorkerLanguage,
 } from "../generated/flowcraft/v1/core/kernel_pb";
-import {
-  type core_TaskAuditLog,
-  type core_TaskDefinition,
-  type core_TaskUpdate,
-  type core_WorkerInfo,
-} from "../generated/generated_schema";
 import { type AppSchema } from "../schema";
 
 export const kernelReducers = {
   claimTask: {
     args: { taskId: t.string(), workerId: t.string() },
     handler: (ctx: ReducerCtx<AppSchema>, { taskId, workerId }: { taskId: string; workerId: string }) => {
-      const { tasks } = ctx.db;
-      const task = tasks.id.find(taskId);
+      const task = ctx.db.tasks.id.find(taskId);
       if (!task) throw new Error("TASK_NOT_FOUND");
 
-      // 状态转换校验
-      if (task.status.tag !== "TASK_STATUS_PENDING") {
-        throw new Error(`INVALID_TRANSITION: Cannot claim task in ${task.status.tag} state`);
+      // State transition validation
+      if (task.status !== TaskStatus.PENDING) {
+        throw new Error(`INVALID_TRANSITION: Cannot claim task in state ${task.status}`);
       }
 
-      tasks.id.update({
+      ctx.db.tasks.id.update({
         ...task,
         lastHeartbeat: ctx.timestamp.toMillis(),
         ownerId: workerId,
-        status: { tag: "TASK_STATUS_CLAIMED" },
+        status: TaskStatus.CLAIMED,
       });
     },
   },
@@ -39,20 +38,19 @@ export const kernelReducers = {
   completeTask: {
     args: { result: t.string(), taskId: t.string() },
     handler: (ctx: ReducerCtx<AppSchema>, { result, taskId }: { result: string; taskId: string }) => {
-      const { nodeRuntimeStates, tasks } = ctx.db;
-      const task = tasks.id.find(taskId);
-      if (task && ["TASK_STATUS_CLAIMED", "TASK_STATUS_RUNNING"].includes(task.status.tag)) {
-        tasks.id.update({
+      const task = ctx.db.tasks.id.find(taskId);
+      if (task && (task.status === TaskStatus.CLAIMED || task.status === TaskStatus.RUNNING)) {
+        ctx.db.tasks.id.update({
           ...task,
           lastHeartbeat: ctx.timestamp.toMillis(),
           result,
-          status: { tag: "TASK_STATUS_COMPLETED" },
+          status: TaskStatus.COMPLETED,
           version: task.version + 1,
         });
 
-        const runtime = nodeRuntimeStates.nodeId.find(task.nodeId);
+        const runtime = ctx.db.nodeRuntimeStates.nodeId.find(task.nodeId);
         if (runtime) {
-          nodeRuntimeStates.nodeId.update({
+          ctx.db.nodeRuntimeStates.nodeId.update({
             ...runtime,
             lastUpdated: ctx.timestamp.toMillis(),
             status: "idle",
@@ -65,18 +63,17 @@ export const kernelReducers = {
   failTask: {
     args: { error: t.string(), taskId: t.string() },
     handler: (ctx: ReducerCtx<AppSchema>, { error, taskId }: { error: string; taskId: string }) => {
-      const { nodeRuntimeStates, taskAuditLog, tasks } = ctx.db;
-      const task = tasks.id.find(taskId);
-      if (task && task.status.tag !== "TASK_STATUS_COMPLETED") {
-        tasks.id.update({
+      const task = ctx.db.tasks.id.find(taskId);
+      if (task && task.status !== TaskStatus.COMPLETED) {
+        ctx.db.tasks.id.update({
           ...task,
           lastHeartbeat: ctx.timestamp.toMillis(),
           result: error,
-          status: { tag: "TASK_STATUS_FAILED" },
+          status: TaskStatus.FAILED,
           version: task.version + 1,
         });
 
-        taskAuditLog.insert({
+        ctx.db.taskAuditLog.insert({
           eventType: "error",
           id: `${taskId}-fail-${ctx.timestamp.toMillis()}-${ctx.db.taskAuditLog.count()}`,
           message: error,
@@ -85,9 +82,9 @@ export const kernelReducers = {
           timestamp: ctx.timestamp.toMillis(),
         });
 
-        const runtime = nodeRuntimeStates.nodeId.find(task.nodeId);
+        const runtime = ctx.db.nodeRuntimeStates.nodeId.find(task.nodeId);
         if (runtime) {
-          nodeRuntimeStates.nodeId.update({
+          ctx.db.nodeRuntimeStates.nodeId.update({
             ...runtime,
             error,
             lastUpdated: ctx.timestamp.toMillis(),
@@ -100,32 +97,35 @@ export const kernelReducers = {
 
   logTaskEvent: {
     args: { log: TaskAuditLogSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { log }: { log: core_TaskAuditLog }) => {
+    handler: (ctx: ReducerCtx<AppSchema>, { log }: { log: ProtoTaskAuditLog }) => {
       ctx.db.taskAuditLog.insert({
-        ...log,
-        id: log.id || `${log.taskId}-${ctx.timestamp.toMillis()}-${ctx.db.taskAuditLog.count()}`,
+        eventType: log.eventType,
+        id: log.id || `${log.taskId}-${ctx.timestamp.toMillis()}-log`,
+        message: log.message,
+        nodeId: log.nodeId,
+        taskId: log.taskId,
+        timestamp: BigInt(log.timestamp),
       });
     },
   },
 
   registerWorker: {
     args: { info: WorkerInfoSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { info }: { info: core_WorkerInfo }) => {
-      const { workers } = ctx.db;
-      const existing = workers.workerId.find(info.workerId);
+    handler: (ctx: ReducerCtx<AppSchema>, { info }: { info: ProtoWorkerInfo }) => {
+      const existing = ctx.db.workers.workerId.find(info.workerId);
 
       const workerRow = {
         capabilities: info.capabilities.join(","),
-        lang: { tag: info.lang?.tag || "WORKER_LANG_TS" } as any,
+        lang: info.lang ?? WorkerLanguage.WORKER_LANG_TS,
         lastHeartbeat: ctx.timestamp.toMillis(),
         tagsJson: JSON.stringify(info.tags || {}),
         workerId: info.workerId,
       };
 
       if (existing) {
-        workers.workerId.update(workerRow);
+        ctx.db.workers.workerId.update(workerRow);
       } else {
-        workers.insert(workerRow);
+        ctx.db.workers.insert(workerRow);
       }
     },
   },
@@ -134,32 +134,30 @@ export const kernelReducers = {
     args: { idempotencyKey: t.string(), task: TaskDefinitionSchema },
     handler: (
       ctx: ReducerCtx<AppSchema>,
-      { idempotencyKey, task }: { idempotencyKey: string; task: core_TaskDefinition },
+      { idempotencyKey, task }: { idempotencyKey: string; task: ProtoTaskDefinition },
     ) => {
-      const { nodeRuntimeStates, tasks } = ctx.db;
-
-      // 1. 幂等性检查
-      const existing = Array.from(tasks.iter()).find((t) => t.idempotencyKey === idempotencyKey);
+      // 1. Idempotency check
+      const existing = Array.from(ctx.db.tasks.iter()).find((t) => t.idempotencyKey === idempotencyKey);
       if (existing) {
-        if (existing.status.tag === "TASK_STATUS_COMPLETED") {
-          return; // 已完成，直接跳过
+        if (existing.status === TaskStatus.COMPLETED) {
+          return; // Already completed, skip directly
         }
-        // 如果任务卡住了，则允许覆盖/重置
-        tasks.id.delete(existing.id);
+        // If the task is stuck, allow override/reset
+        ctx.db.tasks.id.delete(existing.id);
       }
 
-      // 2. Busy Guard (仅针对非幂等重复的全新任务)
-      const busy = Array.from(tasks.iter()).some(
+      // 2. Busy Guard (only for new tasks that are not idempotent duplicates)
+      const busy = Array.from(ctx.db.tasks.iter()).some(
         (t) =>
           t.nodeId === task.nodeId &&
-          ["TASK_STATUS_CLAIMED", "TASK_STATUS_PENDING", "TASK_STATUS_RUNNING"].includes(t.status.tag),
+          (t.status === TaskStatus.CLAIMED || t.status === TaskStatus.PENDING || t.status === TaskStatus.RUNNING),
       );
 
       if (busy) {
         throw new Error(`NODE_BUSY: Node ${task.nodeId} is already executing a task.`);
       }
 
-      tasks.insert({
+      ctx.db.tasks.insert({
         id: task.taskId,
         idempotencyKey: idempotencyKey,
         lastHeartbeat: ctx.timestamp.toMillis(),
@@ -167,15 +165,15 @@ export const kernelReducers = {
         ownerId: "",
         paramsPayload: task.paramsPayload,
         result: "",
-        status: { tag: "TASK_STATUS_PENDING" },
+        status: TaskStatus.PENDING,
         taskType: task.taskType,
         timestamp: ctx.timestamp.toMillis(),
         version: 0,
       });
 
-      const runtime = nodeRuntimeStates.nodeId.find(task.nodeId);
+      const runtime = ctx.db.nodeRuntimeStates.nodeId.find(task.nodeId);
       if (runtime) {
-        nodeRuntimeStates.nodeId.update({
+        ctx.db.nodeRuntimeStates.nodeId.update({
           ...runtime,
           lastUpdated: ctx.timestamp.toMillis(),
           status: "busy",
@@ -186,43 +184,28 @@ export const kernelReducers = {
 
   updateTaskProgress: {
     args: { update: TaskUpdateSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { update }: { update: core_TaskUpdate }) => {
-      const { tasks } = ctx.db;
-      const task = tasks.id.find(update.taskId);
+    handler: (ctx: ReducerCtx<AppSchema>, { update }: { update: ProtoTaskUpdate }) => {
+      const task = ctx.db.tasks.id.find(update.taskId);
       if (!task) return;
 
-      // 状态转换校验：只能更新 RUNNING 或 CLAIMED 任务
-      if (!["TASK_STATUS_CLAIMED", "TASK_STATUS_RUNNING"].includes(task.status.tag)) {
+      // State transition validation: can only update RUNNING or CLAIMED tasks
+      if (task.status !== TaskStatus.CLAIMED && task.status !== TaskStatus.RUNNING) {
         return;
       }
 
       if (update.status !== undefined) {
-        let tag = (update.status as any).tag || update.status;
-        const STATUS_MAP: Record<number | string, string> = {
-          0: "TASK_STATUS_PENDING",
-          1: "TASK_STATUS_CLAIMED",
-          2: "TASK_STATUS_RUNNING",
-          3: "TASK_STATUS_COMPLETED",
-          4: "TASK_STATUS_FAILED",
-          5: "TASK_STATUS_CANCELLED",
-        };
-
-        if (typeof tag === "number") {
-          tag = STATUS_MAP[tag] || tag;
-        }
-
         let taskMessage = update.message;
-        if (!taskMessage && tag === "TASK_STATUS_FAILED") {
-          if ((update as any).result?.kind?.case === "stringValue") {
-            taskMessage = (update as any).result.kind.value;
+        if (!taskMessage && update.status === TaskStatus.FAILED) {
+          if (update.result?.kind?.case === "stringValue") {
+            taskMessage = update.result.kind.value;
           }
         }
 
-        tasks.id.update({
+        ctx.db.tasks.id.update({
           ...task,
           lastHeartbeat: ctx.timestamp.toMillis(),
           result: taskMessage || task.result,
-          status: { tag: tag },
+          status: update.status,
           version: task.version + 1,
         });
       }

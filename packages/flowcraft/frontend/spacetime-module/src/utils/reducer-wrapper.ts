@@ -1,16 +1,14 @@
 import { type DescMessage, fromBinary } from "@bufbuild/protobuf";
 import { type ReducerCtx } from "spacetimedb/server";
 
-import { type AppSchema } from "../schema";
-
 /**
- * 为单个 Reducer 创建 PB 反序列化包装器
- * 仅后端使用，负责将二进制参数还原为标准 PB 对象
+ * Creates a PB deserialization wrapper for a single Reducer.
+ * Used by the backend only, responsible for restoring binary parameters to standard PB objects.
  */
-export function wrapPbHandler<S extends AppSchema, P extends Record<string, any>>(
+export function wrapPbHandler<P extends Record<string, any> = any>(
   args: Record<string, unknown>,
-  handler: (ctx: ReducerCtx<S>, params: P) => void,
-) {
+  handler: (ctx: ReducerCtx<any>, params: P) => void,
+): (ctx: ReducerCtx<any>, params: P) => void {
   const pbFields: Record<string, DescMessage> = {};
   for (const [key, type] of Object.entries(args)) {
     if (type && typeof type === "object" && "typeName" in type) {
@@ -18,11 +16,15 @@ export function wrapPbHandler<S extends AppSchema, P extends Record<string, any>
     }
   }
 
-  return (ctx: ReducerCtx<S>, params: P) => {
+  return (ctx: ReducerCtx<any>, params: P) => {
     const finalParams = { ...params } as any;
     for (const [key, schema] of Object.entries(pbFields)) {
-      if (params[key] instanceof Uint8Array) {
-        finalParams[key] = fromBinary(schema, params[key]);
+      const val = params[key];
+      if (val instanceof Uint8Array) {
+        // Keep the original binary reference to avoid subsequent toBinary calls
+        finalParams[`${key}Binary`] = val;
+        // Deserialize into an object for logic use
+        finalParams[key] = fromBinary(schema, val);
       }
     }
     handler(ctx, finalParams);

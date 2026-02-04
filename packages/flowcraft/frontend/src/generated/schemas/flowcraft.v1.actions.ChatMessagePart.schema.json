@@ -1,0 +1,15 @@
+{
+  "$id": "flowcraft.v1.actions.ChatMessagePart.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "media": {
+      "$ref": "flowcraft.v1.core.MediaContent.schema.json"
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "title": "Chat Message Part",
+  "type": "object"
+}

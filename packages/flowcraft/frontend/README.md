@@ -6,7 +6,7 @@ Flowcraft is a high-performance, backend-driven node-based editor built with Rea
 
 - **Frontend:** React 19, Vite, TypeScript
 - **Graph Engine:** `@xyflow/react` (React Flow 12)
-- **State Management:** Zustand (global state), Zundo (undo/redo)
+- **State Management:** Zustand (global state), Custom Undo/Redo (local history)
 - **Database & Sync:** SpacetimeDB (Source of Truth for graph and tasks)
 - **Protocol:** Protocol Buffers (Protobuf) for data serialization and contracts
 - **Layout:** `dagre` for automatic directed graph positioning

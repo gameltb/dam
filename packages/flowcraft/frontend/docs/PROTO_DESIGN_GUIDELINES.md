@@ -1,79 +1,79 @@
-# Flowcraft Protobuf & 数据库设计规范 (V1.1)
+# Protobuf Design & Implementation Guidelines (V3.0)
 
-本文档定义了 Flowcraft 项目中 Protobuf 消息、SpacetimeDB 表结构以及前端状态管理的三位一体设计策略。
+This document defines the integrated design strategy for Protobuf messages, SpacetimeDB table structures, and Frontend state management in the Flowcraft project.
 
-## 1. 结构分层原则 (Layering Strategy)
+## 1. Layering Strategy
 
-所有业务对象必须严格划分为三个逻辑层，禁止跨层混用字段：
+All business objects are divided into three strictly isolated logical layers. Do not mix fields across these layers:
 
-| 层次                      | 职责                                | 字段示例               | 存储位置                          |
-| :------------------------ | :---------------------------------- | :--------------------- | :-------------------------------- |
-| **Identity (身份层)**     | 唯一标识、关系引用、查询索引        | `node_id`, `parent_id` | SpacetimeDB 顶层列 (PK/Indexed)   |
-| **Presentation (表现层)** | 视觉状态（客户端主控，后端透传）    | `position`, `width`    | `Node.presentation` (嵌套 Record) |
-| **Domain (领域层)**       | 业务逻辑核心（Worker/Reducer 修改） | `tree_id`, `extension` | `NodeData` (嵌套 Record)          |
+| Layer            | Responsibility                     | Examples                    | Storage Implementation                                   |
+| :--------------- | :--------------------------------- | :-------------------------- | :------------------------------------------------------- |
+| **Identity**     | Unique ID, relationships, indexing | `node_id`, `parent_id`      | SpacetimeDB Primary Key / Indexed Columns (Strings)      |
+| **Presentation** | Visual state (Position, Size)      | `x`, `y`, `width`, `height` | Flattened columns in `node_transforms` / `node_metadata` |
+| **Domain**       | Business logic & extension state   | `tree_id`, `extension`      | `byteArray` in SpacetimeDB with `__pb_schema` hints      |
 
-## 2. 命名与语义规范 (Naming & Semantics)
+## 2. Naming & Semantics
 
-通过后缀明确消息的生命周期：
+Use suffixes to clarify the lifecycle and intent of a message:
 
-- **`...State`**: 持久化存储对象。代表“事实”，存入数据库。
-- **`...Request`**: **指令模型 (Command Model)**。代表“意图”，作为 Reducer 输入。
-- **`...Response`**: 结果反馈。
-- **`...Event`**: 异步通知。用于流式数据或临时总线。
+- **`...State`**: Persistent storage objects. Represents "Fact". Stored in DB `byteArray` columns.
+- **`...Params`**: Command parameters. Represents "Intent". Used as input for Reducers or Action execution.
+- **`...Request`**: High-level RPC/Service commands.
+- **`...Response`**: Synchronous feedback from a service.
+- **`...Event`**: Asynchronous notification. Used for streaming or ephemeral signaling.
 
-## 3. 指令模型与元数据组合 (Mutation Pattern)
+## 3. Polymorphism with `oneof`
 
-为了实现类似“继承”的特征，所有改变图状态的指令必须包含 `MutationMetadata`：
+To handle diverse node types efficiently, use the `oneof` pattern in `NodeData`:
 
 ```proto
-// 在 core/base.proto 定义
-message MutationMetadata {
-  string origin_task_id = 1; // 溯源 ID
-  int64 timestamp = 2;
-  MutationSource source = 3;
-}
-
-// 具体指令实现
-message AddNodeRequest {
-  MutationMetadata metadata = 1; // 必须放在 1 号位
-  Node node = 2;
+message NodeData {
+  // ... common fields
+  oneof extension {
+    ChatNodeState chat = 51;
+    AiGenNodeState ai_gen = 52;
+    VisualNodeState visual = 53;
+  }
 }
 ```
 
-## 4. RJSF 映射策略 (RJSF Strategy)
+**Guideline**: Always include an `extension` in `NodeData` for specific business logic. In the Frontend, this enables **Discriminated Union** narrowing for perfect type inference.
 
-为了保证 `react-jsonschema-form` 生成的 UI 易用且直观：
+## 4. UI Rendering (RJSF) Integration
 
-- **扁平化设计**：业务配置字段尽量保持扁平。嵌套层级超过 3 层会导致 UI 极其混乱。
-- **强类型优先**：尽量避免使用 `google.protobuf.Struct`。如果字段类型固定（如 Slider 的数值），应在 `extension` 中使用显式类型。
-- **默认值占位**：所有 Enum 必须有 `_UNSPECIFIED = 0`，防止 RJSF 默认选中错误的业务选项。
+For messages used to generate UI via `react-jsonschema-form`:
 
-## 5. 目录与包名规范 (Organization)
+- **Flattened Design**: Keep configuration fields shallow. Nesting beyond 3 levels degrades UI usability.
+- **Strong Typing**: Avoid `google.protobuf.Struct` where possible. Use explicit types in `oneof` branches.
+- **Enum Safety**: Every Enum MUST have an `_UNSPECIFIED = 0` value to prevent RJSF from defaulting to a valid but unintended business option.
 
-- **语义路径**：`core/` (基础), `nodes/` (节点状态), `actions/` (执行参数), `services/` (通讯)。
-- **点号包名**：`package flowcraft.v1.[module];` 必须与物理路径对应。
-- **显式导入**：必须从根目录开始导入，如 `import "flowcraft/v1/core/base.proto";`。
+## 5. Organization & Packages
 
-## 7. 前端开发最佳实践 (Frontend Patterns)
+- **Semantic Paths**: `core/` (foundation), `nodes/` (specific state), `actions/` (execution), `services/` (communication).
+- **Package Matching**: `package flowcraft.v1.[module];` must exactly match the physical directory structure.
+- **Absolute Imports**: Always import from the root: `import "flowcraft/v1/core/base.proto";`.
 
-### 7.1 纯粹消息传递 (Pure Message Passing)
+## 6. Implementation Standards
 
-系统已废弃 `Mutate` 包装工厂。现在直接使用生成的 Request 类构建指令，并依赖 Protobuf v2 的元数据进行自动映射。
+### 6.1 Strict Hydration
 
-**推荐用法：**
+When ingesting data from SpacetimeDB, always use Buf's `create(Schema, data)` utility.
 
-```typescript
-import { create as createProto } from "@bufbuild/protobuf";
-import { AddNodeRequestSchema, UpdateNodeRequestSchema } from "@/generated/flowcraft/v1/core/service_pb";
+- **Why**: Ensures that repeated fields (arrays) and maps are initialized correctly, avoiding runtime "undefined" errors.
 
-applyMutations([
-  createProto(AddNodeRequestSchema, { node: myNode }),
-  createProto(UpdateNodeRequestSchema, { nodeId: "n1", presentation: { width: 100 } }),
-]);
-```
+### 6.2 Standardized Serialization
 
-**优势：**
+- Use `toJsonString(Schema, message)` for persisting PB data into string-based columns or logs.
+- Use `fromJsonString(Schema, json)` for parsing.
+- Avoid raw `JSON.stringify` on Protobuf objects as it fails to handle `int64` (BigInt) and specific field naming conventions correctly.
 
-1. **零逻辑包装**：不再需要维护手写的映射函数，完全由元数据驱动。
-2. **原生类型收窄**：利用 `switch (input.$typeName)` 即可获得完美的 TypeScript 详尽性检查。
-3. **透明序列化**：通过 `SchemaRegistry` 自动实现日志审计和网络同步。
+### 6.3 State Mutation Patterns
+
+- **Low-level changes** (Position, Name, simple data fields): Use the **Immer Patch Pipeline** via `applyMutations(recipe)`.
+- **High-level commands** (Execute AI, Subgraph operations): Use specialized Reducers/RPCs with `...Request` messages.
+
+## 7. Quality Metrics
+
+- **Zero `any`**: All message handling must be strictly typed via generated TS files.
+- **English Only**: All comments, field names, and documentation must be in English.
+- **Fail-Fast**: If a message fails schema validation or mapping, throw an explicit `Error`. Never allow silent fallbacks.

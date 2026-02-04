@@ -27,14 +27,12 @@ The core is a dynamic node-based editor built with `@xyflow/react` using a decou
 
 ### `DynamicNode` System
 
-Nodes are driven by backend JSON and rendered using a modular architecture.
+Nodes are driven by backend Protobuf schemas and rendered using a modular architecture.
 
-- **`BaseNode`**: Manages the core container, padding, and the switching logic between modes. Enforces `border-radius: 8px` and ensures content clipping.
+- **`NodeShell` (Foundation)**: Manages the core container, padding, and provides node identity via **`NodeProvider` (Context API)**. This eliminates `nodeId` prop-drilling for all internal components.
+- **Viewport-Driven Hydration**: Implements lazy-rendering for complex node contents using `IntersectionObserver`. Node frames are rendered immediately to maintain graph topology, while expensive children are only hydrated when entering the viewport.
 - **Modular Renderers**: Specific logic for different media types is encapsulated in standalone components (Image, Video, Markdown, etc.).
-- **`GalleryWrapper`**: A reusable container that provides the "Pyramid" expansion logic and right-click context menus for both image and video galleries.
-- **`withNodeHandlers` HOC**: Wraps nodes to provide standard handles and resizers.
-  - **Selected Visuals**: Uses a fixed `1px` border and a soft blue outer glow (`box-shadow`) to indicate selection without causing layout shifts.
-  - **Dynamic Min-Height**: Automatically calculates the required height based on port counts and widget lists to prevent clipping during resize.
+- **`useNodeProperty` Hook**: Provides declarative, two-way binding for specific node data fields, abstracting away the sync pipeline.
 
 ### Port & Connection Logic
 
@@ -42,40 +40,37 @@ The system implements a strict, semantic port system.
 
 - **Port Validators**: Connection rules are decoupled into strategies:
   - `StandardValidator`: Single-input, exact type match.
-  - `CollectionValidator`: Multiple-inputs, supports "Auto-boxing" (connecting a single element to a List/Set port).
+  - `CollectionValidator`: Multiple-inputs, supports "Auto-boxing".
   - `AnyValidator`: Single-input, accepts any data type.
-- **Dynamic Guarding**: Real-time feedback during connection dragging:
-  - Incompatible ports (wrong type, same side, or full capacity) are dimmed (opacity `0.15`) and grayscale-filtered.
-  - `pointer-events` and `isConnectable` are disabled for invalid targets to prevent accidental snapping.
+- **Dynamic Guarding**: Real-time feedback during connection dragging with visual dimming and grayscale filters for incompatible targets.
 
 ## Communication & State
 
+### Unified Mutation Pipeline (Immer Patches)
+
+The system utilizes a modern, patch-based architecture for all state changes:
+
+- **ID-Based Master State**: The store maintains nodes and edges in `nodesById` and `edgesById` maps (`Record<string, T>`). This ensures O(1) access and stable, ID-driven patch paths.
+- **Automated Patch Generation**: All changes are applied via `applyMutations(recipe)`. Using Immer's `produceWithPatches`, the system automatically generates fine-grained `patches` (for sync) and `inversePatches` (for undo).
+- **Middleware Pipeline**: Mutations flow through a sequence of middlewares:
+  - **`HistoryMiddleware`**: Captures inverse patches for the undo stack.
+  - **`TaskMiddleware`**: Logs mutations against active background tasks.
+  - **`SyncMiddleware`**: Translates patches into SpacetimeDB Reducer calls.
+
+### Mirror Repository Synchronization
+
+Synchronization is handled as a reconciliation process between the local store and remote tables:
+
+- **`GraphMapper`**: Centralized logic for converting between SpacetimeDB Rows and Frontend Domain Objects.
+- **Atomic Reconciliation**: `useGraphSync` performs O(N) diffing between remote tables and `nodesById`, ensuring high performance even with thousands of nodes.
+- **Conflict Isolation**: Remote updates are ignored for nodes currently being interacted with (`isInteracting`) to prevent UI flickering.
+
 ### Unified Protocol (Protobuf v2)
 
-The system utilizes a pure generic and type-guarded architecture based on Protobuf v2:
-
-- **Direct Message Passing**: Instead of wrapping every operation in a generic "Envelope", the frontend dispatches raw Request messages (e.g., `AddNodeRequest`, `UpdateNodeRequest`) directly to the store and backend.
-- **Hierarchical Packages**: All Protobuf definitions are organized into hierarchical namespaces (e.g., `flowcraft.v1.core`, `flowcraft.v1.services`), ensuring a scalable and collision-free schema.
-- **Type Narrowing**: Uses native TypeScript Discriminated Unions via the Protobuf `$typeName` field. Reducers and handlers use `switch (input.$typeName)` for efficient, type-safe processing without redundant casting.
-
-### State Management & Synchronization
-
-- **`flowStore` (Zustand + SpacetimeDB)**: The central store managing UI state.
-  - **SpacetimeDB** is the authoritative Source of Truth for Nodes, Edges, and Tasks.
-  - **Atomic Mutations**: Local changes are applied via `applyMutations`, which routes requests through a middleware pipeline (logging, validation) before updating local state and dispatching to SpacetimeDB.
-  - **Fail-Fast Policy**: Any inconsistency in metadata mappings or illegal Protobuf states results in immediate explicit errors to prevent silent data corruption.
-- **Event Bus**: Centralized event bus in `flowStore` for signals like `open-preview` or `open-editor`. **All event names must be defined in a centralized Enum.** Uses a `timestamp` approach to prevent cascading renders in React 19.
-
-### Task System & Optimistic UI
-
-Tracks the lifecycle of long-running operations (`pending` -> `processing` -> `completed`). Uses streaming updates to drive a live progress bar in `ProcessingNode`.
-
-### Layout Engines
-
-- **Global Auto Layout**: Uses `dagre` with a Left-to-Right (`LR`) orientation.
-- **Copy/Paste/Duplicate**: Supports subgraph cloning with ID remapping and relative position offsetting.
+- **Strict Typing**: Uses native TypeScript Discriminated Unions for `AppNode` sub-types.
+- **Standard Serialization**: Uses Buf's `toJsonString` and `fromJsonString` for all message persistence (e.g., `parts_json`), ensuring strict compliance with Protobuf specs.
 
 ## Persistence & Quality
 
-- **Zundo**: Provides high-performance undo/redo.
-- **Code Quality**: Strict ESLint rules, Prettier formatting, and full TypeScript integration with Protobuf-generated types (zero `any` goal).
+- **Zustand**: Global state management with custom history middleware.
+- **Code Quality**: Strict ESLint rules, English-only comments, and full TypeScript integration with Zero-`any` goal.

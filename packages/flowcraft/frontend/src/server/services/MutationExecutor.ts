@@ -14,7 +14,6 @@ export function executeMutation(mut: GraphMutation, graph: { edges: Edge[]; node
       // Logic for adding subgraph
       break;
     }
-    // ... other cases ...
     case "pathUpdate": {
       const input = op.value;
       const node = graph.nodes.find((n) => n.id === input.targetId);
@@ -47,8 +46,8 @@ export function executeMutation(mut: GraphMutation, graph: { edges: Edge[]; node
 }
 
 /**
- * 递归解析路径并应用修改。
- * 支持 snake_case 和 camelCase。
+ * Recursively parse path and apply modifications.
+ * Supports snake_case and camelCase.
  */
 function resolveAndApplyPath(target: any, path: string, value: any, type: PathUpdateRequest_UpdateType) {
   const parts = path.split(".");
@@ -56,7 +55,7 @@ function resolveAndApplyPath(target: any, path: string, value: any, type: PathUp
 
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i]!;
-    // 兼容层：查找对应的 JS 属性名
+    // Compatibility layer: find the corresponding JS property name
     const key =
       Object.keys(current).find((k) => k === part || k.replace(/([A-Z])/g, "_$1").toLowerCase() === part) || part;
 

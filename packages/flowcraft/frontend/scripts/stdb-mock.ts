@@ -1,8 +1,8 @@
 import { createRequire } from "module";
 
 /**
- * 核心：支持链式调用的类型描述符 Mock
- * 增加 __ts_type 用于在生成代码时还原 TypeScript 类型
+ * Core: Mock type descriptors that support chained calls
+ * Added __ts_type to restore TypeScript types when generating code
  */
 const createTypeMock = (kind: string, tsType: string, name?: string) => {
   const mock: any = {
@@ -10,6 +10,7 @@ const createTypeMock = (kind: string, tsType: string, name?: string) => {
     __st_name: name,
     __ts_type: tsType,
     autoIncrement: () => mock,
+    index: () => mock,
     indexed: () => mock,
     name: name, // For generate-pb-client compatibility
     primaryKey: () => mock,
@@ -67,7 +68,7 @@ export function setupStdbMock(capturedTables: any[]) {
         {
           get: (_target, prop: string) => {
             if (prop === "__esModule") return true;
-            // 默认认为从 schema 导出的都是 object
+            // By default, everything exported from the schema is considered an object
             return createTypeMock("object", prop, prop);
           },
         },

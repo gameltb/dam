@@ -1,0 +1,93 @@
+{
+  "$id": "flowcraft.v1.core.MediaContent.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^(aspectRatio)$": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "enum": [
+            "Infinity",
+            "-Infinity",
+            "NaN"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "default": 0
+    },
+    "^(galleryUrls)$": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "properties": {
+    "aspect_ratio": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "enum": [
+            "Infinity",
+            "-Infinity",
+            "NaN"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "default": 0
+    },
+    "content": {
+      "default": "",
+      "type": "string"
+    },
+    "gallery_urls": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "type": {
+      "anyOf": [
+        {
+          "pattern": "^MEDIA_UNSPECIFIED$",
+          "type": "string"
+        },
+        {
+          "enum": [
+            "MEDIA_IMAGE",
+            "MEDIA_VIDEO",
+            "MEDIA_AUDIO",
+            "MEDIA_MARKDOWN"
+          ],
+          "type": "string"
+        },
+        {
+          "maximum": 2147483647,
+          "minimum": -2147483648,
+          "type": "integer"
+        }
+      ],
+      "default": 0,
+      "title": "Media Type"
+    },
+    "url": {
+      "default": "",
+      "type": "string"
+    }
+  },
+  "title": "Media Content",
+  "type": "object"
+}

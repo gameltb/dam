@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package flowcraft.v1.nodes;
+
+/**
+ * Represents a node that produces streaming text chunks for debugging.
+ */
+message StreamNodeState {
+  string output_widget_id = 1;
+}

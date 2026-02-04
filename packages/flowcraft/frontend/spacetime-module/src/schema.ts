@@ -1,21 +1,25 @@
 import { type InferSchema, schema } from "spacetimedb/server";
 
-import { edges, nodes, viewportState } from "./tables/base";
+import { nodeSignals, operationLogs, taskAuditLog } from "./tables/audit";
 import { chatMessages, chatStreams } from "./tables/chat";
-import { inferenceConfig, nodeTemplates } from "./tables/config";
-import { nodeRuntimeStates } from "./tables/runtime";
 import {
-  clientTaskAssignments,
-  nodeSignals,
-  operationLogs,
-  taskAuditLog,
-  tasks,
+  edges,
+  nodeData,
+  nodeMetadata,
+  nodes,
+  nodeTransforms,
+  nodeUiState,
+  viewportState,
   widgetValues,
-  workers,
-} from "./tables/task";
+} from "./tables/core";
+import { clientTaskAssignments, nodeRuntimeStates, tasks, workers } from "./tables/kernel";
+import { inferenceConfig, nodeTemplates } from "./tables/registry";
 
 export const spacetimedb = schema(
   nodes,
+  nodeTransforms,
+  nodeMetadata,
+  nodeData,
   edges,
   viewportState,
   chatMessages,
@@ -25,6 +29,7 @@ export const spacetimedb = schema(
   taskAuditLog,
   nodeSignals,
   widgetValues,
+  nodeUiState,
   clientTaskAssignments,
   nodeTemplates,
   inferenceConfig,

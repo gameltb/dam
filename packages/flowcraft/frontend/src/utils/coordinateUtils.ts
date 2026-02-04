@@ -3,15 +3,24 @@ import { type XYPosition } from "@xyflow/react";
 import { type AppNode } from "@/types";
 
 /**
- * 将全局坐标转换为相对于指定父级的局部坐标
+ * Converts global coordinates to local coordinates relative to a specified parent.
  */
-export function globalToLocal(globalPos: XYPosition, newParentId: null | string, allNodes: AppNode[]): XYPosition {
+export function globalToLocal(
+  globalPos: XYPosition,
+  newParentId: null | string,
+  nodesById: Record<string, AppNode>,
+  visited = new Set<string>(),
+): XYPosition {
   if (!newParentId) return globalPos;
+  if (visited.has(newParentId)) return globalPos;
+  visited.add(newParentId);
 
-  const parent = allNodes.find((n) => n.id === newParentId);
-  if (!parent) return globalPos;
+  const parent = nodesById[newParentId];
+  if (!parent) {
+    return globalPos;
+  }
 
-  const parentGlobalPos = localToGlobal(parent.position, parent.parentId || null, allNodes);
+  const parentGlobalPos = localToGlobal(parent.position, parent.parentId || null, nodesById, visited);
 
   return {
     x: globalPos.x - parentGlobalPos.x,
@@ -20,16 +29,25 @@ export function globalToLocal(globalPos: XYPosition, newParentId: null | string,
 }
 
 /**
- * 将局部坐标（相对于父级）转换为全局坐标
+ * Converts local coordinates (relative to parent) to global coordinates.
  */
-export function localToGlobal(localPos: XYPosition, parentId: null | string, allNodes: AppNode[]): XYPosition {
+export function localToGlobal(
+  localPos: XYPosition,
+  parentId: null | string,
+  nodesById: Record<string, AppNode>,
+  visited = new Set<string>(),
+): XYPosition {
   if (!parentId) return localPos;
+  if (visited.has(parentId)) return localPos;
+  visited.add(parentId);
 
-  const parent = allNodes.find((n) => n.id === parentId);
-  if (!parent) return localPos;
+  const parent = nodesById[parentId];
+  if (!parent) {
+    return localPos;
+  }
 
-  // 递归计算
-  const parentGlobalPos = localToGlobal(parent.position, parent.parentId || null, allNodes);
+  // Recursive calculation
+  const parentGlobalPos = localToGlobal(parent.position, parent.parentId || null, nodesById, visited);
 
   return {
     x: parentGlobalPos.x + localPos.x,

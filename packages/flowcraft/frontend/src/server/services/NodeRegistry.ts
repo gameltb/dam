@@ -1,3 +1,5 @@
+import { type DescMessage } from "@bufbuild/protobuf";
+
 import { type ActionExecutionRequest, type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
 import { type TaskUpdate } from "@/generated/flowcraft/v1/core/kernel_pb";
 import { type NodeTemplate } from "@/generated/flowcraft/v1/core/node_pb";
@@ -21,7 +23,7 @@ export interface ActionHandlerContext {
 }
 
 import { NodeInstance } from "./NodeInstance";
-// ... (imports)
+
 export interface NodeDefinition {
   actions?: ActionTemplate[];
   /**
@@ -29,6 +31,11 @@ export interface NodeDefinition {
    */
   createInstance?: (nodeId: string) => NodeInstance;
   execute?: (ctx: NodeExecutionContext) => Promise<void>;
+  /**
+   * Protobuf Schema descriptor for this node's state.
+   * Its typeName will be used as the primary key.
+   */
+  schema: DescMessage;
   template: NodeTemplate;
 }
 
@@ -52,16 +59,16 @@ class NodeRegistryImpl {
     return this.actionHandlers.get(actionId);
   }
 
-  getActionsForNode(templateId: string): ActionTemplate[] {
-    return this.definitions.get(templateId)?.actions ?? [];
+  getActionsForNode(typeName: string): ActionTemplate[] {
+    return this.definitions.get(typeName)?.actions ?? [];
   }
 
-  getDefinition(templateId: string) {
-    return this.definitions.get(templateId);
+  getDefinition(typeName: string) {
+    return this.definitions.get(typeName);
   }
 
-  getExecutor(templateId: string) {
-    return this.definitions.get(templateId)?.execute;
+  getExecutor(typeName: string) {
+    return this.definitions.get(typeName)?.execute;
   }
 
   getGlobalActions(): ActionTemplate[] {
@@ -73,15 +80,18 @@ class NodeRegistryImpl {
   }
 
   /**
-   * 注册一个节点定义
+   * Register a node definition.
+   * The template.templateId will be automatically forced to schema.typeName.
    */
   register(def: NodeDefinition) {
-    this.definitions.set(def.template.templateId, def);
+    const typeName = def.schema.typeName;
+    def.template.templateId = typeName;
+    this.definitions.set(typeName, def);
     return this;
   }
 
   /**
-   * 注册一个全局动作
+   * Registers a global action.
    */
   registerGlobalAction(template: ActionTemplate, handler?: ActionHandler) {
     this.globalActions.set(template.id, template);

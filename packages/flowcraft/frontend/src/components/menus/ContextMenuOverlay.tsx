@@ -31,6 +31,7 @@ interface Props {
   onDuplicate: () => void;
   onEnterScope: (id: string) => void;
   onExecuteAction: (a: ActionTemplate) => void;
+  onExportBranch?: (nodeIds: string[]) => void;
   onGroup: () => void;
   onOpenEditor: (id: string) => void;
   onPaste: () => void;
@@ -40,6 +41,11 @@ interface Props {
 export const ContextMenuOverlay: React.FC<Props> = (props) => {
   if (!props.contextMenu) return null;
   const { contextMenu, edges, nodes } = props;
+
+  const selectedNodeIds = nodes.filter((n) => n.selected).map((n) => n.id);
+  if (contextMenu.nodeId && !selectedNodeIds.includes(contextMenu.nodeId)) {
+    selectedNodeIds.push(contextMenu.nodeId);
+  }
 
   return (
     <>
@@ -85,6 +91,10 @@ export const ContextMenuOverlay: React.FC<Props> = (props) => {
           onDuplicate={props.onDuplicate}
           onEnterScope={() => {
             props.onEnterScope(contextMenu.nodeId ?? "");
+          }}
+          onExportBranch={() => {
+            props.onExportBranch?.(selectedNodeIds);
+            props.onClose();
           }}
           onFocus={() => {
             /* empty */

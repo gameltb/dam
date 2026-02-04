@@ -48,7 +48,7 @@ export const FlowServiceImpl: ServiceImpl<typeof FlowService> = {
 
   async executeAction(req) {
     if (req.params.case) {
-      runAction(req.actionId, req.sourceNodeId, req.params.value as any);
+      runAction(req.actionId, req.sourceNodeId, req.params.value as unknown);
     }
     return {};
   },

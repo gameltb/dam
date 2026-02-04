@@ -1,57 +1,108 @@
-import { Handle, type NodeProps, Position } from "@xyflow/react";
-import { memo } from "react";
-import ReactMarkdown from "react-markdown";
+import { Handle, type NodeProps, NodeResizer, Position } from "@xyflow/react";
+import { memo, useCallback, useMemo } from "react";
 
-import { partsToText } from "@/components/media/chat/utils";
+import { useNodeMutation } from "@/hooks/nodes/useNodeMutation";
+import { useSyncedBinding } from "@/hooks/core/useSyncedBinding";
+import { useUiProperty } from "@/hooks/core/useUiProperty";
 import { cn } from "@/lib/utils";
+import { useUiStore } from "@/store/uiStore";
+import { NodeLenses } from "@/utils/lenses";
 
-export const ChatMessageNode = memo(({ data, selected }: NodeProps<any>) => {
+import { NodeShell } from "../base/NodeShell";
+import { MarkdownRenderer } from "../media/MarkdownRenderer";
+import { NodeJumpOverlay } from "./parts/NodeJumpOverlay";
+
+export const ChatMessageNode = memo(({ data, id, selected }: NodeProps<any>) => {
   const { metadata } = data;
   const role = metadata?.role || "unknown";
-  const partsJson = metadata?.parts_json;
   const createdAtStr = metadata?.timestamp || Date.now().toString();
 
-  const isUser = role === "user";
-  let content = "No content";
+  const [isEditing, setIsEditing] = useUiProperty(id, "isEditing", false);
+  const { updateLayout } = useNodeMutation(id);
 
-  try {
-    if (partsJson) {
-      const parts = JSON.parse(partsJson);
-      content = partsToText(parts);
-    }
-  } catch (e) {
-    console.error("Failed to parse message parts", e);
-  }
+  // Bidirectional binding: message content
+  const [content, setContent] = useSyncedBinding(useMemo(() => NodeLenses.messageContent(id), [id]));
+
+  const isUser = role === "user";
+  const setNavigatingNode = useUiStore((s) => s.setNavigatingNode);
+  const resetNavigatingNode = useUiStore((s) => s.resetNavigatingNode);
+
+  const handleResizeEnd = useCallback(
+    (_: any, params: { height: number; width: number }) => {
+      updateLayout({ height: params.height, width: params.width });
+    },
+    [updateLayout],
+  );
 
   return (
     <div
-      className={cn(
-        "px-4 py-3 rounded-lg border-2 min-w-[200px] max-w-[300px] shadow-sm transition-all bg-background",
-        selected ? "border-primary ring-2 ring-primary/20" : "border-node-border",
-        isUser ? "bg-primary/5" : "bg-muted/30",
-      )}
+      className="group/node relative h-full w-full"
+      onMouseEnter={(e) => {
+        setNavigatingNode(id);
+        useUiStore.getState().setLastMousePos({ x: e.clientX, y: e.clientY });
+      }}
+      onMouseLeave={() => {
+        resetNavigatingNode(id);
+      }}
     >
-      <Handle className="!w-2 !h-2 !bg-primary-color" position={Position.Top} type="target" />
+      <NodeJumpOverlay id={id} isEditing={isEditing} />
 
-      <div className="flex flex-col gap-1">
-        <div className="flex justify-between items-center mb-1">
-          <span
-            className={cn(
-              "text-[10px] font-bold uppercase px-1.5 py-0.5 rounded",
-              isUser ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground",
-            )}
-          >
-            {role}
-          </span>
-          <span className="text-[9px] opacity-40">{new Date(Number(createdAtStr)).toLocaleTimeString()}</span>
+      <NodeShell
+        autoHeight={!data.presentation?.height}
+        className={cn("min-w-[250px]", isUser ? "bg-primary/10" : "bg-card")}
+        nodeId={id}
+        onDoubleClick={() => {
+          setIsEditing(true);
+        }}
+        selected={selected}
+      >
+        <NodeResizer
+          color="var(--primary-color)"
+          handleStyle={{
+            backgroundColor: "var(--primary-color)",
+            border: "2px solid white",
+            borderRadius: "50%",
+            height: 10,
+            width: 10,
+          }}
+          isVisible={selected}
+          minHeight={100}
+          minWidth={250}
+          onResizeEnd={handleResizeEnd}
+        />
+
+        <Handle className="!w-2 !h-2 !bg-primary-color" position={Position.Top} type="target" />
+
+        <div className="flex flex-col gap-1 flex-1 px-4 pt-3 pb-4 h-full">
+          <div className="flex justify-between items-center mb-1">
+            <span
+              className={cn(
+                "text-[10px] font-bold uppercase px-1.5 py-0.5 rounded",
+                isUser ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground",
+              )}
+            >
+              {role}
+            </span>
+            <span className="text-[9px] opacity-40">{new Date(Number(createdAtStr)).toLocaleTimeString()}</span>
+          </div>
+
+          <div className="flex-1 overflow-auto">
+            <MarkdownRenderer
+              content={content || ""}
+              isEditing={isEditing}
+              onEdit={setContent}
+              onToggleEditing={setIsEditing}
+            />
+          </div>
         </div>
 
-        <div className="text-xs prose prose-invert max-h-[200px] overflow-y-auto scrollbar-none break-words">
-          <ReactMarkdown>{content}</ReactMarkdown>
-        </div>
-      </div>
-
-      <Handle className="!w-2 !h-2 !bg-primary-color" position={Position.Bottom} type="source" />
+        <Handle
+          className="!w-2 !h-2 !bg-primary-color"
+          position={Position.Bottom}
+          style={{ bottom: -5 }}
+          type="source"
+        />
+      </NodeShell>
     </div>
   );
 });

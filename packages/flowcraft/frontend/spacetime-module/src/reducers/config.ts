@@ -1,32 +1,28 @@
 import { type ReducerCtx, t } from "spacetimedb/server";
 
-import { type NodeTemplate, NodeTemplateSchema } from "../generated/flowcraft/v1/core/node_pb";
-import {
-  InferenceConfigDiscoveryResponseSchema,
-  type InferenceConfigDiscoveryResponse as ProtoInferenceConfigDiscoveryResponse,
-} from "../generated/flowcraft/v1/core/service_pb";
-import {
-  services_InferenceConfigDiscoveryResponse as StdbInferenceConfigDiscoveryResponse,
-  core_NodeTemplate as StdbNodeTemplate,
-} from "../generated/generated_schema";
-import { pbToStdb } from "../generated/proto-stdb-bridge";
+import { NodeTemplateSchema } from "../generated/flowcraft/v1/core/node_pb";
+import { InferenceConfigDiscoveryResponseSchema } from "../generated/flowcraft/v1/core/service_pb";
 import { type AppSchema } from "../schema";
+
+const ConfigArg = InferenceConfigDiscoveryResponseSchema;
 
 export const configReducers = {
   register_template: {
     args: { template: NodeTemplateSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { template }: { template: NodeTemplate }) => {
+    handler: (
+      ctx: ReducerCtx<AppSchema>,
+      { template, templateBinary }: { template: any; templateBinary: Uint8Array },
+    ) => {
       const existing = ctx.db.nodeTemplates.templateId.find(template.templateId);
-      const stdbState = pbToStdb(NodeTemplateSchema, StdbNodeTemplate, template) as StdbNodeTemplate;
 
       if (existing) {
         ctx.db.nodeTemplates.templateId.update({
-          state: stdbState,
+          state: templateBinary,
           templateId: template.templateId,
         });
       } else {
         ctx.db.nodeTemplates.insert({
-          state: stdbState,
+          state: templateBinary,
           templateId: template.templateId,
         });
       }
@@ -34,24 +30,16 @@ export const configReducers = {
   },
 
   update_inference_config: {
-    args: {
-      config: InferenceConfigDiscoveryResponseSchema,
-      configId: t.string(),
-    },
+    args: { config: ConfigArg, configId: t.string() },
     handler: (
       ctx: ReducerCtx<AppSchema>,
-      { config, configId }: { config: ProtoInferenceConfigDiscoveryResponse; configId: string },
+      { configBinary, configId }: { configBinary: Uint8Array; configId: string },
     ) => {
       const existing = ctx.db.inferenceConfig.configId.find(configId);
-      const stdbState = pbToStdb(
-        InferenceConfigDiscoveryResponseSchema,
-        StdbInferenceConfigDiscoveryResponse,
-        config,
-      ) as StdbInferenceConfigDiscoveryResponse;
 
       const record = {
         configId: configId,
-        state: stdbState,
+        state: configBinary,
       };
       if (existing) {
         ctx.db.inferenceConfig.configId.update(record);

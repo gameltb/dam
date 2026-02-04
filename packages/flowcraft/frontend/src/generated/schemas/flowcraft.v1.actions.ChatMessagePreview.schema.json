@@ -1,0 +1,19 @@
+{
+  "$id": "flowcraft.v1.actions.ChatMessagePreview.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "parts": {
+      "items": {
+        "$ref": "flowcraft.v1.actions.ChatMessagePart.schema.json"
+      },
+      "type": "array"
+    },
+    "role": {
+      "default": "",
+      "type": "string"
+    }
+  },
+  "title": "Chat Message Preview",
+  "type": "object"
+}

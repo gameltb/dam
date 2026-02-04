@@ -1,0 +1,55 @@
+{
+  "$id": "flowcraft.v1.actions.ChatActionParams.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^(endpointId)$": {
+      "default": "",
+      "type": "string"
+    },
+    "^(historyOverride)$": {
+      "items": {
+        "$ref": "flowcraft.v1.actions.ChatMessagePreview.schema.json"
+      },
+      "type": "array"
+    },
+    "^(modelId)$": {
+      "default": "",
+      "type": "string"
+    },
+    "^(useWebSearch)$": {
+      "default": false,
+      "type": "boolean"
+    },
+    "^(userContent)$": {
+      "default": "",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "endpoint_id": {
+      "default": "",
+      "type": "string"
+    },
+    "history_override": {
+      "items": {
+        "$ref": "flowcraft.v1.actions.ChatMessagePreview.schema.json"
+      },
+      "type": "array"
+    },
+    "model_id": {
+      "default": "",
+      "type": "string"
+    },
+    "use_web_search": {
+      "default": false,
+      "type": "boolean"
+    },
+    "user_content": {
+      "default": "",
+      "type": "string"
+    }
+  },
+  "title": "Chat Action Params",
+  "type": "object"
+}

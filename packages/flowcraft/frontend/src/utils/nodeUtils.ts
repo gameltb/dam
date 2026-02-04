@@ -1,7 +1,8 @@
 import { create } from "@bufbuild/protobuf";
+import { type Edge } from "@xyflow/react";
 
 import { MediaType, NodeKind, PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
-import { PortStyle, PortTypeSchema, RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
+import { PortStyle, PortTypeSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import { type AppNode, AppNodeType, type ClientPort, isDynamicNode } from "@/types";
 
 export const PORT_MAIN_TYPE_TO_PROTO: Record<string, PortMainType> = {
@@ -38,6 +39,95 @@ export const KIND_TO_NODE_TYPE: Record<number, AppNodeType> = {
   [NodeKind.PROCESS]: AppNodeType.PROCESSING,
   [NodeKind.UNSPECIFIED]: AppNodeType.DYNAMIC,
 };
+
+export function calculateNodeRelations(
+  nodes: AppNode[],
+  edges: Edge[],
+): Record<
+  string,
+  {
+    firstChildId?: string;
+
+    left?: string;
+
+    nextSiblingId?: string;
+
+    parentId?: string;
+
+    prevSiblingId?: string;
+
+    right?: string;
+  }
+> {
+  const relations: Record<
+    string,
+    {
+      firstChildId?: string;
+
+      left?: string;
+
+      nextSiblingId?: string;
+
+      parentId?: string;
+
+      prevSiblingId?: string;
+
+      right?: string;
+    }
+  > = {};
+
+  // 1. Initialize containers for all nodes
+
+  nodes.forEach((n) => {
+    relations[n.id] = {
+      parentId: n.parentId || undefined,
+    };
+  });
+
+  // 2. Establish logical left/right relations (based on edges)
+
+  edges.forEach((e) => {
+    if (relations[e.source]) relations[e.source]!.right = e.target;
+
+    if (relations[e.target]) relations[e.target]!.left = e.source;
+  });
+
+  // 3. Establish hierarchical relations (drill-down/up)
+
+  // Find the first child for each parent
+
+  nodes.forEach((n) => {
+    if (n.parentId && relations[n.parentId]) {
+      if (!relations[n.parentId]!.firstChildId) {
+        relations[n.parentId]!.firstChildId = n.id;
+      }
+    }
+  });
+
+  // 4. Establish sibling relations at the same level
+
+  const nodesByParent: Record<string, string[]> = {};
+
+  nodes.forEach((n) => {
+    const pId = n.parentId || "root";
+
+    if (!nodesByParent[pId]) nodesByParent[pId] = [];
+
+    nodesByParent[pId].push(n.id);
+  });
+
+  Object.values(nodesByParent).forEach((childrenIds) => {
+    for (let i = 0; i < childrenIds.length; i++) {
+      const current = childrenIds[i]!;
+
+      if (i > 0) relations[current]!.prevSiblingId = childrenIds[i - 1];
+
+      if (i < childrenIds.length - 1) relations[current]!.nextSiblingId = childrenIds[i + 1];
+    }
+  });
+
+  return relations;
+}
 
 /**
  * Dehydrates a node by ensuring it only contains serializable data.
@@ -107,23 +197,11 @@ export function getMediaTypeFromMime(mimeType?: string): MediaType {
 }
 
 /**
- * Legacy hydration function (kept for backward compatibility during refactor if needed, but empty).
- * In the new architecture, we don't modify node objects with functions.
+ * Calculates direct hierarchical relations between nodes (Jump relations)
  */
-export function hydrateNodes(nodes: AppNode[]): AppNode[] {
-  return nodes;
-}
-
 export function mapToMediaType(val?: number | string): MediaType {
   if (val === undefined) return MediaType.MEDIA_UNSPECIFIED;
   if (typeof val === "number") return val as MediaType;
   const key = val as keyof typeof MediaType;
   return MediaType[key];
-}
-
-export function mapToRenderMode(val?: number | string): RenderMode {
-  if (val === undefined) return RenderMode.MODE_UNSPECIFIED;
-  if (typeof val === "number") return val as RenderMode;
-  const key = val as keyof typeof RenderMode;
-  return RenderMode[key];
 }

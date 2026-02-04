@@ -2,9 +2,10 @@ import "./nodes/AiGenNode";
 import "./nodes/MediaNodes";
 import "./nodes/ChatNode";
 import "./nodes/StreamNode";
+import "./nodes/SubgraphProxyNode";
 import "./actions/AiEnhanceAction";
 import "./actions/AiTransformAction";
 import "./actions/PromptGenAction";
 
-// templates.ts 现在仅作为注册入口
-// 所有具体节点已迁移至 nodes/ 目录
+// templates.ts now serves only as a registration entry point
+// All specific nodes have been migrated to the nodes/ directory

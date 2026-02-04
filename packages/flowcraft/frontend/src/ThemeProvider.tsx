@@ -1,13 +1,14 @@
-import { type ReactNode, useEffect } from "react";
-
-import { useUiStore } from "@/store/uiStore";
+import React, { useEffect } from "react";
+import { useSettingsStore } from "@/store/ui/settingsStore";
+import { ThemeContext } from "@/contexts/ThemeContext";
 import { Theme } from "@/types";
 
-import { ThemeContext } from "./contexts/ThemeContext";
-
-const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const theme = useUiStore((s) => s.settings.theme);
-  const setSettings = useUiStore((s) => s.setSettings);
+/**
+ * ThemeProvider
+ * Manages the application's visual theme and persists it to SettingsStore.
+ */
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { theme, setSettings } = useSettingsStore();
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -21,7 +22,9 @@ const ThemeProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
 };
-
-export default ThemeProvider;

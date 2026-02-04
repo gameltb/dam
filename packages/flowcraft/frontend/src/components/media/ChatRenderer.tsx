@@ -1,7 +1,7 @@
 import { Send, Settings2 } from "lucide-react";
 import { memo } from "react";
 
-import { useSpacetimeChat } from "@/hooks/useSpacetimeChat";
+import { useSpacetimeChat } from "@/hooks/integration/useSpacetimeChat";
 import { useFlowStore } from "@/store/flowStore";
 import { type DynamicNodeData } from "@/types";
 
@@ -10,7 +10,7 @@ import { Button } from "../ui/button";
 import { ChatBot } from "./ChatBot";
 
 const ChatRendererComponent = ({ id }: { id: string }) => {
-  const node = useFlowStore((s) => s.allNodes.find((n) => n.id === id));
+  const node = useFlowStore((s) => s.nodesById[id]);
   const data = node?.data as DynamicNodeData | undefined;
   const treeId = data?.extension?.case === "chat" ? data.extension.value.treeId : undefined;
   const { messages } = useSpacetimeChat(treeId || id);
@@ -23,7 +23,7 @@ const ChatRendererComponent = ({ id }: { id: string }) => {
           <span className="text-[10px] font-bold uppercase">Chat Lens</span>
         </div>
         <div className="flex gap-1">
-          <Button className="h-6 w-6" size="icon" variant="ghost">
+          <Button aria-label="Chat Settings" className="h-6 w-6" size="icon" variant="ghost">
             <Settings2 size={14} />
           </Button>
         </div>

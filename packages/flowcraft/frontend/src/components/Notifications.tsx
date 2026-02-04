@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { useTheme } from "@/hooks/useTheme";
+import { useTheme } from "@/hooks/ux/useTheme";
 import { useNotificationStore } from "@/store/notificationStore";
 
 export function Notifications() {
@@ -26,7 +26,7 @@ export function Notifications() {
     position: "absolute",
     right: 10,
     top: 10,
-    transition: "all 0.2s ease",
+    transition: "background-color 0.2s ease, transform 0.2s ease",
     zIndex: 1000,
   };
 
@@ -91,6 +91,7 @@ export function Notifications() {
   return (
     <>
       <button
+        aria-label="Toggle notifications"
         onClick={() => {
           setIsOpen(true);
         }}
@@ -102,25 +103,27 @@ export function Notifications() {
         }}
         style={buttonStyle}
       >
-        <span>🔔</span>
+        <span aria-hidden="true">🔔</span>
         <span>History</span>
-        {notifications.length > 0 && (
-          <span
-            style={{
-              alignItems: "center",
-              backgroundColor: "#ff4d4f",
-              borderRadius: "10px",
-              color: "white",
-              display: "flex",
-              fontSize: "10px",
-              height: "16px",
-              justifyContent: "center",
-              padding: "0 6px",
-            }}
-          >
-            {notifications.length}
-          </span>
-        )}
+        <span aria-live="polite">
+          {notifications.length > 0 && (
+            <span
+              style={{
+                alignItems: "center",
+                backgroundColor: "#ff4d4f",
+                borderRadius: "10px",
+                color: "white",
+                display: "flex",
+                fontSize: "10px",
+                height: "16px",
+                justifyContent: "center",
+                padding: "0 6px",
+              }}
+            >
+              {notifications.length}
+            </span>
+          )}
+        </span>
       </button>
 
       <div

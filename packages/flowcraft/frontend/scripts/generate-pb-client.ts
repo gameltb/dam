@@ -5,19 +5,18 @@ import { loadConfig } from "./config-loader";
 import { setupStdbMock } from "./stdb-mock";
 
 /**
- * 职责：生成高度自动化的、元数据驱动的 PB 元数据文件。
- * 大部分逻辑已迁移至 src/utils/pb-client-utils.ts。
+ * Responsibility: Generate highly automated, metadata-driven PB metadata files.
+ * Most logic has been migrated to src/utils/pb-client-utils.ts.
  */
 async function main() {
   const config = loadConfig().pb_client;
   const OUTPUT_PATH = path.resolve("src/generated/pb_metadata.ts");
   const REDUCERS_DIR = path.resolve(config.reducers_dir);
-  const TABLES_DIR = path.resolve("spacetime-module/src/tables");
 
   const capturedTables: any[] = [];
   const cleanupMock = setupStdbMock(capturedTables);
 
-  // 1. 构建 PB 索引
+  // 1. Build PB index
   const pbRegistry = new Map<string, { importPath: string; schemaName: string }>();
   const scanProtoDir = (dir: string) => {
     if (!fs.existsSync(dir)) return;
@@ -42,7 +41,7 @@ async function main() {
   };
   scanProtoDir(path.resolve("src/generated/flowcraft"));
 
-  // 2. 加载 Reducer 定义
+  // 2. Load Reducer definitions
   const reducerFiles = fs.readdirSync(REDUCERS_DIR).filter((f) => f.endsWith(".ts"));
   const allReducers: Record<string, any> = {};
   for (const file of reducerFiles) {
@@ -51,18 +50,19 @@ async function main() {
     if (key) Object.assign(allReducers, mod[key]);
   }
 
+  const TABLES_DIR = path.resolve("spacetime-module/src/tables");
   if (fs.existsSync(TABLES_DIR)) {
     const tableFiles = fs.readdirSync(TABLES_DIR).filter((f) => f.endsWith(".ts"));
     for (const file of tableFiles) {
       try {
         await import(path.join(TABLES_DIR, file));
-      } catch {
-        // Ignore files that fail to load in Node context due to missing browser/stdb deps
+      } catch (e) {
+        console.warn(`Failed to import table file ${file}:`, e);
       }
     }
   }
 
-  // 3. 构建元数据和导入
+  // 3. Build metadata and imports
   const importGroups = new Map<string, Set<string>>();
   const addImport = (typeName: string) => {
     const entry = pbRegistry.get(typeName);
@@ -80,8 +80,15 @@ async function main() {
     const fields: string[] = [];
     for (const [rawArgName, argTypeObj] of Object.entries(args)) {
       const argType = argTypeObj as any;
-      if (argType && typeof argType === "object" && "name" in argType) {
-        const stName = String(argType.name);
+
+      let stName: string | undefined;
+      if (argType?.__pb_schema) {
+        stName = String(argType.__pb_schema);
+      } else if (argType && typeof argType === "object" && "name" in argType) {
+        stName = String(argType.name);
+      }
+
+      if (stName) {
         const matchName = pbRegistry.has(stName)
           ? stName
           : Array.from(pbRegistry.keys()).find((k) => stName.endsWith("_" + k));
@@ -102,8 +109,8 @@ ${fields.join(",\n")}
   for (const table of capturedTables) {
     for (const [colName, colType] of Object.entries(table.schema)) {
       const typeInfo = colType as any;
-      if (typeInfo?.__st_name) {
-        const stName = String(typeInfo.__st_name);
+      if (typeInfo?.__st_name || typeInfo?.__pb_schema) {
+        const stName = String(typeInfo.__pb_schema ?? typeInfo.__st_name);
         // Heuristic: exact match or stName ends with _TypeName (e.g. core_Node -> Node)
         const matchName = pbRegistry.has(stName)
           ? stName
@@ -121,7 +128,7 @@ ${fields.join(",\n")}
     }
   }
 
-  // 4. 生成文件
+  // 4. Generate file
   let importStatements = "";
   for (const [importPath, schemas] of importGroups.entries()) {
     importStatements += `import { ${Array.from(schemas).sort().join(", ")} } from "${importPath}";\n`;
@@ -134,28 +141,27 @@ ${importStatements}
 import { type DbConnection } from "./spacetime";
 
 /**
- * PB 覆盖清单
+ * PB Override Manifest
  */
 export const PB_REDUCERS_MAP = {
 ${pbReducerEntries.join(",\n")} 
 } as const;
 
 /**
- * 表与 Protobuf Schema 的映射
+ * Mapping between Tables and Protobuf Schemas
  */
 export const TABLE_TO_PROTO: Record<string, { schema: GenMessage<any>, field: string }> = {
 ${tableToProtoMetadata.join(",\n")} 
 } as const;
 
 /**
- * 编译时类型安全断言：确保所有映射的 Reducer 在 SDK 中都存在
+ * Compile-time type safety assertion: ensures all mapped Reducers exist in the SDK
  */
 type AssertReducersExist = keyof typeof PB_REDUCERS_MAP extends keyof DbConnection["reducers"]
   ? true
   : never;
 export const _ASSERT_REDUCERS_SAFE: AssertReducersExist = true;
 `;
-
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
   fs.writeFileSync(OUTPUT_PATH, code);
   cleanupMock();

@@ -9,8 +9,9 @@ import {
   type Edge as ProtoEdge,
   type Node as ProtoNode,
   type NodeData as ProtoNodeData,
+  RenderMode,
 } from "@/generated/flowcraft/v1/core/node_pb";
-import { type AppNode, AppNodeType, type DynamicNodeData } from "@/types";
+import { type AppNode, AppNodeType, type DynamicNodeData, isDynamicNode } from "@/types";
 
 import { getConstraintsForTemplate } from "./nodeRegistry";
 
@@ -36,14 +37,34 @@ export function appEdgeToProto(edge: Edge): ProtoEdge {
  */
 export function appNodeDataToProto(data?: DynamicNodeData): ProtoNodeData {
   if (!data) return create(NodeDataSchema, {});
-  return create(NodeDataSchema, data as any);
+
+  // Ensure enum values are correct numbers
+  const activeMode =
+    typeof data.activeMode === "string"
+      ? (RenderMode[data.activeMode as keyof typeof RenderMode] as unknown as RenderMode)
+      : data.activeMode;
+
+  const availableModes = (data.availableModes || []).map((m) =>
+    typeof m === "string" ? (RenderMode[m as keyof typeof RenderMode] as unknown as RenderMode) : m,
+  );
+
+  return create(NodeDataSchema, {
+    ...data,
+    activeMode,
+    availableModes,
+  });
 }
 
 /**
  * Converts a client AppNode to a Protobuf Node message.
  */
 export function appNodeToProto(node: AppNode): ProtoNode {
-  const templateId = (node.data as any).templateId || "unknown";
+  const templateId = isDynamicNode(node) ? node.data.templateId : undefined;
+
+  if (!templateId) {
+    throw new Error(`[Serialization] Missing templateId for node ${node.id}. Fail-fast to prevent DB corruption.`);
+  }
+
   const constraints = getConstraintsForTemplate(templateId);
 
   const getDimension = (dim: "height" | "width"): number => {
@@ -81,8 +102,8 @@ export function appNodeToProto(node: AppNode): ProtoNode {
     nodeId: node.id,
     nodeKind,
     presentation,
-    state: node.type === AppNodeType.DYNAMIC ? appNodeDataToProto(node.data as DynamicNodeData) : undefined,
-    templateId: (node.data as any).templateId ?? "unknown",
+    state: isDynamicNode(node) ? appNodeDataToProto(node.data) : undefined,
+    templateId,
   });
 }
 

@@ -6,10 +6,20 @@ import { type GraphMutation } from "@/generated/flowcraft/v1/core/service_pb";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
 
-import { useGraphOperations } from "../useGraphOperations";
+import { useGraphOperations } from "@/hooks/graph/useGraphOperations";
 
+// Mock the stores
 vi.mock("@/store/flowStore", () => ({
-  useFlowStore: vi.fn(),
+  useFlowStore: vi.fn((selector) => {
+    const state = {
+      allNodes: [],
+      applyMutations: vi.fn(),
+      edges: [],
+      nodeDraft: vi.fn((n) => ({ ok: true, value: n })),
+      nodes: [],
+    };
+    return selector ? selector(state) : state;
+  }),
 }));
 
 vi.mock("@/store/uiStore", () => ({
@@ -21,25 +31,21 @@ describe("useGraphOperations - Grouping", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useFlowStore as unknown as Mock).mockReturnValue({
+    const state = {
+      allNodes: [
+        { id: "1", measured: { height: 100, width: 200 }, position: { x: 100, y: 100 }, selected: true },
+        { id: "2", measured: { height: 100, width: 200 }, position: { x: 400, y: 400 }, selected: true },
+      ],
       applyMutations: mockApplyMutations,
       edges: [],
-      nodeDraft: (n: any) => n,
+      nodeDraft: vi.fn((n: any) => ({ ok: true, value: { ...n } })), // Return a copy for draft
       nodes: [
-        {
-          id: "1",
-          measured: { height: 50, width: 100 },
-          position: { x: 100, y: 100 },
-          selected: true,
-        },
-        {
-          id: "2",
-          measured: { height: 50, width: 100 },
-          position: { x: 200, y: 200 },
-          selected: true,
-        },
+        { id: "1", measured: { height: 100, width: 200 }, position: { x: 100, y: 100 }, selected: true },
+        { id: "2", measured: { height: 100, width: 200 }, position: { x: 400, y: 400 }, selected: true },
       ],
-    });
+    };
+
+    (useFlowStore as unknown as Mock).mockImplementation((selector: any) => (selector ? selector(state) : state));
 
     (useUiStore as unknown as Mock).mockReturnValue({
       clipboard: null,

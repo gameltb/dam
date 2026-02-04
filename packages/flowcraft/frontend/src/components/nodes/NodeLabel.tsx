@@ -1,35 +1,22 @@
 import React, { memo, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
 
-import { useFlowStore } from "@/store/flowStore";
+import { useNodeProperty } from "@/hooks/core/useNodeProperty";
 
 interface NodeLabelProps {
-  id: string;
-  label: string;
-  onChange: (id: string, label: string) => void;
   selected?: boolean;
 }
 
-export const NodeLabel: React.FC<NodeLabelProps> = memo(({ id, label, selected }) => {
-  const { allNodes, nodeDraft } = useFlowStore(
-    useShallow((s) => ({
-      allNodes: s.allNodes,
-      nodeDraft: s.nodeDraft,
-    })),
-  );
+export const NodeLabel: React.FC<NodeLabelProps> = memo(({ selected }) => {
+  // Bind directly to 'displayName' using the context-aware property hook
+  const [displayName, setDisplayName] = useNodeProperty("displayName");
+
   const [isEditing, setIsEditing] = useState(false);
-  const [value, setValue] = useState(label);
+  const [localValue, setLocalValue] = useState(displayName || "");
 
   const handleBlur = () => {
     setIsEditing(false);
-    if (value !== label) {
-      const node = allNodes.find((n) => n.id === id);
-      if (node) {
-        const res = nodeDraft(node);
-        if (res.ok) {
-          res.value.data.displayName = value;
-        }
-      }
+    if (localValue !== displayName) {
+      setDisplayName(localValue);
     }
   };
 
@@ -44,10 +31,11 @@ export const NodeLabel: React.FC<NodeLabelProps> = memo(({ id, label, selected }
       <div
         className={`px-3 py-2 text-xs font-bold uppercase tracking-tight truncate border-b border-node-border bg-muted/30 cursor-text hover:bg-muted/50 transition-colors ${selected ? "text-primary" : "text-muted-foreground"}`}
         onDoubleClick={() => {
+          setLocalValue(displayName);
           setIsEditing(true);
         }}
       >
-        {label || "Untitled Node"}
+        {displayName || "Untitled Node"}
       </div>
     );
   }
@@ -59,10 +47,10 @@ export const NodeLabel: React.FC<NodeLabelProps> = memo(({ id, label, selected }
         className="w-full bg-transparent text-xs font-bold uppercase outline-none text-primary"
         onBlur={handleBlur}
         onChange={(e) => {
-          setValue(e.target.value);
+          setLocalValue(e.target.value);
         }}
         onKeyDown={handleKeyDown}
-        value={value}
+        value={localValue}
       />
     </div>
   );

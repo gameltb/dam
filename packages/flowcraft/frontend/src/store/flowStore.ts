@@ -1,233 +1,292 @@
-import { create as createProto, fromJson } from "@bufbuild/protobuf";
-import { ValueSchema } from "@bufbuild/protobuf/wkt";
-import { applyEdgeChanges, applyNodeChanges, type Edge } from "@xyflow/react";
+import { create as createProto } from "@bufbuild/protobuf";
+import { applyEdgeChanges, applyNodeChanges, type Edge as RFEdge } from "@xyflow/react";
 import { create } from "zustand";
 
-import { NodeSchema } from "@/generated/flowcraft/v1/core/node_pb";
-import {
-  AddNodeRequestSchema,
-  PathUpdateRequest_UpdateType,
-  PathUpdateRequestSchema,
-  ReparentNodeRequestSchema,
-} from "@/generated/flowcraft/v1/core/service_pb";
-import { type AppNode, FlowEvent, MutationSource } from "@/types";
+import { EdgeSchema } from "@/generated/flowcraft/v1/core/node_pb";
+import { PositionSchema } from "@/generated/flowcraft/v1/core/base_pb";
+import { type AppNode, MutationSource, Scope } from "@/types";
 import { globalToLocal, localToGlobal } from "@/utils/coordinateUtils";
-import { createNodeDraft, type Draftable, Err, type Result } from "@/utils/draft";
-import { calculateInverse, getFriendlyDescription } from "@/utils/historyUtils";
-import { appNodeToProto } from "@/utils/nodeProtoUtils";
+import { socketClient } from "@/utils/SocketClient";
 
-import { type GraphMutationEvent, MutationDirection } from "./middleware/types";
-import { handleMutation } from "./mutationHandlers";
-import { NotificationType, useNotificationStore } from "./notificationStore";
-import { initStoreOrchestrator } from "./orchestrator";
-import { dispatchToSpacetime } from "./spacetimeDispatcher";
-import { type HistoryEntry, type MutationInput, type RFState } from "./types";
-import { useUiStore } from "./uiStore";
+import { commit } from "./orchestrator";
+import { type RFState } from "./types";
 
-export const useFlowStore = create<RFState>()((set, get) => ({
+import { computeView } from "./viewLogic";
+
+export const useFlowStore = create<RFState>((set, get) => ({
+  activeScopeId: null,
   addNode: (node) => {
-    get().applyMutations([createProto(AddNodeRequestSchema, { node: appNodeToProto(node) })]);
+    commit(
+      (draft) => {
+        draft.nodesById[node.id] = node;
+      },
+      { description: `Added node ${node.id}` },
+    );
   },
-  allEdges: [],
-  allNodes: [],
-  applyMutations: (inputs, context) => {
-    const source = context?.source ?? MutationSource.SOURCE_USER;
-    const direction = source === MutationSource.SOURCE_SYNC ? MutationDirection.INCOMING : MutationDirection.OUTGOING;
-
-    const pipeline = initStoreOrchestrator();
-    pipeline.execute({ context: context ?? {}, direction, mutations: inputs }, (finalEvent: GraphMutationEvent) => {
-      const currentNodes = [...get().allNodes];
-      const currentEdges = [...get().allEdges];
-
-      // 1. 记录历史
-      if (direction === MutationDirection.OUTGOING && !context?.isHistoryOp) {
-        const inverses = finalEvent.mutations
-          .map((m: MutationInput) => calculateInverse(m, currentNodes))
-          .filter((m: MutationInput | null): m is MutationInput => m !== null);
-
-        if (inverses.length > 0) {
-          const entry: HistoryEntry = {
-            description:
-              context?.description ||
-              (finalEvent.mutations[0] ? getFriendlyDescription(finalEvent.mutations[0]) : "Unknown Operation"),
-            forward: [...finalEvent.mutations],
-            id: crypto.randomUUID(),
-            inverse: inverses,
-            scopeId: useUiStore.getState().activeScopeId,
-            timestamp: Date.now(),
-          };
-          set((state) => ({
-            redoStack: [],
-            undoStack: [entry, ...state.undoStack].slice(0, 50),
-          }));
-        }
-      }
-
-      // 2. 执行状态更新
-      let nextNodes = currentNodes;
-      let nextEdges = currentEdges;
-      finalEvent.mutations.forEach((mutInput: MutationInput) => {
-        const result = handleMutation(mutInput, nextNodes, nextEdges);
-        nextNodes = result.nodes;
-        nextEdges = result.edges;
-      });
-
-      set({ allEdges: nextEdges, allNodes: nextNodes });
-      get().refreshView();
-
-      // 3. 后端同步
-      if (direction === MutationDirection.OUTGOING && get().spacetimeConn) {
-        finalEvent.mutations.forEach((mut: MutationInput) => {
-          dispatchToSpacetime(get().spacetimeConn!, mut);
-        });
-      }
-    });
-  },
-  dispatchNodeEvent: (type: FlowEvent, payload: Record<string, unknown>) => {
+  dispatchNodeEvent: (type, payload) => {
     set({ lastNodeEvent: { payload, timestamp: Date.now(), type } });
   },
   edges: [],
-  handleIncomingWidgetSignal: () => {},
+  edgesById: {},
+  clipboard: null,
+  setClipboard: (content) => set({ clipboard: content }),
+  lastInboundChange: null,
+  handleIncomingWidgetSignal: (payload) => {
+    console.debug("[Store] Incoming widget signal", payload);
+  },
   lastLocalUpdate: {},
-
   lastNodeEvent: null,
+  nodeRelations: {},
+  nodes: [],
+  nodesById: {},
 
-  nodeDraft: (nodeIdOrNode: AppNode | string): Result<Draftable<AppNode>> => {
-    const node = typeof nodeIdOrNode === "string" ? get().allNodes.find((n) => n.id === nodeIdOrNode) : nodeIdOrNode;
-
-    if (!node) return Err(`Node ${String(nodeIdOrNode)} not found`);
-
-    return createNodeDraft(node.id, node, NodeSchema, (path: string, value: unknown) => {
-      get().applyMutations([
-        createProto(PathUpdateRequestSchema, {
-          path: path,
-          targetId: node.id,
-          type: PathUpdateRequest_UpdateType.REPLACE,
-          value: fromJson(ValueSchema, value as any),
-        }),
-      ]);
+  onConnect: (connection) => {
+    const protoEdge = createProto(EdgeSchema, {
+      edgeId: crypto.randomUUID(),
+      sourceHandle: connection.sourceHandle || "",
+      sourceNodeId: connection.source,
+      targetHandle: connection.targetHandle || "",
+      targetNodeId: connection.target,
     });
+
+    commit(
+      (draft) => {
+        const edge: RFEdge = {
+          id: protoEdge.edgeId,
+          source: protoEdge.sourceNodeId,
+          sourceHandle: protoEdge.sourceHandle,
+          target: protoEdge.targetNodeId,
+          targetHandle: protoEdge.targetHandle,
+        };
+        draft.edgesById[edge.id] = edge;
+      },
+      { description: "Connected nodes" },
+    );
   },
 
-  nodes: [],
-
-  onConnect: () => {},
-
   onEdgesChange: (changes) => {
-    set({ allEdges: applyEdgeChanges(changes, get().allEdges) });
-    get().refreshView();
+    const hasRemoval = changes.some((c) => c.type === "remove");
+    if (hasRemoval) {
+      commit(
+        (draft) => {
+          const currentEdges = Object.values(draft.edgesById);
+          const updatedEdges = applyEdgeChanges(changes, currentEdges);
+          const nextIds = new Set(updatedEdges.map((e) => e.id));
+
+          Object.keys(draft.edgesById).forEach((id) => {
+            if (!nextIds.has(id)) delete draft.edgesById[id];
+          });
+
+          updatedEdges.forEach((e) => {
+            draft.edgesById[e.id] = e;
+          });
+        },
+        { description: "Edges removed", source: MutationSource.SOURCE_USER },
+      );
+    } else {
+      set((state) => {
+        const currentEdges = Object.values(state.edgesById);
+        const updatedEdges = applyEdgeChanges(changes, currentEdges);
+        const nextEdgesById: Record<string, RFEdge> = {};
+        updatedEdges.forEach((e) => {
+          nextEdgesById[e.id] = e;
+        });
+        return { edgesById: nextEdgesById };
+      });
+      get().refreshView();
+    }
   },
 
   onNodesChange: (changes) => {
-    set({ allNodes: applyNodeChanges(changes, get().allNodes) });
-    get().refreshView();
+    const isInteractionEnd = changes.some(
+      (c) => (c.type === "position" && !c.dragging) || (c.type === "dimensions" && !c.resizing),
+    );
+    const hasStructureChanges = changes.some((c) => c.type === "remove");
+    const hasDataChanges = changes.some((c) => c.type === "position" || c.type === "dimensions");
+
+    if (hasStructureChanges || (hasDataChanges && isInteractionEnd)) {
+      commit(
+        (draft) => {
+          const currentNodes = Object.values(draft.nodesById);
+          const updatedNodes = applyNodeChanges(changes, currentNodes);
+          const nextIds = new Set(updatedNodes.map((n) => n.id));
+
+          // 1. Handle Removals
+          Object.keys(draft.nodesById).forEach((id) => {
+            if (!nextIds.has(id)) delete draft.nodesById[id];
+          });
+
+          // 2. Handle Updates/Adds
+          updatedNodes.forEach((n) => {
+            const dn = draft.nodesById[n.id];
+            if (dn) {
+              // Merge React Flow properties
+              Object.assign(dn, n);
+
+              // Sync presentation state for persistence
+              if (dn.presentation) {
+                if (dn.presentation.position) {
+                  dn.presentation.position.x = n.position.x;
+                  dn.presentation.position.y = n.position.y;
+                } else {
+                  dn.presentation.position = createProto(PositionSchema, { x: n.position.x, y: n.position.y });
+                }
+                dn.presentation.width = n.width ?? dn.presentation.width;
+                dn.presentation.height = n.height ?? dn.presentation.height;
+              }
+            } else {
+              draft.nodesById[n.id] = n as AppNode;
+            }
+          });
+        },
+        {
+          description: hasStructureChanges ? "Nodes removed" : "Interaction commit",
+          isInteractionEnd: true,
+          source: MutationSource.SOURCE_USER,
+        },
+      );
+    } else {
+      // Intermediate updates (dragging/resizing) - performance optimized bypass
+      set((state) => {
+        const nextNodes = applyNodeChanges(changes, Object.values(state.nodesById));
+        const nextNodesById = { ...state.nodesById };
+        nextNodes.forEach((n) => {
+          const existing = nextNodesById[n.id];
+          if (existing) {
+            nextNodesById[n.id] = { ...existing, ...n };
+          }
+        });
+        return { nodesById: nextNodesById };
+      });
+      get().refreshView();
+    }
   },
 
   redo: () => {
-    const { redoStack, undoStack } = get();
+    const { edgesById, nodesById, redoStack, undoStack } = get();
     if (redoStack.length === 0) return;
-
-    const entry = redoStack[0]!;
-    const remaining = redoStack.slice(1);
-
-    if (entry.scopeId !== useUiStore.getState().activeScopeId) {
-      useUiStore.getState().setActiveScope(entry.scopeId);
-    }
-
-    get().applyMutations(entry.forward, {
-      description: `重做: ${entry.description}`,
-      isHistoryOp: true,
-    });
-
-    useNotificationStore
-      .getState()
-      .addNotification({ message: `已重做: ${entry.description}`, type: NotificationType.INFO });
-
+    const current = structuredClone({ edgesById, nodesById });
+    const next = redoStack[0]!;
     set({
-      redoStack: remaining,
-      undoStack: [entry, ...undoStack],
+      edgesById: next.edgesById,
+      nodesById: next.nodesById,
+      redoStack: redoStack.slice(1),
+      undoStack: [current, ...undoStack],
     });
+    get().refreshView();
   },
 
   redoStack: [],
 
   refreshView: () => {
-    const activeScopeId = useUiStore.getState().activeScopeId;
-    const allNodes = get().allNodes;
-    const allEdges = get().allEdges;
-
-    const nextNodes = allNodes.filter((n) => (n.parentId || null) === activeScopeId);
-    const nextEdges = allEdges.filter((e) => {
-      const s = allNodes.find((n) => n.id === e.source);
-      const t = allNodes.find((n) => n.id === e.target);
-      return (s?.parentId || null) === activeScopeId && (t?.parentId || null) === activeScopeId;
-    });
-
-    const currentNodes = get().nodes;
-    const currentEdges = get().edges;
-
-    const nodesChanged = nextNodes.length !== currentNodes.length || nextNodes.some((n, i) => n !== currentNodes[i]);
-    const edgesChanged = nextEdges.length !== currentEdges.length || nextEdges.some((e, i) => e !== currentEdges[i]);
-
-    if (nodesChanged || edgesChanged) {
-      set({ edges: nextEdges, nodes: nextNodes });
-    }
+    const { edgesById, nodesById } = get();
+    const { edges, nodeRelations, nodes } = computeView(nodesById, edgesById);
+    set({ edges, nodeRelations, nodes });
   },
 
   reparentNode: (nodeId, newParentId) => {
-    const node = get().allNodes.find((n) => n.id === nodeId);
+    const { nodesById } = get();
+    const node = nodesById[nodeId];
     if (!node) return;
-    const currentGlobalPos = localToGlobal(node.position, node.parentId || null, get().allNodes);
-    const newLocalPos = globalToLocal(currentGlobalPos, newParentId, get().allNodes);
-    get().applyMutations([
-      createProto(ReparentNodeRequestSchema, {
-        newParentId: newParentId || "",
-        newPosition: newLocalPos,
-        nodeId,
-      }),
-    ]);
+
+    // Reparenting now only changes the physical parentId within the SAME scope
+    // Cross-scope movement is a separate "moveNodeToScope" operation
+    const currentGlobalPos = localToGlobal(node.position, node.parentId || null, nodesById);
+    const newLocalPos = globalToLocal(currentGlobalPos, newParentId, nodesById);
+
+    commit(
+      (draft) => {
+        const n = draft.nodesById[nodeId];
+        if (n) {
+          n.parentId = newParentId || undefined;
+          n.position = newLocalPos;
+          if (n.presentation) {
+            n.presentation.parentId = newParentId || "";
+          }
+        }
+      },
+      { description: `Reparent node ${nodeId}` },
+    );
   },
+
+  moveNodeToScope: (nodeId, newScopeId) => {
+    commit(
+      (draft) => {
+        const n = draft.nodesById[nodeId];
+        if (n) {
+          n.scopeId = newScopeId || Scope.ROOT;
+          if (n.presentation) {
+            n.presentation.scopeId = newScopeId || Scope.ROOT;
+          }
+        }
+      },
+      { description: `Moved node ${nodeId} to scope ${newScopeId}` },
+    );
+  },
+
   resetStore: () => {
-    set({ allEdges: [], allNodes: [], edges: [], nodes: [], redoStack: [], undoStack: [] });
+    set({ edges: [], edgesById: {}, nodes: [], nodesById: {}, redoStack: [], undoStack: [] });
   },
+
   sendNodeSignal: (signal) => get().spacetimeConn?.pbreducers.sendNodeSignal({ signal }),
-  sendWidgetSignal: () => {},
-  setEdges: (allEdges: Edge[]) => {
-    set({ allEdges });
+  sendWidgetSignal: (signal) => {
+    socketClient.send({
+      payload: {
+        case: "widgetSignal",
+        value: signal as any,
+      },
+    });
+  },
+
+  setEdges: (edges) => {
+    const edgesById: Record<string, RFEdge> = {};
+    edges.forEach((e) => (edgesById[e.id] = e));
+    set({ edgesById });
     get().refreshView();
   },
-  setGraph: (g: { edges: Edge[]; nodes: AppNode[] }) => {
-    set({ allEdges: g.edges, allNodes: g.nodes });
+
+  setGraph: (g) => {
+    const nodesById: Record<string, AppNode> = {};
+    const edgesById: Record<string, RFEdge> = {};
+    g.nodes.forEach((n) => (nodesById[n.id] = n));
+    g.edges.forEach((e) => (edgesById[e.id] = e));
+    set({ edgesById, nodesById });
     get().refreshView();
   },
-  setNodes: (allNodes: AppNode[]) => {
-    set({ allNodes });
+
+  setNodes: (nodes) => {
+    const nodesById: Record<string, AppNode> = {};
+    nodes.forEach((n) => (nodesById[n.id] = n));
+    set({ nodesById });
     get().refreshView();
+  },
+
+  setSpacetimeConn: (conn) => {
+    set({ spacetimeConn: conn });
+  },
+
+  spacetimeConn: null,
+  takeSnapshot: () => {
+    const { edgesById, nodesById, undoStack } = get();
+    const snapshot = structuredClone({ edgesById, nodesById });
+    set({
+      redoStack: [],
+      undoStack: [snapshot, ...undoStack].slice(0, 50),
+    });
   },
   undo: () => {
-    const { redoStack, undoStack } = get();
+    const { edgesById, nodesById, redoStack, undoStack } = get();
     if (undoStack.length === 0) return;
-
-    const entry = undoStack[0]!;
-    const remaining = undoStack.slice(1);
-
-    if (entry.scopeId !== useUiStore.getState().activeScopeId) {
-      useUiStore.getState().setActiveScope(entry.scopeId);
-    }
-
-    get().applyMutations(entry.inverse, {
-      description: `撤销: ${entry.description}`,
-      isHistoryOp: true,
-    });
-
-    useNotificationStore
-      .getState()
-      .addNotification({ message: `已撤销: ${entry.description}`, type: NotificationType.INFO });
-
+    const current = structuredClone({ edgesById, nodesById });
+    const previous = undoStack[0]!;
     set({
-      redoStack: [entry, ...redoStack],
-      undoStack: remaining,
+      edgesById: previous.edgesById,
+      nodesById: previous.nodesById,
+      redoStack: [current, ...redoStack],
+      undoStack: undoStack.slice(1),
     });
+    get().refreshView();
   },
   undoStack: [],
+  viewport: { x: 0, y: 0, zoom: 1 },
 }));

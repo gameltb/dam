@@ -1,11 +1,9 @@
-import { create } from "@bufbuild/protobuf";
+import { create, toBinary } from "@bufbuild/protobuf";
 import { type ReducerCtx, t } from "spacetimedb/server";
 
 import { type ChatSyncMessage as ProtoChatSyncMessage } from "../generated/flowcraft/v1/actions/chat_actions_pb";
 import { ChatSyncMessageSchema } from "../generated/flowcraft/v1/actions/chat_actions_pb";
 import { ChatMessageSchema } from "../generated/flowcraft/v1/core/service_pb";
-import { services_ChatMessage as StdbChatMessage } from "../generated/generated_schema";
-import { pbToStdb } from "../generated/proto-stdb-bridge";
 import { type AppSchema } from "../schema";
 
 export const chatReducers = {
@@ -22,7 +20,7 @@ export const chatReducers = {
           case: "chatMetadata",
           value: { attachmentUrls: [], modelId: message.modelId },
         },
-        parentId: message.parentId || "", // NEW: respect parentId for branching
+        parentId: message.parentId || "",
         parts: message.parts,
         role: message.role,
         siblingIds: [],
@@ -32,7 +30,8 @@ export const chatReducers = {
 
       ctx.db.chatMessages.insert({
         id: message.id,
-        state: pbToStdb(ChatMessageSchema, StdbChatMessage, fullMsg) as StdbChatMessage,
+        state: toBinary(ChatMessageSchema, fullMsg),
+        treeId: nodeId,
       });
     },
   },
@@ -40,11 +39,9 @@ export const chatReducers = {
   clear_chat_history: {
     args: { nodeId: t.string() },
     handler: (ctx: ReducerCtx<AppSchema>, { nodeId }: { nodeId: string }) => {
-      const messages = [...ctx.db.chatMessages.iter()];
-      for (const msg of messages) {
-        if (msg.state.treeId === nodeId) {
-          ctx.db.chatMessages.id.delete(msg.id);
-        }
+      // Optimization: Delete related messages directly using index
+      for (const msg of ctx.db.chatMessages.treeId.filter(nodeId)) {
+        ctx.db.chatMessages.id.delete(msg.id);
       }
     },
   },

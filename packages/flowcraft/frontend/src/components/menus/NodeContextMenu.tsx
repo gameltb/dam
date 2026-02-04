@@ -18,6 +18,7 @@ interface NodeContextMenuProps {
   onDelete: () => void;
   onDuplicate?: () => void;
   onEnterScope?: () => void;
+  onExportBranch?: () => void;
   onFocus?: () => void;
   onGroupSelected?: () => void;
   onLayoutGroup?: () => void;
@@ -33,6 +34,7 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
   onDelete,
   onDuplicate,
   onEnterScope,
+  onExportBranch,
   onFocus,
   onGroupSelected,
   onLayoutGroup,
@@ -54,6 +56,17 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
             }}
           >
             🚀 Enter Subgraph
+          </div>
+        )}
+        {onExportBranch && (
+          <div
+            className="fc-menu-item font-bold text-green-400"
+            onClick={() => {
+              onExportBranch();
+              onClose();
+            }}
+          >
+            📤 Export Branch
           </div>
         )}
         {onFocus && (

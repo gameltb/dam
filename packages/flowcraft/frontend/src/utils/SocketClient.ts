@@ -82,6 +82,11 @@ class SocketClientImpl {
           break;
         }
 
+        case "widgetSignal": {
+          await this.client.sendWidgetSignal(payload.value);
+          break;
+        }
+
         default: {
           console.warn(`[SocketClient] Handled case ${payload.case} is legacy/unsupported in discovery mode.`);
           break;

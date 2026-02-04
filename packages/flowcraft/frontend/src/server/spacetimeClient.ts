@@ -3,8 +3,6 @@ import { DbConnection } from "@/generated/spacetime";
 import { type PbClient, wrapReducers } from "../utils/pb-client";
 import logger from "./utils/logger";
 
-// ... [polyfill code remains] ...
-
 let conn: DbConnection | null = null;
 let pbClient: null | PbClient = null;
 const connectListeners: ((c: PbClient) => void)[] = [];

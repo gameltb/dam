@@ -1,9 +1,8 @@
 import { Focus, Maximize, Minimize, RotateCw, X, ZoomIn, ZoomOut } from "lucide-react";
 import React from "react";
 
+import { cn } from "@/lib/utils";
 import { VideoMode } from "@/types";
-
-import { IconButton } from "../base/IconButton";
 
 interface MediaPreviewToolbarProps {
   activeIndex: number;
@@ -20,6 +19,29 @@ interface MediaPreviewToolbarProps {
   videoMode: VideoMode;
 }
 
+const ToolbarButton: React.FC<{
+  active?: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: (e: React.MouseEvent) => void;
+  variant?: "default" | "destructive";
+}> = ({ active, icon, label, onClick, variant = "default" }) => (
+  <button
+    className={cn(
+      "p-2 rounded-lg transition-all flex items-center justify-center",
+      variant === "default" && [
+        "text-white/70 hover:text-white hover:bg-white/10",
+        active && "bg-primary/20 text-primary hover:bg-primary/30 hover:text-primary",
+      ],
+      variant === "destructive" && "bg-destructive/10 text-destructive hover:bg-destructive/20 hover:scale-105",
+    )}
+    onClick={onClick}
+    title={label}
+  >
+    {icon}
+  </button>
+);
+
 export const MediaPreviewToolbar: React.FC<MediaPreviewToolbarProps> = ({
   activeIndex,
   isImage,
@@ -35,59 +57,29 @@ export const MediaPreviewToolbar: React.FC<MediaPreviewToolbarProps> = ({
   videoMode,
 }) => {
   return (
-    <div
-      style={{
-        alignItems: "center",
-        background: "linear-gradient(to bottom, rgba(0,0,0,0.8), transparent)",
-        boxSizing: "border-box",
-        color: "white",
-        display: "flex",
-        justifyContent: "space-between",
-        padding: "20px 40px",
-        position: "absolute",
-        top: 0,
-        width: "100%",
-        zIndex: 100,
-      }}
-    >
-      <div style={{ alignItems: "center", display: "flex", gap: "20px" }}>
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <span
-            style={{
-              fontSize: "18px",
-              fontWeight: 600,
-              letterSpacing: "-0.5px",
-            }}
-          >
-            {label}
-          </span>
-          <span style={{ fontSize: "12px", opacity: 0.6 }}>
-            {activeIndex + 1} / {totalItems}
+    <div className="absolute top-0 left-0 w-full z-[100] flex items-center justify-between px-8 py-6 bg-gradient-to-b from-black/80 to-transparent">
+      <div className="flex items-center gap-8">
+        {/* Info */}
+        <div className="flex flex-col">
+          <span className="text-lg font-bold tracking-tight text-white">{label}</span>
+          <span className="text-[11px] font-medium uppercase tracking-widest text-white/40">
+            Item {activeIndex + 1} of {totalItems}
           </span>
         </div>
 
-        <div
-          style={{
-            backdropFilter: "blur(10px)",
-            backgroundColor: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: "10px",
-            display: "flex",
-            gap: "4px",
-            padding: "4px",
-          }}
-        >
+        {/* Action Groups */}
+        <div className="flex items-center gap-1.5 p-1 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl">
           {isImage && (
             <>
-              <IconButton icon={<ZoomIn size={18} />} label="Zoom In" onClick={onZoomIn} />
-              <IconButton icon={<ZoomOut size={18} />} label="Zoom Out" onClick={onZoomOut} />
-              <IconButton icon={<RotateCw size={18} />} label="Rotate" onClick={onRotate} />
-              <IconButton icon={<Focus size={18} />} label="Reset View" onClick={onReset} />
+              <ToolbarButton icon={<ZoomIn size={18} />} label="Zoom In" onClick={onZoomIn} />
+              <ToolbarButton icon={<ZoomOut size={18} />} label="Zoom Out" onClick={onZoomOut} />
+              <ToolbarButton icon={<RotateCw size={18} />} label="Rotate" onClick={onRotate} />
+              <ToolbarButton icon={<Focus size={18} />} label="Reset View" onClick={onReset} />
             </>
           )}
           {isVideo && (
             <>
-              <IconButton
+              <ToolbarButton
                 active={videoMode === VideoMode.FIT}
                 icon={<Minimize size={18} />}
                 label="Fit to View"
@@ -95,7 +87,7 @@ export const MediaPreviewToolbar: React.FC<MediaPreviewToolbarProps> = ({
                   onSetVideoMode(VideoMode.FIT);
                 }}
               />
-              <IconButton
+              <ToolbarButton
                 active={videoMode === VideoMode.ORIGINAL}
                 icon={<Maximize size={18} />}
                 label="Original Size"
@@ -108,19 +100,7 @@ export const MediaPreviewToolbar: React.FC<MediaPreviewToolbarProps> = ({
         </div>
       </div>
 
-      <IconButton
-        icon={<X size={20} />}
-        label="Close"
-        onClick={onClose}
-        style={{
-          backgroundColor: "rgba(255, 59, 48, 0.15)",
-          borderColor: "rgba(255, 59, 48, 0.2)",
-          borderRadius: "12px",
-          color: "#ff3b30",
-          height: "40px",
-          width: "40px",
-        }}
-      />
+      <ToolbarButton icon={<X size={20} />} label="Close (ESC)" onClick={onClose} variant="destructive" />
     </div>
   );
 };

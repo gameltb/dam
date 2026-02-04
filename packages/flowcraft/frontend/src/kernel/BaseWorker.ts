@@ -45,7 +45,6 @@ export abstract class BaseWorker {
     try {
       await (this.conn as any)
         .subscriptionBuilder()
-        .subscribe(["SELECT * FROM tasks"])
         .onApplied(() => {
           console.log(
             `[Worker] Subscription applied. Initial task count: ${Array.from(this.conn.db.tasks.iter()).length}`,
@@ -60,7 +59,8 @@ export abstract class BaseWorker {
               void this.tryClaimAndExecute(task);
             }
           }
-        });
+        })
+        .subscribe(["SELECT * FROM tasks"]);
     } catch (err) {
       console.error(`[Worker] Subscription failed:`, err);
     }

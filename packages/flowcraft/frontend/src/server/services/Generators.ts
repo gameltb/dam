@@ -1,32 +1,36 @@
 import { create as createProto } from "@bufbuild/protobuf";
+import { PositionSchema, PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
+import { AppNodeType, type AppNode, type Edge } from "@/types";
 
-import { PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
-import { type AppNode, AppNodeType, type Edge, RenderMode } from "@/types";
-
-export function generateGallery(): { edges: Edge[]; nodes: AppNode[] } {
-  const nodes: AppNode[] = [
-    {
+export const Generators = {
+  createPlaceholderNode: (id: string, scopeId: string = "root"): AppNode => {
+    return {
       data: {
-        activeMode: RenderMode.MODE_MARKDOWN,
-        availableModes: [RenderMode.MODE_MARKDOWN],
-        displayName: "Welcome to Flowcraft",
-        media: {
-          content: "# Welcome\n\nThis is a sample graph showing off the various node types.",
-          type: 4, // MARKDOWN
-        },
-        templateId: "flowcraft.node.media.document",
+        displayName: "Generating…",
+        availableModes: [],
       } as any,
-      id: "welcome-node",
-      position: { x: 100, y: 100 },
+      height: 200,
+      id,
+      position: { x: 0, y: 0 },
+      scopeId,
       presentation: createProto(PresentationSchema, {
-        height: 400,
-        isInitialized: true,
-        position: { x: 100, y: 100 },
-        width: 500,
+        height: 200,
+        position: createProto(PositionSchema, { x: 0, y: 0 }),
+        width: 300,
+        scopeId,
       }),
       type: AppNodeType.DYNAMIC,
-    },
-  ];
+      width: 300,
+    };
+  },
 
-  return { edges: [], nodes };
-}
+  generateGallery: (): { nodes: AppNode[], edges: Edge[] } => {
+    console.log("[Generators] Generating gallery showcase...");
+    return {
+      nodes: [],
+      edges: [],
+    };
+  }
+};
+
+export const generateGallery = Generators.generateGallery;

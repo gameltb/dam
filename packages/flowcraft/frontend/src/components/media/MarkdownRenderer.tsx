@@ -1,87 +1,95 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
+
+import { cn } from "@/lib/utils";
+
+import { MarkdownEditor } from "../ui/MarkdownEditor";
 
 interface MarkdownRendererProps {
+  className?: string;
   content: string;
+  isEditing?: boolean;
   onEdit?: (newContent: string) => void;
+  onToggleEditing?: (editing: boolean) => void;
+  readOnly?: boolean;
 }
 
-export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, onEdit }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [localValue, setLocalValue] = useState(content);
+/**
+ * A component that renders Markdown content and can switch to an editing mode.
+ */
+export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
+  className,
+  content,
+  isEditing: externalIsEditing,
+  onEdit,
+  onToggleEditing,
+  readOnly = false,
+}) => {
+  const [internalIsEditing, setInternalIsEditing] = useState(false);
+  const isEditing = externalIsEditing !== undefined ? externalIsEditing : internalIsEditing;
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsEditing(true);
-  };
+  const [editValue, setEditValue] = useState(content);
 
-  const handleBlur = () => {
-    setIsEditing(false);
-    if (localValue !== content && onEdit) {
-      onEdit(localValue);
+  useEffect(() => {
+    setEditValue(content);
+  }, [content]);
+
+  const startEditing = useCallback(() => {
+    if (readOnly) return;
+    if (onToggleEditing) {
+      onToggleEditing(true);
+    } else {
+      setInternalIsEditing(true);
     }
-  };
+  }, [readOnly, onToggleEditing]);
 
-  if (isEditing) {
-    return (
-      <textarea
-        autoFocus
-        className="nodrag nopan"
-        onBlur={handleBlur}
-        onChange={(e) => {
-          setLocalValue(e.target.value);
-        }}
-        style={{
-          backgroundColor: "#1e1e1e",
-          border: "none",
-          borderRadius: "inherit",
-          boxSizing: "border-box",
-          color: "#d4d4d4",
-          fontFamily: "monospace",
-          fontSize: "13px",
-          height: "100%",
-          outline: "none",
-          padding: "10px",
-          resize: "none",
-          width: "100%",
-        }}
-        value={localValue}
-      />
-    );
-  }
+  const saveEdit = useCallback(() => {
+    if (onEdit && editValue !== content) {
+      onEdit(editValue);
+    }
+    if (onToggleEditing) {
+      onToggleEditing(false);
+    } else {
+      setInternalIsEditing(false);
+    }
+  }, [editValue, content, onEdit, onToggleEditing]);
+
+  const cancelEdit = useCallback(() => {
+    setEditValue(content);
+    if (onToggleEditing) {
+      onToggleEditing(false);
+    } else {
+      setInternalIsEditing(false);
+    }
+  }, [content, onToggleEditing]);
+
+  const isEmpty = !content && !isEditing;
 
   return (
     <div
-      onDoubleClick={handleDoubleClick}
-      style={{
-        backgroundColor: "#1a1a1a",
-        borderRadius: "inherit",
-        boxSizing: "border-box",
-        color: "#e0e0e0",
-        cursor: "text",
-        fontSize: "14px",
-        height: "100%",
-        lineHeight: "1.6",
-        overflowY: "auto",
-        padding: "12px",
-        width: "100%",
+      className={cn("w-full h-full min-h-[1.5em]", className)}
+      onDoubleClick={(e) => {
+        if (!readOnly && !isEditing) {
+          e.stopPropagation();
+          startEditing();
+        }
       }}
     >
-      {/* Basic MD rendering simulation for now, can be replaced with a real MD parser later */}
-      {content.split("\n").map((line, i) => {
-        if (line.startsWith("# "))
-          return (
-            <h1 key={i} style={{ marginTop: 0 }}>
-              {line.slice(2)}
-            </h1>
-          );
-        if (line.startsWith("## ")) return <h2 key={i}>{line.slice(3)}</h2>;
-        if (line.startsWith("- ")) return <li key={i}>{line.slice(2)}</li>;
-        return (
-          <p key={i} style={{ margin: "0 0 8px 0" }}>
-            {line}
-          </p>
-        );
-      })}
+      {isEditing ? (
+        <MarkdownEditor
+          onBlur={saveEdit}
+          onCancel={cancelEdit}
+          onChange={setEditValue}
+          onSave={saveEdit}
+          value={editValue}
+        />
+      ) : isEmpty ? (
+        <div className="italic opacity-30 select-none py-2 px-2">Empty Markdown</div>
+      ) : (
+        <div className="prose prose-invert prose-sm max-w-none break-words px-2 py-1">
+          <ReactMarkdown>{content}</ReactMarkdown>
+        </div>
+      )}
     </div>
   );
 };

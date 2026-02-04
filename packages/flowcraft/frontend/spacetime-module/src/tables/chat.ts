@@ -1,10 +1,5 @@
 import { t, table } from "spacetimedb/server";
 
-import { services_ChatMessage } from "../generated/generated_schema";
-
-/**
- * Chat messages table using the Protobuf-defined structure.
- */
 export const chatMessages = table(
   {
     name: "chat_messages",
@@ -12,11 +7,11 @@ export const chatMessages = table(
   },
   {
     id: t.string().primaryKey(),
-    state: services_ChatMessage,
+    state: Object.assign(t.byteArray(), { __pb_schema: "ChatMessage" }),
+    treeId: t.string().index(),
   },
 );
 
-// Keep chatStreams for internal worker state.
 export const chatStreams = table(
   {
     name: "chat_streams",

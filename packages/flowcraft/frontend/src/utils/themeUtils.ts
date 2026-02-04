@@ -3,12 +3,12 @@ import { PortStyle } from "@/generated/flowcraft/v1/core/node_pb";
 import { type ClientPort } from "@/types";
 
 /**
- * 核心实践：通过语义化的 PortType 派生 UI 样式，而不是在 Proto 中硬编码颜色。
+ * Core Practice: Derive UI styles from semantic PortType instead of hardcoding colors in Proto.
  */
 export const getPortColor = (type?: ClientPort["type"]): string => {
   if (!type) return "var(--port-color-default, #9e9e9e)";
 
-  // 使用 mainType 作为主要 Key
+  // Use mainType as the primary key
   const typeMap: Partial<Record<PortMainType, string>> = {
     [PortMainType.AUDIO]: "var(--port-color-audio, #3f51b5)",
     [PortMainType.BOOLEAN]: "var(--port-color-boolean, #f44336)",
@@ -21,23 +21,35 @@ export const getPortColor = (type?: ClientPort["type"]): string => {
 
   const baseColor = typeMap[type.mainType] ?? "var(--port-color-default, #9e9e9e)";
 
-  // 如果是 generic (泛型) 类型，可以增加一些视觉特征，例如降低透明度
+  // If it's a generic type, we can add some visual characteristics, such as reduced opacity
   return type.isGeneric ? `${baseColor}88` : baseColor;
 };
 
 /**
- * 根据插槽类型建议最佳形状
+ * Suggest the best shape based on the port type
  */
 export const getPortShape = (type?: ClientPort["type"]): PortStyle => {
   if (!type) return PortStyle.CIRCLE;
 
   if (type.mainType === PortMainType.SYSTEM) {
-    return PortStyle.DASH; // 执行流通常使用特殊形状
+    return PortStyle.DASH; // Execution flows usually use special shapes
   }
 
   if (type.isGeneric) {
-    return PortStyle.SQUARE; // 列表类型使用方块
+    return PortStyle.SQUARE; // List types use squares
   }
 
   return PortStyle.CIRCLE;
+};
+
+/**
+ * Standard styles for NodeResizer handles
+ */
+export const RESIZER_COLOR = "var(--primary-color)";
+export const RESIZER_HANDLE_STYLE: React.CSSProperties = {
+  backgroundColor: "var(--primary-color)",
+  border: "2px solid white",
+  borderRadius: "50%",
+  height: 10,
+  width: 10,
 };

@@ -12,12 +12,12 @@ export interface ConnectionResult {
 
 export interface PortValidator {
   /**
-   * 是否允许两个端口连接（类型检查）
+   * Whether to allow two ports to connect (type check).
    */
   canAccept(sourceType: PortType, targetType: PortType): boolean;
 
   /**
-   * 该端口允许的最大输入连接数
+   * The maximum number of input connections allowed for this port.
    */
   getMaxInputs(): number;
 }
@@ -34,19 +34,19 @@ export const StandardValidator: PortValidator = {
 // --- 2. Collection Validator (List / Set) ---
 export const CollectionValidator: PortValidator = {
   canAccept: (src, tgt) => {
-    // 允许 相同集合类型 且 内部元素类型匹配
+    // Allow same collection type and matching internal element types
     if (src.mainType === tgt.mainType) {
       return src.itemType === tgt.itemType || !src.itemType || !tgt.itemType;
     }
-    // 也允许将 单个元素 接入 集合端口 (自动装箱语义)
+    // Also allow connecting a single element to a collection port (autoboxing semantics)
     return PORT_MAIN_TYPE_FROM_PROTO[src.mainType] === tgt.itemType;
   },
-  getMaxInputs: () => 999, // 允许无限输入
+  getMaxInputs: () => 999, // Allow infinite inputs
 };
 
 // --- 3. Any Validator (Universal) ---
 export const AnyValidator: PortValidator = {
-  canAccept: () => true, // 接受任何东西
+  canAccept: () => true, // Accept anything
   getMaxInputs: () => 1,
 };
 

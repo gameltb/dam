@@ -3,31 +3,60 @@ import React from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { useFlowStore } from "@/store/flowStore";
-import { useUiStore } from "@/store/uiStore";
+import { useNavigationStore } from "@/store/ui/navigationStore";
+import { type AppNode } from "@/types";
 
 export const Breadcrumbs: React.FC = () => {
-  const { activeScopeId, setActiveScope } = useUiStore(
+  const { activeScopeId, setActiveScope } = useNavigationStore(
     useShallow((s) => ({
       activeScopeId: s.activeScopeId,
       setActiveScope: s.setActiveScope,
     })),
   );
-  const allNodes = useFlowStore((s) => s.allNodes);
 
-  const path = React.useMemo(() => {
+  const nodesById = useFlowStore(useShallow((s) => s.nodesById));
+
+  const pathNodes = React.useMemo(() => {
+    if (!activeScopeId) return [];
+
     const items = [];
-    let currentId = activeScopeId;
-    while (currentId) {
-      const node = allNodes.find((n) => n.id === currentId);
+    let _currId: null | string = activeScopeId;
+
+    const visited = new Set<string>();
+    let depth = 0;
+    const MAX_DEPTH = 30;
+
+    while (_currId && depth < MAX_DEPTH) {
+      if (visited.has(_currId)) {
+        console.error(`[Breadcrumbs] Cycle detected at node: ${_currId}. Breaking path.`);
+        break;
+      }
+      visited.add(_currId);
+      depth++;
+
+      const node: AppNode | undefined = nodesById[_currId];
       if (node) {
-        items.unshift({ id: node.id, label: node.data.displayName || node.id });
-        currentId = node.parentId || null;
+        items.unshift({
+          id: node.id,
+          label: (node.data as any)?.displayName || node.id,
+          parentId: node.parentId || null,
+        });
+
+        const nextPId: null | string = node.parentId || null;
+        if (nextPId === _currId) break;
+        _currId = nextPId;
       } else {
+        // Show placeholder if node is not loaded
+        items.unshift({
+          id: _currId,
+          label: `Node (${_currId.slice(0, 4)}…)`,
+          parentId: null,
+        });
         break;
       }
     }
     return items;
-  }, [activeScopeId, allNodes]);
+  }, [activeScopeId, nodesById]);
 
   return (
     <div className="absolute top-4 left-4 z-[1000] flex items-center gap-2 bg-background/80 backdrop-blur border border-border px-3 py-1.5 rounded-full shadow-lg text-xs font-medium">
@@ -41,7 +70,7 @@ export const Breadcrumbs: React.FC = () => {
         <span>Root</span>
       </button>
 
-      {path.map((item) => (
+      {pathNodes.map((item) => (
         <React.Fragment key={item.id}>
           <ChevronRight className="text-muted-foreground" size={12} />
           <button

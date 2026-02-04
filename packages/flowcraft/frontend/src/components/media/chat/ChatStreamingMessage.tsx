@@ -71,9 +71,9 @@ export const ChatStreamingMessage: React.FC<Props> = ({
                   )}
                 >
                   {status === ChatStatus.SUBMITTED
-                    ? "Thinking..."
+                    ? "Thinking…"
                     : status === ChatStatus.STREAMING
-                      ? "Generating..."
+                      ? "Generating…"
                       : "Generation Failed"}
                 </span>
               </div>
@@ -129,7 +129,7 @@ export const ChatStreamingMessage: React.FC<Props> = ({
 
               {isPendingResponse && (
                 <p className="text-xs text-muted-foreground italic mb-2">
-                  Waiting to generate a response for your message...
+                  Waiting to generate a response for your message…
                 </p>
               )}
             </>

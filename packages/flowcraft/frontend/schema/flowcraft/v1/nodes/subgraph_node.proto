@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package flowcraft.v1.nodes;
+
+message SubgraphNodeState {
+  string subgraph_id = 1;      // Referenced subgraph or session ID
+  string original_source = 2;  // Import source (e.g., "local-import", "server-session")
+  int64 session_start_time = 3;
+}

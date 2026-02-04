@@ -8,12 +8,14 @@ import { ChatSyncMessageSchema } from "@/generated/flowcraft/v1/actions/chat_act
 import { ChatMessagePartSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
 import { InferenceConfigDiscoveryResponseSchema } from "@/generated/flowcraft/v1/core/service_pb";
-import { useFlowSocket } from "@/hooks/useFlowSocket";
-import { useNodeController } from "@/hooks/useNodeController";
+import { useFlowSocket } from "@/hooks/integration/useFlowSocket";
+import { useNodeController } from "@/hooks/nodes/useNodeController";
+import { useNodeMutation } from "@/hooks/nodes/useNodeMutation";
+import { useSyncedBinding } from "@/hooks/core/useSyncedBinding";
 import { useFlowStore } from "@/store/flowStore";
 import { useTaskStore } from "@/store/taskStore";
-import { type DynamicNodeData, TaskStatus } from "@/types";
-import { ChatStatus as ChatStatusEnum } from "@/types";
+import { ChatStatus as ChatStatusEnum, TaskStatus } from "@/types";
+import { NodeLenses } from "@/utils/lenses";
 
 import { ChatConversationArea } from "./chat/ChatConversationArea";
 import { ChatInputArea } from "./chat/ChatInputArea";
@@ -27,24 +29,23 @@ interface ChatBotProps {
 }
 
 export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
-  const { allNodes, nodeDraft } = useFlowStore(
+  const { spacetimeConn: _spacetimeConn } = useFlowStore(
     useShallow((s) => ({
-      allNodes: s.allNodes,
-      nodeDraft: s.nodeDraft,
+      spacetimeConn: s.spacetimeConn,
     })),
   );
-  const node = allNodes.find((n) => n.id === nodeId);
+
   const { inferenceConfig } = useFlowSocket();
   const nodeController = useNodeController(nodeId);
+  const { setChatHead } = useNodeMutation(nodeId);
 
-  const data = node?.data as DynamicNodeData | undefined;
+  // Two-way binding for conversation head (current active leaf in the message tree)
+  const [conversationHeadId, setConversationHeadId] = useSyncedBinding(
+    useMemo(() => NodeLenses.chatHead(nodeId), [nodeId]),
+  );
 
-  // Extract chat extension safely
-  const chatExtension = data?.extension?.case === "chat" ? data.extension.value : undefined;
-
-  const conversationHeadId =
-    chatExtension?.conversationHeadId || ((data as any)?.chat?.conversation_head_id as string | undefined);
-  const treeId = chatExtension?.treeId || ((data as any)?.chat?.tree_id as string | undefined) || nodeId;
+  // Read-only binding for treeId (context boundary for the conversation)
+  const [treeId] = useSyncedBinding(useMemo(() => NodeLenses.chatTreeId(nodeId), [nodeId]));
 
   const [droppedNodes, setDroppedNodes] = useState<ContextNode[]>([]);
 
@@ -57,28 +58,14 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
     streamingMessage,
   } = useChatController(conversationHeadId, nodeId, treeId);
 
-  // Combine chat status with global node runtime status
+  // Combine local chat status with global task execution status
   const effectiveStatus = useMemo(() => {
-    const status = nodeController.status === "busy" ? ChatStatusEnum.SUBMITTED : chatStatus;
-    console.log(
-      `[ChatBot] effectiveStatus for ${nodeId}:`,
-      status,
-      " (nodeController:",
-      nodeController.status,
-      "chatStatus:",
-      chatStatus,
-      ")",
-    );
-    return status;
-  }, [nodeController.status, chatStatus, nodeId]);
+    return nodeController.status === "busy" ? ChatStatusEnum.SUBMITTED : chatStatus;
+  }, [nodeController.status, chatStatus]);
 
-  const failedTask = useTaskStore((s) => {
-    const task = Object.values(s.tasks).find((t) => t.nodeId === nodeId && t.status === TaskStatus.FAILED);
-    if (task) {
-      console.log(`[ChatBot] Found FAILED task for ${nodeId}:`, task);
-    }
-    return task;
-  });
+  const failedTask = useTaskStore((s) =>
+    Object.values(s.tasks).find((t) => t.nodeId === nodeId && t.status === TaskStatus.FAILED),
+  );
 
   const displayErrorMessage = useMemo(() => {
     if (!failedTask) return undefined;
@@ -104,17 +91,13 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
 
   useEffect(() => {
     if (!inferenceConfig) return;
-    queueMicrotask(() => {
-      if (inferenceConfig.defaultModel && selectedModel === "gpt-4o-mini") {
-        setSelectedModel(inferenceConfig.defaultModel);
-      }
-      if (inferenceConfig.defaultEndpointId && selectedEndpoint === "openai") {
-        setSelectedEndpoint(inferenceConfig.defaultEndpointId);
-      }
-    });
+    if (inferenceConfig.defaultModel && selectedModel === "gpt-4o-mini") {
+      setSelectedModel(inferenceConfig.defaultModel);
+    }
+    if (inferenceConfig.defaultEndpointId && selectedEndpoint === "openai") {
+      setSelectedEndpoint(inferenceConfig.defaultEndpointId);
+    }
   }, [inferenceConfig, selectedModel, selectedEndpoint]);
-
-  if (!node || !data) return null;
 
   const sendMessageWrapper = async (
     content: string,
@@ -169,14 +152,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
     const prevMsg = idx > 0 ? messages[idx - 1] : null;
     const newHead = prevMsg ? prevMsg.id : "";
 
-    const res = nodeDraft(node);
-    if (res.ok) {
-      const draft = res.value;
-      if (draft.data.extension?.case === "chat") {
-        draft.data.extension.value.conversationHeadId = newHead;
-      }
-    }
-
+    setConversationHeadId(newHead);
     sliceHistory(idx);
   };
 
@@ -222,21 +198,14 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
 
   const handleStreamingEditSave = (content: string) => {
     const newMsgId = crypto.randomUUID();
-    const res = nodeDraft(node);
-    if (res.ok) {
-      const draft = res.value;
-      if (draft.data.extension?.case === "chat") {
-        draft.data.extension.value.conversationHeadId = newMsgId;
-        draft.data.extension.value.isHistoryCleared = false;
-      }
-    }
+    setChatHead(newMsgId);
 
     const conn = useFlowStore.getState().spacetimeConn;
     if (conn) {
       conn.pbreducers.addChatMessage({
         message: create(ChatSyncMessageSchema, {
           id: newMsgId,
-          modelId: "gpt-4o",
+          modelId: selectedModel,
           parts: [create(ChatMessagePartSchema, { part: { case: "text", value: content } })],
           role: ChatRole.USER,
           timestamp: BigInt(Date.now()),

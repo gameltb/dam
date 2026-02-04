@@ -1,26 +1,50 @@
 import { Settings, X } from "lucide-react";
-import React, { useState } from "react";
+import { useState, useCallback } from "react";
 import { useShallow } from "zustand/react/shallow";
 
+import { useSettingsStore, type ShortcutConfig } from "@/store/ui/settingsStore";
 import { useUiStore } from "@/store/uiStore";
-
 import { AiSettings } from "./settings/AiSettings";
 import { GeneralSettings } from "./settings/GeneralSettings";
 import { ShortcutSettings } from "./settings/ShortcutSettings";
 
-export const SettingsModal: React.FC = () => {
-  const { dragMode, isOpen, setDragMode, setOpen, setSettings, setShortcut, settings, shortcuts } = useUiStore(
+export function SettingsModal() {
+  const { dragMode, isOpen, setDragMode, setOpen } = useUiStore(
     useShallow((s) => ({
       dragMode: s.dragMode,
       isOpen: s.isSettingsOpen,
       setDragMode: s.setDragMode,
       setOpen: s.setSettingsOpen,
-      setSettings: s.setSettings,
-      setShortcut: s.setShortcut,
-      settings: s.settings,
-      shortcuts: s.shortcuts,
     })),
   );
+
+  const { 
+    theme,
+    serverAddress,
+    showControls,
+    showMinimap,
+    activeLocalClientId,
+    setSettings, 
+    updateHotkeys, 
+    hotkeys: shortcuts 
+  } = useSettingsStore(
+    useShallow((s) => ({
+      theme: s.theme,
+      serverAddress: s.serverAddress,
+      showControls: s.showControls,
+      showMinimap: s.showMinimap,
+      activeLocalClientId: s.activeLocalClientId,
+      setSettings: s.setSettings,
+      updateHotkeys: s.updateHotkeys,
+      hotkeys: s.hotkeys,
+    }))
+  );
+
+  const settings = { theme, serverAddress, showControls, showMinimap, activeLocalClientId };
+
+  const setShortcut = useCallback((key: keyof ShortcutConfig, val: string) => {
+    updateHotkeys({ [key]: val });
+  }, [updateHotkeys]);
 
   const [activeTab, setActiveTab] = useState<"ai" | "general" | "shortcuts">("general");
 
@@ -28,63 +52,27 @@ export const SettingsModal: React.FC = () => {
 
   return (
     <div
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={() => {
         setOpen(false);
       }}
-      style={{
-        alignItems: "center",
-        backdropFilter: "blur(4px)",
-        backgroundColor: "rgba(0, 0, 0, 0.6)",
-        bottom: 0,
-        display: "flex",
-        justifyContent: "center",
-        left: 0,
-        position: "fixed",
-        right: 0,
-        top: 0,
-        zIndex: 10000,
-      }}
     >
       <div
+        className="flex flex-col w-[500px] max-h-[80vh] overflow-hidden bg-panel-bg border border-node-border rounded-xl shadow-2xl"
         onClick={(e) => {
           e.stopPropagation();
         }}
-        style={{
-          backgroundColor: "var(--panel-bg)",
-          border: "1px solid var(--node-border)",
-          borderRadius: "12px",
-          boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
-          display: "flex",
-          flexDirection: "column",
-          maxHeight: "80vh",
-          overflow: "hidden",
-          width: "500px",
-        }}
       >
         {/* Header */}
-        <div
-          style={{
-            alignItems: "center",
-            borderBottom: "1px solid var(--node-border)",
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "16px 20px",
-          }}
-        >
-          <div style={{ alignItems: "center", display: "flex", gap: "10px" }}>
-            <Settings color="var(--primary-color)" size={18} />
-            <span style={{ fontSize: "16px", fontWeight: 600 }}>Settings</span>
+        <div className="flex items-center justify-between p-4 px-5 border-b border-node-border">
+          <div className="flex items-center gap-2.5">
+            <Settings className="text-primary" size={18} />
+            <span className="text-base font-semibold">Settings</span>
           </div>
           <button
+            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
             onClick={() => {
               setOpen(false);
-            }}
-            style={{
-              background: "none",
-              border: "none",
-              color: "var(--sub-text)",
-              cursor: "pointer",
-              padding: "4px",
             }}
           >
             <X size={20} />
@@ -92,62 +80,26 @@ export const SettingsModal: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", padding: "0 10px" }}>
-          <button
-            onClick={() => {
-              setActiveTab("general");
-            }}
-            style={{
-              background: "none",
-              border: "none",
-              borderBottom: `2px solid ${activeTab === "general" ? "var(--primary-color)" : "transparent"}`,
-              color: activeTab === "general" ? "var(--text-color)" : "var(--sub-text)",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 500,
-              padding: "12px 15px",
-            }}
-          >
-            General
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab("ai");
-            }}
-            style={{
-              background: "none",
-              border: "none",
-              borderBottom: `2px solid ${activeTab === "ai" ? "var(--primary-color)" : "transparent"}`,
-              color: activeTab === "ai" ? "var(--text-color)" : "var(--sub-text)",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 500,
-              padding: "12px 15px",
-            }}
-          >
-            AI Local
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab("shortcuts");
-            }}
-            style={{
-              background: "none",
-              border: "none",
-              borderBottom: `2px solid ${activeTab === "shortcuts" ? "var(--primary-color)" : "transparent"}`,
-              color: activeTab === "shortcuts" ? "var(--text-color)" : "var(--sub-text)",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 500,
-              padding: "12px 15px",
-            }}
-          >
-            Shortcuts
-          </button>
+        <div className="flex px-2">
+          {(["general", "ai", "shortcuts"] as const).map((tab) => (
+            <button
+              key={tab}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors capitalize ${
+                activeTab === tab
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => {
+                setActiveTab(tab);
+              }}
+            >
+              {tab === "ai" ? "AI Local" : tab}
+            </button>
+          ))}
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+        <div className="flex-1 p-5 overflow-y-auto">
           {activeTab === "general" && (
             <GeneralSettings
               dragMode={dragMode}
@@ -157,9 +109,11 @@ export const SettingsModal: React.FC = () => {
             />
           )}
           {activeTab === "ai" && <AiSettings />}
-          {activeTab === "shortcuts" && <ShortcutSettings setShortcut={setShortcut} shortcuts={shortcuts} />}
+          {activeTab === "shortcuts" && (
+            <ShortcutSettings setShortcut={setShortcut} shortcuts={shortcuts} />
+          )}
         </div>
       </div>
     </div>
   );
-};
+}

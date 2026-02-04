@@ -3,26 +3,29 @@ import { type ReducerCtx } from "spacetimedb/server";
 import { type AppSchema } from "../schema";
 
 /**
- * Shared logic to log operations using the implicit task context of the sender.
+ * Logs operations.
  */
 export function logOperation(ctx: ReducerCtx<AppSchema>, type: string, payload: Record<string, unknown> | string) {
   const identity = ctx.sender.toHexString();
-  let taskId = "unassigned";
+  let taskId = "";
 
-  // Use simple iteration to find the assignment if direct index find fails in TS
-  for (const assignment of ctx.db.clientTaskAssignments) {
-    if (assignment.clientIdentity === identity) {
-      taskId = assignment.taskId;
-      break;
+  // Try to find the taskId bound to the current identity
+  const assignments = ctx.db?.clientTaskAssignments;
+  if (assignments) {
+    for (const assignment of assignments.iter()) {
+      if ((assignment as any).clientIdentity === identity) {
+        taskId = (assignment as any).taskId;
+        break;
+      }
     }
   }
 
-  ctx.db.operationLogs.insert({
+  ctx.db?.operationLogs?.insert({
     clientIdentity: identity,
-    id: ctx.timestamp.toMillis().toString() + "_" + Math.random().toString(36).substring(2, 9),
+    id: `${identity}-${ctx.timestamp.toMillis()}-${ctx.db?.operationLogs?.count() || 0}`,
     operationType: type,
     payloadJson: typeof payload === "string" ? payload : JSON.stringify(payload),
-    taskId: taskId,
+    taskId,
     timestamp: ctx.timestamp.toMillis(),
   });
 }

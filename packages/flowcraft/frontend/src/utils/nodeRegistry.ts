@@ -29,6 +29,10 @@ export const NODE_CONSTRAINTS: Record<string, NodeConstraint> = {
     minHeight: 150,
     minWidth: 280,
   },
+  subgraph_proxy: {
+    minHeight: 200,
+    minWidth: 300,
+  },
 };
 
 /**

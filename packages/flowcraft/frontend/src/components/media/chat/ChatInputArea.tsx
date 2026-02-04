@@ -28,7 +28,7 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import { type InferenceConfigDiscoveryResponse } from "@/generated/flowcraft/v1/core/service_pb";
-import { useUiStore } from "@/store/uiStore";
+import { useSettingsStore } from "@/store/ui/settingsStore";
 
 import { ChatStatus, type ContextNode } from "./types";
 
@@ -61,7 +61,7 @@ export const ChatInputArea: React.FC<Props> = ({
 }) => {
   const [inputText, setInputText] = useState("");
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
-  const localClients = useUiStore((s) => s.settings.localClients);
+  const localClients = useSettingsStore((s) => s.localClients);
 
   const allModels = React.useMemo(() => {
     const models: {
@@ -72,7 +72,6 @@ export const ChatInputArea: React.FC<Props> = ({
       name: string;
     }[] = [];
 
-    // Add Server Models
     if (inferenceConfig) {
       inferenceConfig.endpoints.forEach((e) => {
         e.models.forEach((m) => {
@@ -86,7 +85,6 @@ export const ChatInputArea: React.FC<Props> = ({
       });
     }
 
-    // Add Local Models
     localClients.forEach((c) => {
       models.push({
         endpointId: c.id,
@@ -156,7 +154,7 @@ export const ChatInputArea: React.FC<Props> = ({
                 onChange={(e) => {
                   setInputText(e.target.value);
                 }}
-                placeholder={status === ChatStatus.READY ? "Ask anything..." : "Please wait..."}
+                placeholder={status === ChatStatus.READY ? "Ask anything…" : "Please wait…"}
                 value={inputText}
               />
             </PromptInputBody>
@@ -184,7 +182,6 @@ export const ChatInputArea: React.FC<Props> = ({
                   </ModelSelectorTrigger>
                   <ModelSelectorContent>
                     <ModelSelectorList>
-                      {/* Server Endpoints */}
                       {inferenceConfig?.endpoints.map((e) => (
                         <ModelSelectorGroup heading={e.name} key={e.id}>
                           {e.models.map((m) => (
@@ -205,7 +202,6 @@ export const ChatInputArea: React.FC<Props> = ({
                         </ModelSelectorGroup>
                       ))}
 
-                      {/* Local Clients */}
                       {localClients.length > 0 && (
                         <ModelSelectorGroup heading="Local Clients">
                           {localClients.map((c) => (

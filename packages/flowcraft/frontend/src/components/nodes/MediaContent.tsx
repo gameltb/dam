@@ -1,33 +1,35 @@
+import { Layers, MessageSquareText } from "lucide-react";
 import React, { memo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
+import { MediaContentSchema, MediaType } from "@/generated/flowcraft/v1/core/base_pb";
 import { type Port } from "@/generated/flowcraft/v1/core/node_pb";
-import { useNodeHandlers } from "@/hooks/useNodeHandlers";
+import { useNodeHandlers } from "@/hooks/nodes/useNodeHandlers";
 import { useFlowStore } from "@/store/flowStore";
+import { editNode } from "@/store/orchestrator";
 import { type DynamicNodeData, FlowEvent, OverflowMode } from "@/types";
+import { mapToMediaType } from "@/utils/nodeUtils";
 import { getPortColor, getPortShape } from "@/utils/themeUtils";
 
-import { PortHandle } from "../base/PortHandle";
-import { GalleryWrapper } from "../media/GalleryWrapper";
 import { MEDIA_CONFIGS } from "../media/mediaConfigs";
 import { MEDIA_RENDERERS } from "../media/mediaRenderRegistry";
+import { GalleryOverlay } from "./parts/GalleryOverlay";
+import { PortHandle } from "./PortHandle";
 
 interface MediaContentProps {
   data: DynamicNodeData;
   height?: number;
   id: string;
+  onGalleryItemContext?: (nodeId: string, url: string, mediaType: MediaType, x: number, y: number) => void;
   onOverflowChange?: (o: OverflowMode) => void;
   width?: number;
 }
 
-const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height, id, onOverflowChange, width }) => {
-  const { onChange, onGalleryItemContext } = useNodeHandlers(data);
-  const { allNodes, dispatchNodeEvent, nodeDraft } = useFlowStore(
+const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height, id, onGalleryItemContext, width }) => {
+  const { onChange } = useNodeHandlers(data);
+  const { dispatchNodeEvent } = useFlowStore(
     useShallow((s) => ({
-      allNodes: s.allNodes,
       dispatchNodeEvent: s.dispatchNodeEvent,
-      nodeDraft: s.nodeDraft,
     })),
   );
 
@@ -40,9 +42,10 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
 
     if (data.extension?.case === "visual") {
       const v = data.extension.value;
-      type = v.mimeType.startsWith("video/") ? MediaType.MEDIA_VIDEO : MediaType.MEDIA_IMAGE;
+      type = mapToMediaType(v.mimeType.startsWith("video/") ? MediaType.MEDIA_VIDEO : MediaType.MEDIA_IMAGE);
       url = v.url;
       aspectRatio = 1.33;
+      galleryUrls = (v as any).galleryUrls || [];
     } else if (data.extension?.case === "document") {
       const d = data.extension.value;
       type = MediaType.MEDIA_MARKDOWN;
@@ -52,10 +55,14 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
       type = MediaType.MEDIA_AUDIO;
       url = a.url;
     } else if (data.media) {
-      type = data.media.type;
+      type = mapToMediaType(data.media.type);
       url = data.media.url;
       content = data.media.content;
       aspectRatio = data.media.aspectRatio;
+      galleryUrls = data.media.galleryUrls;
+    }
+
+    if (data.media?.galleryUrls && galleryUrls.length === 0) {
       galleryUrls = data.media.galleryUrls;
     }
 
@@ -65,6 +72,28 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
 
   const media = getNormalizedMedia();
   if (!media) {
+    const isSubgraph = data.extension?.case === "subgraph" || (data as any).subgraph;
+    const subgraphData = data.extension?.case === "subgraph" ? data.extension.value : (data as any).subgraph;
+
+    if (isSubgraph) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full w-full bg-primary/5 text-primary border-2 border-primary/20 rounded-md gap-3">
+          <div className="p-4 bg-primary/10 rounded-full">
+            <Layers className="text-primary opacity-80" size={32} />
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-xs font-black uppercase tracking-widest opacity-60">Subgraph / Session</span>
+            <span className="text-[10px] font-mono opacity-40">
+              {String(subgraphData?.subgraphId || id).slice(0, 8)}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 rounded text-[9px] font-bold opacity-70">
+            <MessageSquareText size={10} />
+            CONVERSATION
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex items-center justify-center h-full w-full bg-muted/20 text-[10px] text-muted-foreground uppercase font-bold">
         No Media Data
@@ -82,22 +111,17 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
   const handleDimensionsLoad = (ratio: number) => {
     if (Math.abs((media.aspectRatio ?? 0) - ratio) > 0.01) {
       onChange(id, {
-        media: { ...media, aspectRatio: ratio },
+        media: { ...media, $typeName: MediaContentSchema.typeName, aspectRatio: ratio } as any,
       });
 
       const currentWidth = width ?? 240;
       const targetHeight = Math.round(currentWidth / ratio);
 
       if (Math.abs((height ?? 0) - targetHeight) > 5) {
-        const node = allNodes.find((n) => n.id === id);
-        if (node) {
-          const res = nodeDraft(node);
-          if (res.ok) {
-            const draft = res.value;
-            draft.height = targetHeight;
-            draft.width = currentWidth;
-          }
-        }
+        editNode(id, (draft) => {
+          draft.height = targetHeight;
+          draft.width = currentWidth;
+        });
       }
     }
   };
@@ -125,7 +149,7 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
               extension: {
                 case: "document",
                 value: { ...data.extension.value, content: newContent },
-              },
+              } as any,
             });
           }
         }}
@@ -143,20 +167,18 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
         handleOpenPreview(0);
       }}
     >
-      <div className="nopan relative h-full w-full overflow-hidden rounded-[inherit] pointer-events-auto">
+      <div className="relative h-full w-full overflow-hidden rounded-[inherit] pointer-events-auto">
         {renderContent(media.url, media.type, 0, media.content)}
       </div>
 
       <div className="absolute inset-0 overflow-visible pointer-events-none z-[100]">
         {media.galleryUrls.length > 0 && (
-          <GalleryWrapper
+          <GalleryOverlay
             gallery={media.galleryUrls}
             id={id}
-            mainContent={<div className="h-full w-full pointer-events-none" />}
             mediaType={media.type}
             nodeHeight={nodeHeight}
             nodeWidth={nodeWidth}
-            onExpand={() => onOverflowChange?.(OverflowMode.VISIBLE)}
             onGalleryItemContext={onGalleryItemContext}
             renderItem={(url) => (
               <div className="h-full w-full overflow-hidden rounded-sm">

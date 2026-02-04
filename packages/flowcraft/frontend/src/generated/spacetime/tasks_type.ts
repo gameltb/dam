@@ -9,8 +9,6 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
-import CoreTaskStatus from "./core_task_status_type";
-
 
 export default __t.object("Tasks", {
   id: __t.string(),
@@ -20,9 +18,7 @@ export default __t.object("Tasks", {
   ownerId: __t.string(),
   paramsPayload: __t.byteArray(),
   result: __t.string(),
-  get status() {
-    return CoreTaskStatus;
-  },
+  status: __t.u32(),
   taskType: __t.string(),
   timestamp: __t.u64(),
   version: __t.u32(),

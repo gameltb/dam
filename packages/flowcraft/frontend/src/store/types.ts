@@ -1,98 +1,82 @@
 import { type Edge, type OnConnect, type OnEdgesChange, type OnNodesChange } from "@xyflow/react";
 
-import {
-  type AddEdgeRequest,
-  type AddNodeRequest,
-  type AddSubGraphRequest,
-  type ClearGraphRequest,
-  type GraphMutation,
-  type PathUpdateRequest,
-  type RemoveEdgeRequest,
-  type RemoveNodeRequest,
-  type ReparentNodeRequest,
-} from "@/generated/flowcraft/v1/core/service_pb";
-import { type NodeSignal, type WidgetSignal } from "@/generated/flowcraft/v1/core/signals_pb";
-import { type AppNode, type FlowEvent, MediaType, type MutationSource } from "@/types";
-import { type Draftable, type Result } from "@/utils/draft";
+import { type AppNode, FlowEvent, InboundChangeCategory } from "@/types";
 import { type PbConnection } from "@/utils/pb-client";
 
+export interface AppAction {
+  actionId: string;
+  nodeId: string;
+}
+
+export type Result<T, E = string> = { error: E; ok: false } | { ok: true; value: T };
+
 /**
- * 历史记录条目
+ * RFState (V14.1 - Orchestrated & Fixed)
  */
-export interface HistoryEntry {
-  description: string;
-  forward: MutationInput[];
-  id: string;
-  inverse: MutationInput[];
-  scopeId: null | string;
-  timestamp: number;
-}
-
-export interface MutationContext {
-  description?: string;
-  isHistoryOp?: boolean; // 标识是否为撤销重做触发的操作
-  source?: MutationSource;
-  taskId?: string;
-}
-
-export type MutationInput =
-  | AddEdgeRequest
-  | AddNodeRequest
-  | AddSubGraphRequest
-  | ClearGraphRequest
-  | GraphMutation
-  | PathUpdateRequest
-  | RemoveEdgeRequest
-  | RemoveNodeRequest
-  | ReparentNodeRequest;
-
-export interface NodeHandlers {
-  onChange: (id: string, data: Record<string, unknown>) => void;
-  onGalleryItemContext?: (nodeId: string, url: string, mediaType: MediaType, x: number, y: number) => void;
-  onWidgetClick?: (nodeId: string, widgetId: string) => void;
-}
-
 export interface RFState {
-  // 基础指令
+  activeScopeId: null | string;
   addNode: (node: AppNode) => void;
-  allEdges: Edge[];
-  allNodes: AppNode[];
-  applyMutations: (mutations: MutationInput[], context?: MutationContext) => void;
+  // Clipboard state MUST remain in store
+  clipboard: null | { edges: Edge[]; nodes: AppNode[] };
 
-  dispatchNodeEvent: (type: FlowEvent, payload: Record<string, unknown>) => void;
+  dispatchNodeEvent: (type: FlowEvent, payload: unknown) => void;
   edges: Edge[];
-  handleIncomingWidgetSignal: (signal: WidgetSignal) => void;
-  lastLocalUpdate: Record<string, number>;
-  lastNodeEvent: null | {
-    payload: Record<string, unknown>;
-    timestamp: number;
-    type: FlowEvent;
-  };
-  // ORM 接口 (Rust-style Result)
-  nodeDraft: (nodeIdOrNode: AppNode | string) => Result<Draftable<AppNode>>;
 
+  edgesById: Record<string, Edge>;
+  handleIncomingWidgetSignal: (payload: unknown) => void;
+
+  lastLocalUpdate: Record<string, number>;
+    lastNodeEvent: null | { payload: unknown; timestamp: number; type: FlowEvent };
+    
+    // New: Track incoming change signals from DB
+    lastInboundChange: null | {
+      category: InboundChangeCategory;
+      id: string; // node.id or 'viewport' etc.
+      timestamp: number;
+    };
+  
+    nodeRelations: Record<
+    string,
+    {
+      firstChildId?: string;
+      left?: string;
+      nextSiblingId?: string;
+      parentId?: string;
+      prevSiblingId?: string;
+      right?: string;
+    }
+  >;
   nodes: AppNode[];
 
+  nodesById: Record<string, AppNode>;
   onConnect: OnConnect;
   onEdgesChange: OnEdgesChange;
   onNodesChange: OnNodesChange<AppNode>;
   redo: () => void;
 
-  redoStack: HistoryEntry[];
-  refreshView: () => void;
+    redoStack: { edgesById: Record<string, Edge>; nodesById: Record<string, AppNode> }[];
 
-  reparentNode: (nodeId: string, newParentId: null | string) => void;
-  resetStore: () => void;
-  sendNodeSignal: (signal: NodeSignal) => void;
+  
 
-  sendWidgetSignal: (signal: WidgetSignal) => void;
+    refreshView: () => void;
+
+    reparentNode: (nodeId: string, newParentId: null | string) => void;
+
+    moveNodeToScope: (nodeId: string, newScopeId: string | null) => void;
+
+    resetStore: () => void;
+  sendNodeSignal: (signal: unknown) => void;
+  sendWidgetSignal: (signal: unknown) => void;
+  setClipboard: (content: null | { edges: Edge[]; nodes: AppNode[] }) => void;
   setEdges: (edges: Edge[]) => void;
-  setGraph: (graph: { edges: Edge[]; nodes: AppNode[] }) => void;
+  setGraph: (g: { edges: Edge[]; nodes: AppNode[] }) => void;
   setNodes: (nodes: AppNode[]) => void;
 
-  spacetimeConn?: PbConnection;
-
-  // 历史指令
+  setSpacetimeConn: (conn: null | PbConnection) => void;
+  spacetimeConn: null | PbConnection;
+  takeSnapshot: () => void;
   undo: () => void;
-  undoStack: HistoryEntry[];
+  undoStack: { edgesById: Record<string, Edge>; nodesById: Record<string, AppNode> }[];
+
+  viewport: { x: number; y: number; zoom: number };
 }

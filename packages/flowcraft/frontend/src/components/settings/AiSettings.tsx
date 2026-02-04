@@ -2,20 +2,28 @@ import { Check, Edit2, Plus, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { useUiStore } from "@/store/uiStore";
+import { useSettingsStore } from "@/store/ui/settingsStore";
 import { type LocalLLMClientConfig } from "@/types";
 
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
 export const AiSettings: React.FC = () => {
-  const { addLocalClient, removeLocalClient, setActiveLocalClient, settings, updateLocalClient } = useUiStore(
+  const { 
+    addLocalClient, 
+    removeLocalClient, 
+    activeLocalClientId, 
+    localClients, 
+    updateLocalClient,
+    setSettings 
+  } = useSettingsStore(
     useShallow((s) => ({
       addLocalClient: s.addLocalClient,
       removeLocalClient: s.removeLocalClient,
-      setActiveLocalClient: s.setActiveLocalClient,
-      settings: s.settings,
+      activeLocalClientId: s.activeLocalClientId,
+      localClients: s.localClients,
       updateLocalClient: s.updateLocalClient,
+      setSettings: s.setSettings
     })),
   );
 
@@ -70,7 +78,7 @@ export const AiSettings: React.FC = () => {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-text-color">Local LLM Clients</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wider">Local LLM Clients</h3>
         {!isAdding && !editingId && (
           <Button
             className="h-8 gap-1 text-xs"
@@ -87,8 +95,8 @@ export const AiSettings: React.FC = () => {
 
       {/* Client List */}
       <div className="flex flex-col gap-2">
-        {settings.localClients.map((client) => {
-          const isActive = settings.activeLocalClientId === client.id;
+        {localClients.map((client) => {
+          const isActive = activeLocalClientId === client.id;
           const isEditing = editingId === client.id;
 
           if (isEditing) return null;
@@ -103,12 +111,12 @@ export const AiSettings: React.FC = () => {
               <div
                 className="flex-1 cursor-pointer"
                 onClick={() => {
-                  setActiveLocalClient(client.id);
+                  setSettings({ activeLocalClientId: client.id });
                 }}
               >
                 <div className="flex items-center gap-2">
                   {isActive && <Check className="text-primary" size={14} />}
-                  <span className="text-sm font-semibold text-text-color">{client.name}</span>
+                  <span className="text-sm font-semibold">{client.name}</span>
                   <Badge className="text-[10px]" variant="outline">
                     {client.model}
                   </Badge>
@@ -155,7 +163,7 @@ export const AiSettings: React.FC = () => {
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] uppercase text-muted-foreground font-bold">Client Name</label>
               <input
-                className="bg-background border border-node-border rounded px-2 py-1.5 text-xs text-text-color outline-none focus:border-primary"
+                className="bg-background border border-node-border rounded px-2 py-1.5 text-xs outline-none focus:border-primary"
                 onChange={(e) => {
                   setFormData({ ...formData, name: e.target.value });
                 }}
@@ -167,7 +175,7 @@ export const AiSettings: React.FC = () => {
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] uppercase text-muted-foreground font-bold">Model ID</label>
               <input
-                className="bg-background border border-node-border rounded px-2 py-1.5 text-xs text-text-color outline-none focus:border-primary"
+                className="bg-background border border-node-border rounded px-2 py-1.5 text-xs outline-none focus:border-primary"
                 onChange={(e) => {
                   setFormData({ ...formData, model: e.target.value });
                 }}
@@ -181,7 +189,7 @@ export const AiSettings: React.FC = () => {
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] uppercase text-muted-foreground font-bold">Base URL</label>
             <input
-              className="bg-background border border-node-border rounded px-2 py-1.5 text-xs text-text-color outline-none focus:border-primary"
+              className="bg-background border border-node-border rounded px-2 py-1.5 text-xs outline-none focus:border-primary"
               onChange={(e) => {
                 setFormData({ ...formData, baseUrl: e.target.value });
               }}
@@ -194,7 +202,7 @@ export const AiSettings: React.FC = () => {
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] uppercase text-muted-foreground font-bold">API Key (Optional)</label>
             <input
-              className="bg-background border border-node-border rounded px-2 py-1.5 text-xs text-text-color outline-none focus:border-primary"
+              className="bg-background border border-node-border rounded px-2 py-1.5 text-xs outline-none focus:border-primary"
               onChange={(e) => {
                 setFormData({ ...formData, apiKey: e.target.value });
               }}
@@ -215,7 +223,7 @@ export const AiSettings: React.FC = () => {
         </div>
       )}
 
-      {settings.localClients.length > 0 && !settings.activeLocalClientId && (
+      {localClients.length > 0 && !activeLocalClientId && (
         <div className="text-[10px] text-center text-orange-500 font-bold bg-orange-500/10 p-2 rounded border border-orange-500/20">
           No active client selected. Direct local inference is disabled.
         </div>

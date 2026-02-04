@@ -1,71 +1,117 @@
+import { toBinary } from "@bufbuild/protobuf";
 import { type ReducerCtx, t } from "spacetimedb/server";
 
-import type { Viewport as ProtoViewport } from "../generated/flowcraft/v1/core/base_pb";
-import type { Edge as ProtoEdge, Node as ProtoNode } from "../generated/flowcraft/v1/core/node_pb";
-import type {
-  PathUpdateRequest as ProtoPathUpdate,
-  ReparentNodeRequest as ProtoReparent,
-} from "../generated/flowcraft/v1/core/service_pb";
-
 import { ViewportSchema } from "../generated/flowcraft/v1/core/base_pb";
-import { EdgeSchema, NodeSchema } from "../generated/flowcraft/v1/core/node_pb";
-import {
-  PathUpdateRequestSchema,
-  ReparentNodeRequestSchema as ServiceReparentSchema,
-} from "../generated/flowcraft/v1/core/service_pb";
-import {
-  core_Edge as StdbEdge,
-  core_Node as StdbNode,
-  core_Viewport as StdbViewport,
-} from "../generated/generated_schema";
-import { pbToStdb } from "../generated/proto-stdb-bridge";
+import { EdgeSchema, NodeDataSchema, NodeSchema } from "../generated/flowcraft/v1/core/node_pb";
+import { AddSubGraphRequestSchema } from "../generated/flowcraft/v1/core/service_pb";
 import { type AppSchema } from "../schema";
-import { applyPathToObj, unwrapPbValue } from "../utils/path-utils";
-import { validateValueByPath } from "../utils/type-validator";
 
 export const nodeReducers = {
   add_edge_pb: {
     args: { edge: EdgeSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { edge }: { edge: ProtoEdge }) => {
+    handler: (ctx: ReducerCtx<AppSchema>, { edge, edgeBinary }: { edge: any; edgeBinary: Uint8Array }) => {
       ctx.db.edges.insert({
         edgeId: edge.edgeId,
-        state: pbToStdb(EdgeSchema, StdbEdge, edge) as StdbEdge,
-      });
-    },
-  },
-
-  create_node_pb: {
-    args: { node: NodeSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { node }: { node: ProtoNode }) => {
-      ctx.db.nodes.insert({
-        nodeId: node.nodeId,
-        state: pbToStdb(NodeSchema, StdbNode, node) as StdbNode,
+        sourceNodeId: edge.sourceNodeId,
+        state: edgeBinary,
+        targetNodeId: edge.targetNodeId,
       });
     },
   },
 
   /**
-   * 核心：增量路径更新 Reducer
+   * Batch import subgraph: handles combinations of multiple nodes and edges.
    */
-  path_update_pb: {
-    args: { req: PathUpdateRequestSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { req }: { req: ProtoPathUpdate }) => {
-      const nodeRow = ctx.db.nodes.nodeId.find(req.targetId);
-      if (nodeRow) {
-        const updated = { ...nodeRow };
-        const pathParts = req.path.split(".");
+  add_sub_graph_pb: {
+    args: { req: AddSubGraphRequestSchema },
+    handler: (ctx: ReducerCtx<AppSchema>, { req }: { req: any }) => {
+      // 1. Batch create nodes
+      (req.nodes || []).forEach((node: any) => {
+        const nodeId = node.nodeId;
 
-        // 1. 校验路径与类型
-        validateValueByPath(NodeSchema, pathParts, req.value);
+        // Identity
+        ctx.db.nodes.insert({
+          nodeId,
+          nodeKind: node.nodeKind,
+          templateId: node.templateId,
+        });
 
-        // 2. 解包
-        const realValue = unwrapPbValue(req.value);
+        // Transform
+        ctx.db.nodeTransforms.insert({
+          height: node.presentation?.height || 0,
+          nodeId,
+          width: node.presentation?.width || 0,
+          x: node.presentation?.position?.x || 0,
+          y: node.presentation?.position?.y || 0,
+        });
 
-        // 3. 应用补丁 (Zero-Mapping: 路径直接对齐)
-        updated.state = applyPathToObj(updated.state, pathParts, realValue, req.type, NodeSchema);
+        // Metadata: Correctly mapping scopeId and parentId
+        ctx.db.nodeMetadata.insert({
+          displayName: node.state?.displayName || "",
+          nodeId,
+          parentId: node.presentation?.parentId || "",
+          scopeId: node.presentation?.scopeId || "root",
+        });
 
-        // 4. 持久化
-        ctx.db.nodes.nodeId.update(updated);
+        // State Blob
+        if (node.state) {
+          ctx.db.nodeData.insert({
+            nodeId,
+            state: toBinary(NodeDataSchema, node.state),
+          });
+        }
+      });
+
+      // 2. Batch create edges
+      (req.edges || []).forEach((edge: any) => {
+        ctx.db.edges.insert({
+          edgeId: edge.edgeId,
+          sourceNodeId: edge.sourceNodeId,
+          state: toBinary(EdgeSchema, edge),
+          targetNodeId: edge.targetNodeId,
+        });
+      });
+    },
+  },
+
+  /**
+   * Create node: writes to multiple component tables simultaneously.
+   */
+  create_node_pb: {
+    args: { node: NodeSchema },
+    handler: (ctx: ReducerCtx<AppSchema>, { node }: { node: any }) => {
+      const nodeId = node.nodeId;
+
+      // 1. Identity
+      ctx.db.nodes.insert({
+        nodeId,
+        nodeKind: node.nodeKind,
+        templateId: node.templateId,
+      });
+
+      // 2. Transform
+      ctx.db.nodeTransforms.insert({
+        height: node.presentation?.height || 0,
+        nodeId,
+        width: node.presentation?.width || 0,
+        x: node.presentation?.position?.x || 0,
+        y: node.presentation?.position?.y || 0,
+      });
+
+      // 3. Metadata: Supporting both scope and parent hierarchy
+      ctx.db.nodeMetadata.insert({
+        displayName: node.state?.displayName || "",
+        nodeId,
+        parentId: node.presentation?.parentId || "",
+        scopeId: node.presentation?.scopeId || "root",
+      });
+
+      // 4. State Blob (NodeData)
+      if (node.state) {
+        ctx.db.nodeData.insert({
+          nodeId,
+          state: toBinary(NodeDataSchema, node.state),
+        });
       }
     },
   },
@@ -80,50 +126,121 @@ export const nodeReducers = {
   remove_node: {
     args: { id: t.string() },
     handler: (ctx: ReducerCtx<AppSchema>, { id }: { id: string }) => {
+      // Cascade delete all components
       ctx.db.nodes.nodeId.delete(id);
-      const edges = [...ctx.db.edges.iter()];
-      for (const edge of edges) {
-        const edgeState = edge.state;
-        if (edgeState.sourceNodeId === id || edgeState.targetNodeId === id) {
-          ctx.db.edges.edgeId.delete(edge.edgeId);
-        }
+      ctx.db.nodeTransforms.nodeId.delete(id);
+      ctx.db.nodeMetadata.nodeId.delete(id);
+      ctx.db.nodeData.nodeId.delete(id);
+
+      // Delete related edges
+      for (const edge of ctx.db.edges.sourceNodeId.filter(id)) {
+        ctx.db.edges.edgeId.delete(edge.edgeId);
+      }
+      for (const edge of ctx.db.edges.targetNodeId.filter(id)) {
+        ctx.db.edges.edgeId.delete(edge.edgeId);
       }
     },
   },
 
-  reparent_node_pb: {
-    args: { req: ServiceReparentSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { req }: { req: ProtoReparent }) => {
-      const nodeRow = ctx.db.nodes.nodeId.find(req.nodeId);
-      if (nodeRow) {
-        const updated = { ...nodeRow };
-        const state = updated.state;
-        if (state.presentation) {
-          state.presentation.parentId = req.newParentId;
-          if (req.newPosition && state.presentation.position) {
-            state.presentation.position.x = req.newPosition.x;
-            state.presentation.position.y = req.newPosition.y;
-          }
-        }
-        ctx.db.nodes.nodeId.update(updated);
+  /**
+   * Only update core PB data.
+   */
+  set_node_data_pb: {
+    args: { nodeId: t.string(), state: NodeDataSchema },
+    handler: (
+      ctx: ReducerCtx<AppSchema>,
+      { nodeId, state, stateBinary }: { nodeId: string; state: any; stateBinary: Uint8Array },
+    ) => {
+      const existing = ctx.db.nodeData.nodeId.find(nodeId);
+      if (existing) {
+        ctx.db.nodeData.nodeId.update({ nodeId, state: stateBinary });
+      } else {
+        ctx.db.nodeData.insert({ nodeId, state: stateBinary });
+      }
+
+      // Sync update displayName to Metadata table for consistency
+      const metadata = ctx.db.nodeMetadata.nodeId.find(nodeId);
+      if (metadata && state.displayName !== undefined) {
+        ctx.db.nodeMetadata.nodeId.update({ ...metadata, displayName: state.displayName });
+      }
+    },
+  },
+
+  /**
+   * Update physical parent node (used for hierarchy changes within a Group).
+   */
+  set_node_parent: {
+    args: { nodeId: t.string(), parentId: t.string() },
+    handler: (ctx: ReducerCtx<AppSchema>, { nodeId, parentId }: { nodeId: string; parentId: string }) => {
+      const metadata = ctx.db.nodeMetadata.nodeId.find(nodeId);
+      if (metadata) {
+        ctx.db.nodeMetadata.nodeId.update({ ...metadata, parentId });
+      }
+    },
+  },
+
+  /**
+   * Update logical Scope (used for moving across levels).
+   */
+  set_node_scope: {
+    args: { nodeId: t.string(), scopeId: t.string() },
+    handler: (ctx: ReducerCtx<AppSchema>, { nodeId, scopeId }: { nodeId: string; scopeId: string }) => {
+      const metadata = ctx.db.nodeMetadata.nodeId.find(nodeId);
+      if (metadata) {
+        ctx.db.nodeMetadata.nodeId.update({ ...metadata, scopeId });
+      }
+    },
+  },
+
+  /**
+   * High frequency: only update coordinates.
+   */
+  set_node_position: {
+    args: { nodeId: t.string(), x: t.f32(), y: t.f32() },
+    handler: (ctx: ReducerCtx<AppSchema>, { nodeId, x, y }: { nodeId: string; x: number; y: number }) => {
+      const transform = ctx.db.nodeTransforms.nodeId.find(nodeId);
+      if (transform) {
+        ctx.db.nodeTransforms.nodeId.update({ ...transform, x, y });
+      }
+    },
+  },
+
+  /**
+   * High frequency: only update dimensions.
+   */
+  set_node_size: {
+    args: { height: t.f32(), nodeId: t.string(), width: t.f32() },
+    handler: (
+      ctx: ReducerCtx<AppSchema>,
+      { height, nodeId, width }: { height: number; nodeId: string; width: number },
+    ) => {
+      const transform = ctx.db.nodeTransforms.nodeId.find(nodeId);
+      if (transform) {
+        ctx.db.nodeTransforms.nodeId.update({ ...transform, height, width });
       }
     },
   },
 
   update_viewport: {
     args: { id: t.string(), viewport: ViewportSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { id, viewport }: { id: string; viewport: ProtoViewport }) => {
+    handler: (ctx: ReducerCtx<AppSchema>, { id, viewportBinary }: { id: string; viewportBinary: Uint8Array }) => {
       const existing = ctx.db.viewportState.id.find(id);
       if (existing) {
-        ctx.db.viewportState.id.update({
-          id,
-          state: pbToStdb(ViewportSchema, StdbViewport, viewport) as StdbViewport,
-        });
+        ctx.db.viewportState.id.update({ id, state: viewportBinary });
       } else {
-        ctx.db.viewportState.insert({
-          id,
-          state: pbToStdb(ViewportSchema, StdbViewport, viewport) as StdbViewport,
-        });
+        ctx.db.viewportState.insert({ id, state: viewportBinary });
+      }
+    },
+  },
+
+  updateWidgetValue: {
+    args: { id: t.string(), nodeId: t.string(), value: t.string(), widgetId: t.string() },
+    handler: (ctx: ReducerCtx<AppSchema>, params: { id: string; nodeId: string; value: string; widgetId: string }) => {
+      const existing = ctx.db.widgetValues.id.find(params.id);
+      if (existing) {
+        ctx.db.widgetValues.id.update(params);
+      } else {
+        ctx.db.widgetValues.insert(params);
       }
     },
   },

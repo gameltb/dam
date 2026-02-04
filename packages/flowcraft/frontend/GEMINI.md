@@ -9,7 +9,7 @@ Flowcraft is a high-performance, backend-driven node-based editor built with Rea
 - **State Management:**
   - **Global:** Zustand.
   - **Sync & Persistence:** **SpacetimeDB** is the Source of Truth for the graph (Nodes, Edges, Viewport) and Task status.
-  - **Undo/Redo:** `zundo` (Zustand middleware) for local history management.
+  - **Undo/Redo & Logic Pipe:** Orchestrated via `orchestrator.ts` using a middleware pipeline (`historyMiddleware`, `taskMiddleware`, `syncMiddleware`).
 - **Layout:** `dagre` for automatic directed graph positioning.
 - **Protocol:** Protocol Buffers (Protobuf) for data serialization.
 - **Backend (Decentralized):**
@@ -25,7 +25,7 @@ Flowcraft is a high-performance, backend-driven node-based editor built with Rea
 
 Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 
-- **DynamicNode**: A modular component that can switch between **Media Mode** (images, video, markdown) and **Widgets Mode** (interactive fields like sliders, selects, etc.).
+- **DynamicNode**: Implemented via `NodeAssembler.tsx`. A modular component that can switch between **Media Mode** (images, video, markdown) and **Widgets Mode** (interactive fields like sliders, selects, etc.).
 - **ProcessingNode**: A temporary placeholder for ongoing tasks, providing live progress feedback and cancellation.
 - **Port System**: Supports explicit and implicit ports. Implicit ports are tied to widgets and can toggle a widget's enabled state when connected.
 
@@ -34,9 +34,9 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 - **Hybrid Synchronization**:
   - **Graph State**: Handled by **SpacetimeDB** (Nodes, Edges, Viewport). Changes are pushed via Reducers and pulled via Subscriptions.
   - **Legacy/Tasks**: **FlowMessage Envelope** (Protobuf) via ConnectRPC/gRPC. Used for `actionExecute`, `taskUpdate`, and `templateDiscovery`.
-- **Incremental Mutations**: The graph state is updated via atomic mutations (`addNode`, `updateNode`, etc.).
-  - **SpacetimeDB**: Mutations are mapped to SpacetimeDB Reducers.
-  - **ConnectRPC**: (Deprecated for Graph) Still used for some specialized updates.
+- **Incremental Mutations**: The graph state is updated via atomic mutations submitted through `orchestrator.commit`.
+  - **Outgoing Flow**: Mutations generate Immer Patches which are intercepted by `syncMiddleware`. This middleware declaratively maps store paths to SpacetimeDB Reducer calls.
+  - **Inbound Flow**: SpacetimeDB Subscriptions are processed via `useSpacetimeSync`, using `convertStdbToPb` for normalization before updating the store.
 - **RJSF & JSON Schema Integration**:
   - **Contract-First Forms**: UI forms for node/action configurations are driven by `react-jsonschema-form` (RJSF).
   - **Schema Generation**: JSON Schemas are generated from Protobuf definitions. There is no hard requirement for the file location, but targets must be manually added to `buf.gen.schema.yaml`.
@@ -65,18 +65,22 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 ## Development Conventions
 
 - **Typing:** Strict TypeScript typing is enforced. Avoid `any` in favor of `unknown`, generics, or generated Protobuf types. **Prefer Enums over string literals or string unions wherever possible** to ensure type safety, discoverability, and centralized definition.
+- **Code Style:** Prioritize elegant, decoupled design patterns (e.g., Mapper, Repository, Lenses). Keep business logic out of components.
+- **Comments & Documentation:**
+  - **Language:** Always use English for all code comments and documentation to maintain international collaboration standards.
+  - **Content:** Add code comments sparingly. Focus on *why* something is done, especially for complex logic, rather than *what* is done.
+  - **Cleanliness:** NEVER use `// ...` or similar ellipsis placeholders in code or patches.
 - **Event Bus:** Use the centralized event bus in `flowStore` (`dispatchNodeEvent`) for inter-component signaling (e.g., opening previews or editors). **Define event names as Enums.**
-- **Theming:** The application is dark-mode first. Use CSS variables defined in `index.css` (`--node-bg`, `--primary-color`, etc.) for all styling.
 - **Components & Performance:**
   - Prefer Functional Components and Hooks.
   - **Memoization:** Proactively wrap node renderers and complex widgets in `React.memo`. Always use `useCallback` for event handlers (especially those passed to handles/resizers) to prevent unnecessary React Flow re-renders during dragging.
   - **Error Resilience:** Wrap complex node renderers in local Error Boundaries. A failure in a specific node's media or widget renderer must not crash the entire editor canvas.
 - **Data & Synchronization:**
-  - **Defensive Parsing:** When parsing backend-provided JSON (e.g., `widgetsSchemaJson`, `widgetsValues`), always use `try-catch` blocks and provide sensible fallback/default values.
-  - **Mutation Atomicity:** All persistent graph changes (position, data, edges) MUST go through `applyMutations` to ensure synchronization with SpacetimeDB. Avoid mixing local component state with store state for data that needs to be synchronized.
-- **Modularity & File Size:** Keep components small and focused. **A single file should ideally not exceed 300 lines of code.**
-  - **Exemption:** Components in `src/components/ui/` and `src/components/ai-elements/` (typically introduced via shadcn or external libraries) are exempt from this line limit and should not be refactored solely to satisfy this rule.
-- **Imports & Path Aliases:** Use the `@/` alias for all absolute imports from the `src` directory (e.g., `import { useFlowStore } from "@/store/flowStore"`). Avoid deep relative paths (e.g., `../../hooks/...`) whenever possible to improve maintainability and readability.
+  - **Defensive Parsing**: When parsing backend-provided JSON (e.g., `widgetsSchemaJson`, `widgetsValues`), always use `try-catch` blocks and provide sensible fallback/default values.
+  - **Mutation Atomicity**: All persistent graph changes (position, data, edges) MUST go through `orchestrator.commit` to ensure synchronization with SpacetimeDB via the Sync Middleware. Avoid calling `set` directly for persistent state.
+  - **Modularity & File Size**: Keep components small and focused. **A single file should ideally not exceed 300 lines of code.** (e.g., View logic should be extracted from stores to `viewLogic.ts` if complexity grows).
+  - **Exemption**: Components in `src/components/ui/` and `src/components/ai-elements/` are exempt from the line limit.
+- **Imports & Path Aliases**: Use the `@/` prefix for absolute imports from the `src` directory (e.g., `import { ... } from '@/components/...'`).
 - **Structural Refactoring (ast-grep):** Use `npx ast-grep` for precise, syntax-aware code transformations across the project.
   - _Example:_ `npx ast-grep --pattern '$O.reducers.$M($$A)' --rewrite '$O.pbreducers.$M($$A)'` helps migrate legacy calls.
   - Prefer AST-based tools over simple regex/sed for complex nested structures to avoid breaking code context.
@@ -107,7 +111,7 @@ The generation pipeline (`scripts/generate-pb-client.ts`) automatically discover
 
 Always use `convertStdbToPb` (from `@/utils/pb-client`) to ingest data from SpacetimeDB subscriptions.
 
-- **Reason**: SpacetimeDB may represent Enums as objects (e.g., `{ mode: 1 }`). This utility "washes" the data back into standard Protobuf primitive format before it hits the store.
+- **Reason**: SpacetimeDB may represent Enums as objects (e.g., `{ mode: 1 }`). The bridge includes "washing" logic to flatten these back into standard Protobuf primitive format before it hits the store.
 - **Consistency**: Use the bridge at the entry point (`useSpacetimeSync`) so that the rest of the application (UI components and stores) only deals with standardized Protobuf shapes.
 
 ## Quality & Development Workflow

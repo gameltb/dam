@@ -1,6 +1,7 @@
 import "dotenv/config";
 import fs from "fs";
 import path from "path";
+import yaml from "yaml";
 
 export interface InferenceConfig {
   defaultEndpointId: string;
@@ -16,7 +17,7 @@ export interface InferenceEndpoint {
   name: string;
 }
 
-const CONFIG_FILE = path.join(process.cwd(), "inference.json");
+const CONFIG_FILE = path.join(process.cwd(), "inference.yaml");
 
 function loadConfig(): InferenceConfig {
   let config: Partial<InferenceConfig> = {};
@@ -24,7 +25,7 @@ function loadConfig(): InferenceConfig {
   if (fs.existsSync(CONFIG_FILE)) {
     try {
       const fileContent = fs.readFileSync(CONFIG_FILE, "utf-8");
-      config = JSON.parse(fileContent) as Partial<InferenceConfig>;
+      config = yaml.parse(fileContent) as Partial<InferenceConfig>;
     } catch (err) {
       console.error(`[Config] Failed to parse ${CONFIG_FILE}:`, err);
     }

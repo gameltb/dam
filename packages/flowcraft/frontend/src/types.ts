@@ -1,7 +1,6 @@
 import type { Edge, Node, Viewport } from "@xyflow/react";
 
-import { MediaType, MutationSource, PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
-import { type Presentation } from "@/generated/flowcraft/v1/core/base_pb";
+import { MediaType, MutationSource, PortMainType, type Presentation } from "@/generated/flowcraft/v1/core/base_pb";
 import { TaskStatus } from "@/generated/flowcraft/v1/core/kernel_pb";
 import {
   type NodeData,
@@ -53,6 +52,13 @@ export enum FlowEvent {
   WIDGET_CLICK = "widget-click",
 }
 
+export enum InboundChangeCategory {
+  NODE = "node",
+  EDGE = "edge",
+  VIEWPORT = "viewport",
+  UI = "ui",
+}
+
 export enum NodeSignalCase {
   CHAT_EDIT = "chatEdit",
   CHAT_GENERATE = "chatGenerate",
@@ -67,6 +73,10 @@ export enum OverflowMode {
 }
 
 export type { Edge, Node, Viewport };
+
+export enum Scope {
+  ROOT = "root",
+}
 
 export enum TaskType {
   ANONYMOUS = "anonymous",
@@ -91,22 +101,46 @@ export interface AcousticNodeData extends DynamicNodeData {
     value: AcousticNodeState;
   };
 }
-
 export interface AiGenNodeData extends DynamicNodeData {
   extension: {
     case: "aiGen";
     value: AiGenNodeState;
   };
 }
+export interface AppAction {
+  actionId: string;
+  nodeId: string;
+}
+export type AppNode = ChatMessageAppNode | DynamicAppNode | GroupAppNode | ProcessingAppNode;
 
 /**
- * AppNode 现在是 React Flow Node 与 Protobuf Node 的合体
+ * Base node properties (required by React Flow)
  */
-export type AppNode = {
-  id: NodeId;
-  // 直接包含 PB Presentation，用于 ORM 自动生成路径
-  presentation: Presentation;
-} & Node<DynamicNodeData | GroupNodeData | ProcessingNodeData, string>;
+export interface BaseAppNode {
+  _lastSync?: number;
+  _rev?: number;
+  draggable?: boolean;
+  dragging?: boolean;
+  height: number;
+  hidden?: boolean;
+  id: string;
+  measured?: { height: number; width: number };
+  parentId?: string; // Physical nesting (for group coordinates)
+  scopeId: string;   // Logical scope (for navigation/visibility)
+  position: { x: number; y: number };
+  presentation?: Presentation;
+  resizing?: boolean;
+  selectable?: boolean;
+  selected?: boolean;
+  style?: React.CSSProperties;
+  width: number;
+  zIndex?: number;
+}
+
+export interface ChatMessageAppNode extends BaseAppNode {
+  data: NodeData;
+  type: AppNodeType.CHAT_MESSAGE;
+}
 
 export interface ChatNodeData extends DynamicNodeData {
   extension: {
@@ -124,15 +158,25 @@ export interface DocumentNodeData extends DynamicNodeData {
   };
 }
 
-export type DynamicNodeData = NodeData & {
+export interface DynamicAppNode extends BaseAppNode {
+  data: DynamicNodeData;
+  type: AppNodeType.DYNAMIC;
+}
+
+export interface DynamicNodeData extends NodeData {
   [key: string]: unknown;
   managedScopeId?: string;
   templateId?: TemplateId;
-};
+}
 
-export type DynamicNodeType = Node<DynamicNodeData, "dynamic">;
+// Aliases for compatibility
+export type DynamicNodeType = DynamicAppNode;
 
 export type EdgeId = string;
+export interface GroupAppNode extends BaseAppNode {
+  data: GroupNodeData;
+  type: AppNodeType.GROUP;
+}
 
 export interface GroupNodeData extends NodeData {
   [key: string]: unknown;
@@ -141,14 +185,21 @@ export interface GroupNodeData extends NodeData {
   templateId?: TemplateId;
 }
 
-export type GroupNodeType = Node<GroupNodeData, AppNodeType.GROUP>;
-
 export interface LocalLLMClientConfig {
   apiKey: string;
   baseUrl: string;
   id: string;
   model: string;
   name: string;
+}
+
+export interface MutationContext {
+  description?: string;
+  isHistoryOp?: boolean;
+  isInteractionEnd?: boolean;
+  source?: MutationSource;
+  taskId?: string;
+  transient?: boolean;
 }
 
 export interface MutationLogEntry {
@@ -164,6 +215,11 @@ export type NodeId = string;
 
 export type NodeTemplate = ProtoNodeTemplate;
 
+export interface ProcessingAppNode extends BaseAppNode {
+  data: ProcessingNodeData;
+  type: AppNodeType.PROCESSING;
+}
+
 export interface ProcessingNodeData extends NodeData {
   [key: string]: unknown;
   displayName: string;
@@ -173,7 +229,7 @@ export interface ProcessingNodeData extends NodeData {
   templateId?: TemplateId;
 }
 
-export type ProcessingNodeType = Node<ProcessingNodeData, AppNodeType.PROCESSING>;
+export type ProcessingNodeType = ProcessingAppNode;
 
 export interface TaskDefinition {
   createdAt: number;
@@ -192,7 +248,6 @@ export interface TaskDefinition {
 export type TaskId = string;
 
 export type TemplateId = string;
-
 export interface VisualNodeData extends DynamicNodeData {
   extension: {
     case: "visual";
@@ -200,14 +255,21 @@ export interface VisualNodeData extends DynamicNodeData {
   };
 }
 
-export function isAiGenNode(node: AppNode): node is Node<AiGenNodeData, string> & { presentation: Presentation } {
+// --- Type Guards ---
+
+export function isAiGenNode(node: AppNode): node is DynamicAppNode & { data: AiGenNodeData } {
   return isDynamicNode(node) && node.data.extension?.case === "aiGen";
 }
 
-export function isChatNode(node: AppNode): node is Node<ChatNodeData, string> & { presentation: Presentation } {
-  return isDynamicNode(node) && node.data.extension?.case === "chat";
+export function isChatNode(node: AppNode): node is (ChatMessageAppNode | DynamicAppNode) & { data: ChatNodeData } {
+  if (node.type !== AppNodeType.DYNAMIC && node.type !== AppNodeType.CHAT_MESSAGE) {
+    return false;
+  }
+  // Use 'extension' in node.data for type-safe checks
+  const data = node.data as ChatNodeData | DynamicNodeData;
+  return data.extension?.case === "chat";
 }
 
-export function isDynamicNode(node: AppNode): node is DynamicNodeType & { presentation: Presentation } {
+export function isDynamicNode(node: AppNode): node is DynamicAppNode {
   return node.type === AppNodeType.DYNAMIC;
 }

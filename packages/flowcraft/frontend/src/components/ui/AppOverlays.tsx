@@ -8,7 +8,7 @@ import { ActionParamsModal } from "../ActionParamsModal";
 import { type AppNode } from "@/types";
 import { SocketStatus } from "@/utils/SocketClient";
 import { type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
-import { type PreviewData } from "@/hooks/useNodeEventListener";
+import { type PreviewData } from "@/hooks/nodes/useNodeEventListener";
 
 interface Props {
   nodes: AppNode[];

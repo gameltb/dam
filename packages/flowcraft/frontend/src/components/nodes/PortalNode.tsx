@@ -10,7 +10,7 @@ export const PortalNode = memo(({ data }: any) => {
       </div>
       <span className="text-[10px] font-bold text-primary/80 uppercase tracking-wider">{data.label}</span>
 
-      {/* 这是一个全能端点，既可以作为源也可以作为目标 */}
+      {/* This is a universal endpoint, acting as both source and target */}
       <Handle
         className="w-2 h-2 !bg-primary border-none opacity-0 group-hover:opacity-100 transition-opacity"
         position={Position.Left}

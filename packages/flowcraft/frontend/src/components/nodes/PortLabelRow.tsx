@@ -4,7 +4,7 @@ import React, { memo } from "react";
 import { type ClientPort } from "@/types";
 import { getPortColor, getPortShape } from "@/utils/themeUtils";
 
-import { PortHandle } from "../base/PortHandle";
+import { PortHandle } from "./PortHandle";
 
 interface PortLabelRowProps {
   inputPort?: ClientPort;

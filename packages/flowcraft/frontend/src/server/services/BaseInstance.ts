@@ -1,9 +1,9 @@
 import { create, fromJson, toBinary } from "@bufbuild/protobuf";
 import { ValueSchema } from "@bufbuild/protobuf/wkt";
+import { produceWithPatches } from "immer";
 
 import { MutationSource } from "@/generated/flowcraft/v1/core/base_pb";
 import { TaskStatus, TaskUpdateSchema } from "@/generated/flowcraft/v1/core/kernel_pb";
-import { NodeSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import {
   type GraphMutation,
   GraphMutationSchema,
@@ -11,7 +11,6 @@ import {
   PathUpdateRequest_UpdateType,
   PathUpdateRequestSchema,
 } from "@/generated/flowcraft/v1/core/service_pb";
-import { createNodeDraft, type Draftable, type Result } from "@/utils/draft";
 
 import { executeMutation } from "./MutationExecutor";
 import { eventBus, incrementVersion, logMutation, serverGraph, serverVersion } from "./PersistenceService";
@@ -35,6 +34,31 @@ export abstract class BaseInstance {
     this.updateStatus(TaskStatus.CANCELLED, "Instance stopped");
     this.flushPersistence();
     await Promise.resolve();
+  }
+
+  protected editNode(nodeId: string, recipe: (draft: any) => void) {
+    const node = serverGraph.nodes.find((n) => n.id === nodeId);
+    if (!node) {
+      console.warn(`[BaseInstance] Node ${nodeId} not found`);
+      return;
+    }
+
+    const [_, patches] = produceWithPatches(node, recipe);
+
+    patches.forEach((patch) => {
+      this.emitMutation(
+        {
+          case: "pathUpdate",
+          value: create(PathUpdateRequestSchema, {
+            path: patch.path.join("."),
+            targetId: nodeId,
+            type: PathUpdateRequest_UpdateType.REPLACE,
+            value: fromJson(ValueSchema, patch.value),
+          }),
+        },
+        MutationSource.SOURCE_REMOTE_TASK,
+      );
+    });
   }
 
   protected emitMutation(operation: GraphMutation["operation"], source: MutationSource = MutationSource.SOURCE_USER) {
@@ -62,29 +86,6 @@ export abstract class BaseInstance {
   protected abstract getDisplayLabel(): string;
 
   protected abstract getInstanceType(): string;
-
-  /**
-   * Returns a Result containing an ORM-style proxy for a node.
-   */
-  protected nodeDraft(nodeId: string): Result<Draftable<any>> {
-    const node = serverGraph.nodes.find((n) => n.id === nodeId);
-    if (!node) return { error: `[BaseInstance] Node ${nodeId} not found`, ok: false };
-
-    return createNodeDraft(nodeId, node, NodeSchema, (path: string, value: unknown) => {
-      this.emitMutation(
-        {
-          case: "pathUpdate",
-          value: create(PathUpdateRequestSchema, {
-            path: path,
-            targetId: nodeId,
-            type: PathUpdateRequest_UpdateType.REPLACE,
-            value: fromJson(ValueSchema, value as any),
-          }),
-        },
-        MutationSource.SOURCE_REMOTE_TASK,
-      );
-    });
-  }
   protected schedulePersistence(delayMs = 2000) {
     if (this.persistenceTimer) {
       clearTimeout(this.persistenceTimer);

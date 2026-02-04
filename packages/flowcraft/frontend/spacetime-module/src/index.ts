@@ -6,33 +6,27 @@ import { kernelReducers } from "./reducers/kernel";
 import { nodeReducers } from "./reducers/node";
 import { runtimeReducers } from "./reducers/runtime";
 import { taskReducers } from "./reducers/task";
+import { uiReducers } from "./reducers/ui";
 import { type AppSchema, spacetimedb } from "./schema";
 import { wrapPbHandler } from "./utils/reducer-wrapper";
 
-// Re-export everything from generated_schema to ensure the SpacetimeDB compiler
-// can see all types even if they are not explicitly used in reducers.
-export * from "./generated/generated_schema";
-
-// FORCE REFERENCES to prevent tree-shaking
-import * as gs from "./generated/generated_schema";
-(globalThis as any)._stdb_gs = gs;
-
-const ALL = {
+const ALL: Record<string, ReducerDefinition<any>> = {
   ...nodeReducers,
   ...chatReducers,
   ...configReducers,
   ...taskReducers,
   ...runtimeReducers,
   ...kernelReducers,
+  ...uiReducers,
 };
 
-interface ReducerDefinition {
+interface ReducerDefinition<P extends Record<string, any>> {
   args: Record<string, unknown>;
-  handler: (ctx: ReducerCtx<AppSchema>, params: any) => void;
+  handler: (ctx: ReducerCtx<AppSchema>, params: P) => void;
 }
 
-// 1. 自动注册并包装
-for (const [name, def] of Object.entries(ALL as Record<string, ReducerDefinition>)) {
+// 1. Auto-register and wrap
+for (const [name, def] of Object.entries(ALL)) {
   const stArgs: Record<string, unknown> = {};
   for (const [argName, argType] of Object.entries(def.args)) {
     if (argType && typeof argType === "object" && "typeName" in argType) {
@@ -42,16 +36,21 @@ for (const [name, def] of Object.entries(ALL as Record<string, ReducerDefinition
     }
   }
 
-  spacetimedb.reducer(name, stArgs as any, wrapPbHandler<AppSchema, any>(def.args, def.handler));
+  spacetimedb.reducer(name, stArgs as any, wrapPbHandler(def.args, def.handler));
 }
 
 spacetimedb.clientDisconnected((ctx: ReducerCtx<AppSchema>) => {
   const identity = ctx.sender.toHexString();
   const assignments = ctx.db.clientTaskAssignments;
-  const existing = assignments.clientIdentity.find(identity);
+  if (!assignments) return;
+  const existing = Array.from(assignments.iter()).find((r: any) => r.clientIdentity === identity);
   if (existing) {
-    assignments.clientIdentity.delete(identity);
+    assignments.delete(existing);
   }
 });
 
 export default spacetimedb;
+export * from "./reducers/runtime";
+export * from "./reducers/task";
+export * from "./reducers/ui";
+export * from "./schema";

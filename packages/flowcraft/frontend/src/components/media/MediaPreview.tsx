@@ -2,11 +2,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
-import { useMediaTransform } from "@/hooks/useMediaTransform";
+import { useMediaTransform } from "@/hooks/ux/useMediaTransform";
+import { cn } from "@/lib/utils";
 import { type AppNode, AppNodeType, VideoMode } from "@/types";
-import { type DynamicNodeData } from "@/types";
 
-import { IconButton } from "../base/IconButton";
 import { MediaContentRenderer } from "./MediaContentRenderer";
 import { MediaPreviewToolbar } from "./MediaPreviewToolbar";
 
@@ -35,10 +34,9 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({ initialIndex, node, 
     zoom,
   } = useMediaTransform(activeIndex);
 
-  // Video Modes
   const [videoMode, setVideoMode] = useState<VideoMode>(VideoMode.FIT);
 
-  const media = node.type === AppNodeType.DYNAMIC ? (node.data as DynamicNodeData).media : null;
+  const media = node.type === AppNodeType.DYNAMIC ? node.data.media : null;
   const items = useMemo(() => {
     if (!media) return [];
     return [media.url, ...(media.galleryUrls ?? [])].filter(Boolean);
@@ -46,7 +44,6 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({ initialIndex, node, 
 
   const currentUrl = items[activeIndex];
 
-  // Preloading Logic
   useEffect(() => {
     const preload = (url: string) => {
       if (!url) return;
@@ -106,23 +103,10 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({ initialIndex, node, 
 
   return (
     <div
+      className="fixed inset-0 z-[5000] flex flex-col items-center justify-center bg-black/95 backdrop-blur-3xl animate-in fade-in duration-300"
       onMouseLeave={handleMouseUp}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      style={{
-        alignItems: "center",
-        backdropFilter: "blur(25px)",
-        backgroundColor: "rgba(0,0,0,0.95)",
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        justifyContent: "center",
-        left: 0,
-        position: "fixed",
-        top: 0,
-        width: "100vw",
-        zIndex: 5000,
-      }}
     >
       <MediaPreviewToolbar
         activeIndex={activeIndex}
@@ -144,57 +128,30 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({ initialIndex, node, 
 
       {/* Main Content Area */}
       <div
+        className="relative flex-1 w-full flex items-center justify-center overflow-hidden"
         onWheel={isImage ? handleWheel : undefined}
-        style={{
-          alignItems: "center",
-          display: "flex",
-          flex: 1,
-          justifyContent: "center",
-          overflow: "hidden",
-          position: "relative",
-          width: "100%",
-        }}
       >
         {isLoading && (
-          <div
-            style={{
-              alignItems: "center",
-              display: "flex",
-              flexDirection: "column",
-              gap: "15px",
-              position: "absolute",
-              zIndex: 20,
-            }}
-          >
-            <div
-              className="preview-spinner"
-              style={{
-                animation: "spin 1s linear infinite",
-                border: "3px solid rgba(255,255,255,0.1)",
-                borderRadius: "50%",
-                borderTop: "3px solid #646cff",
-                height: "40px",
-                width: "40px",
-              }}
-            />
+          <div className="absolute z-20 flex flex-col items-center gap-4">
+            <div className="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
           </div>
         )}
 
         {/* Navigation - Left */}
         {items.length > 1 && (
-          <IconButton
+          <button
+            className={cn(
+              "absolute left-8 z-10 p-3 rounded-full bg-white/5 border border-white/10 text-white backdrop-blur-md transition-all hover:bg-white/10 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none",
+              activeIndex === 0 && "opacity-0",
+            )}
             disabled={activeIndex === 0}
-            icon={<ChevronLeft size={32} />}
             onClick={(e) => {
               e.stopPropagation();
               handlePrev();
             }}
-            style={{
-              ...navButtonStyle,
-              left: "40px",
-              opacity: activeIndex === 0 ? 0 : 1,
-            }}
-          />
+          >
+            <ChevronLeft size={32} />
+          </button>
         )}
 
         <MediaContentRenderer
@@ -214,54 +171,28 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({ initialIndex, node, 
 
         {/* Navigation - Right */}
         {items.length > 1 && (
-          <IconButton
+          <button
+            className={cn(
+              "absolute right-8 z-10 p-3 rounded-full bg-white/5 border border-white/10 text-white backdrop-blur-md transition-all hover:bg-white/10 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none",
+              activeIndex === items.length - 1 && "opacity-0",
+            )}
             disabled={activeIndex === items.length - 1}
-            icon={<ChevronRight size={32} />}
             onClick={(e) => {
               e.stopPropagation();
               handleNext();
             }}
-            style={{
-              ...navButtonStyle,
-              opacity: activeIndex === items.length - 1 ? 0 : 1,
-              right: "40px",
-            }}
-          />
+          >
+            <ChevronRight size={32} />
+          </button>
         )}
       </div>
 
-      <div
-        style={{
-          color: "rgba(255,255,255,0.4)",
-          fontSize: "13px",
-          padding: "20px",
-          textAlign: "center",
-          width: "100%",
-          zIndex: 10,
-        }}
-      >
+      {/* Helper Footer */}
+      <div className="z-10 w-full py-6 text-center text-[11px] font-medium uppercase tracking-[0.2em] text-white/30">
         {isImage
           ? "Scroll to Zoom • Drag to Move • Arrow keys to Switch • ESC to Close"
           : "Arrow keys to Switch • ESC to Close"}
       </div>
     </div>
   );
-};
-
-const navButtonStyle: React.CSSProperties = {
-  alignItems: "center",
-  backdropFilter: "blur(10px)",
-  background: "rgba(255,255,255,0.05)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: "50%",
-  color: "white",
-  cursor: "pointer",
-  display: "flex",
-  fontSize: "24px",
-  height: "50px",
-  justifyContent: "center",
-  position: "absolute",
-  transition: "all 0.2s",
-  width: "50px",
-  zIndex: 10,
 };

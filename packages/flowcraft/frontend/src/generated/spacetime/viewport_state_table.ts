@@ -9,12 +9,8 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
-import CoreViewport from "./core_viewport_type";
-
 
 export default __t.row({
   id: __t.string().primaryKey(),
-  get state() {
-    return CoreViewport;
-  },
+  state: __t.byteArray(),
 });

@@ -1,6 +1,7 @@
-import { BaseEdge, EdgeLabelRenderer, type EdgeProps, getBezierPath } from "@xyflow/react";
+import { BaseEdge, type EdgeProps, getBezierPath } from "@xyflow/react";
 
 export function SystemEdge({
+  id,
   markerEnd,
   sourcePosition,
   sourceX,
@@ -20,19 +21,17 @@ export function SystemEdge({
   });
 
   return (
-    <>
-      <BaseEdge
-        markerEnd={markerEnd}
-        path={edgePath}
-        style={{
-          ...style,
-          opacity: 0.6,
-          stroke: "#b1b1b7", // 灰色
-          strokeDasharray: "5, 5", // 虚线效果
-          strokeWidth: 2,
-        }}
-      />
-      <EdgeLabelRenderer children={null} />
-    </>
+    <BaseEdge
+      id={id}
+      markerEnd={markerEnd}
+      path={edgePath}
+      style={{
+        ...style,
+        opacity: 0.6,
+        stroke: "#b1b1b7", // Grey
+        strokeDasharray: "5, 5", // Dashed effect
+        strokeWidth: 2,
+      }}
+    />
   );
 }

@@ -6,7 +6,7 @@ import { NodeEventSchema } from "@/generated/flowcraft/v1/core/service_pb";
 import { type NodeSignal } from "@/generated/flowcraft/v1/core/signals_pb";
 import { type AppNode, isChatNode, NodeSignalCase } from "@/types";
 import { mapHistoryToOpenAI } from "@/utils/chatUtils";
-import { wrapReducers } from "@/utils/pb-client";
+import { convertStdbToPb, wrapReducers } from "@/utils/pb-client";
 
 import { addChatMessage, getChatHistory } from "../services/ChatService";
 import { inferenceService } from "../services/InferenceService";
@@ -28,7 +28,8 @@ export class ChatNodeInstance extends NodeInstance {
     const stNode = conn.db.nodes.nodeId.find(this.nodeId);
     if (!stNode) return;
 
-    const nodeData = stNode.state.state;
+    const pbNode = convertStdbToPb("nodes", stNode, conn.db);
+    const nodeData = pbNode?.state;
     if (!nodeData) return;
     const node = {
       data: nodeData,
@@ -38,7 +39,7 @@ export class ChatNodeInstance extends NodeInstance {
 
     if (!isChatNode(node)) return;
 
-    const extension = nodeData.extension as any;
+    const extension = nodeData.extension;
     if (!extension) return;
     const chatData = extension.chat || (extension.value && extension.tag === "chat" ? extension.value : undefined);
     if (!chatData) return;
@@ -96,9 +97,10 @@ export class ChatNodeInstance extends NodeInstance {
       const stNode = conn.db.nodes.nodeId.find(this.nodeId);
       if (stNode) {
         try {
-          const nodeData = stNode.state.state;
+          const pbNode = convertStdbToPb("nodes", stNode, conn.db);
+          const nodeData = pbNode?.state;
           if (nodeData) {
-            const extension = nodeData.extension as any;
+            const extension = nodeData.extension;
             if (extension) {
               const chatData =
                 extension.chat || (extension.value && extension.tag === "chat" ? extension.value : undefined);
@@ -126,7 +128,7 @@ export class ChatNodeInstance extends NodeInstance {
 
     let fullContent = "";
 
-    await ctx.updateProgress(10, "AI is thinking...");
+    await ctx.updateProgress(10, "AI is thinking…");
 
     pbConn.pbreducers.updateChatStream({
       content: "",
@@ -231,13 +233,11 @@ export class ChatNodeInstance extends NodeInstance {
 
   private updateNodeHead(headId: string) {
     if (this.nodeId) {
-      const res = this.nodeDraft(this.nodeId);
-      if (res.ok) {
-        const draft = res.value;
-        if (draft.data?.extension?.case === "chat") {
-          draft.data.extension.value.conversationHeadId = headId;
+      this.editNode(this.nodeId, (draft) => {
+        if (draft.state?.extension?.case === "chat") {
+          draft.state.extension.value.conversationHeadId = headId;
         }
-      }
+      });
     }
   }
 }

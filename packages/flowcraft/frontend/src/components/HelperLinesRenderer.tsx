@@ -1,7 +1,7 @@
 import { useStore } from "@xyflow/react";
 import React from "react";
 
-import { type HelperLines } from "@/hooks/useHelperLines";
+import { type HelperLines } from "@/hooks/graph/useHelperLines";
 
 interface HelperLinesRendererProps {
   lines: HelperLines;
@@ -32,16 +32,16 @@ export const HelperLinesRenderer: React.FC<HelperLinesRendererProps> = ({ lines 
         position: "absolute",
         top: 0,
         width: "100%",
-        zIndex: 10,
+        zIndex: 10000, // Ensure lines are above everything else
       }}
     >
       <g transform={`translate(${tx.toString()}, ${ty.toString()}) scale(${zoom.toString()})`}>
         {lines.vertical !== undefined && (
           <line
             stroke="var(--primary-color)"
-            strokeDasharray={`${(4 / zoom).toString()} ${(4 / zoom).toString()}`}
-            strokeWidth={(1 / zoom).toString()} // Maintain constant line thickness
-            style={{ opacity: 0.8 }}
+            strokeDasharray={`${(5 / zoom).toString()} ${(5 / zoom).toString()}`}
+            strokeWidth={(1.5 / zoom).toString()}
+            style={{ opacity: 1 }}
             x1={lines.vertical}
             x2={lines.vertical}
             y1="-1000000"
@@ -51,9 +51,9 @@ export const HelperLinesRenderer: React.FC<HelperLinesRendererProps> = ({ lines 
         {lines.horizontal !== undefined && (
           <line
             stroke="var(--primary-color)"
-            strokeDasharray={`${(4 / zoom).toString()} ${(4 / zoom).toString()}`}
-            strokeWidth={(1 / zoom).toString()} // Maintain constant line thickness
-            style={{ opacity: 0.8 }}
+            strokeDasharray={`${(5 / zoom).toString()} ${(5 / zoom).toString()}`}
+            strokeWidth={(1.5 / zoom).toString()}
+            style={{ opacity: 1 }}
             x1="-1000000"
             x2="1000000"
             y1={lines.horizontal}

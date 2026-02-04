@@ -1,0 +1,53 @@
+{
+  "$id": "flowcraft.v1.actions.ChatSyncMessage.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^(modelId)$": {
+      "default": "",
+      "type": "string"
+    },
+    "^(parentId)$": {
+      "default": "",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "id": {
+      "default": "",
+      "type": "string"
+    },
+    "model_id": {
+      "default": "",
+      "type": "string"
+    },
+    "parent_id": {
+      "default": "",
+      "type": "string"
+    },
+    "parts": {
+      "items": {
+        "$ref": "flowcraft.v1.actions.ChatMessagePart.schema.json"
+      },
+      "type": "array"
+    },
+    "role": {
+      "default": "",
+      "type": "string"
+    },
+    "timestamp": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "pattern": "^-?[0-9]+$",
+          "type": "string"
+        }
+      ],
+      "default": 0
+    }
+  },
+  "title": "Chat Sync Message",
+  "type": "object"
+}

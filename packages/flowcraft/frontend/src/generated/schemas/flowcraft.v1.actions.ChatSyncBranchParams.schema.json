@@ -1,0 +1,47 @@
+{
+  "$id": "flowcraft.v1.actions.ChatSyncBranchParams.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^(anchorMessageId)$": {
+      "default": "",
+      "type": "string"
+    },
+    "^(idempotencyKey)$": {
+      "default": "",
+      "type": "string"
+    },
+    "^(newMessages)$": {
+      "items": {
+        "$ref": "flowcraft.v1.actions.ChatSyncMessage.schema.json"
+      },
+      "type": "array"
+    },
+    "^(treeId)$": {
+      "default": "",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "anchor_message_id": {
+      "default": "",
+      "type": "string"
+    },
+    "idempotency_key": {
+      "default": "",
+      "type": "string"
+    },
+    "new_messages": {
+      "items": {
+        "$ref": "flowcraft.v1.actions.ChatSyncMessage.schema.json"
+      },
+      "type": "array"
+    },
+    "tree_id": {
+      "default": "",
+      "type": "string"
+    }
+  },
+  "title": "Chat Sync Branch Params",
+  "type": "object"
+}

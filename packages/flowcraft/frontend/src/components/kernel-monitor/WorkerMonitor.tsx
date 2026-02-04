@@ -2,6 +2,7 @@ import { Cpu, HardDrive, ShieldCheck } from "lucide-react";
 import React from "react";
 import { useTable } from "spacetimedb/react";
 
+import { WorkerLanguage } from "@/generated/flowcraft/v1/core/kernel_pb";
 import { tables } from "@/generated/spacetime";
 
 import { Badge } from "../ui/badge";
@@ -40,7 +41,7 @@ export const WorkerMonitor: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="text-primary" size={12} />
                     <span className="text-xs font-bold uppercase tracking-tight">
-                      {worker.lang.tag.replace("WORKER_LANG_", "")} Worker
+                      {WorkerLanguage[worker.lang]?.replace("WORKER_LANG_", "") || worker.lang} Worker
                     </span>
                   </div>
                 </div>

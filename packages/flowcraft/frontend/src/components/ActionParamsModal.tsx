@@ -6,7 +6,7 @@ import React from "react";
 
 import type { ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
 
-import { getSchemaForTemplate } from "@/utils/schemaRegistry";
+import { getTypedSchema } from "@/utils/typedSchemas";
 
 interface ActionParamsModalProps {
   action: ActionTemplate;
@@ -16,7 +16,7 @@ interface ActionParamsModalProps {
 
 export const ActionParamsModal: React.FC<ActionParamsModalProps> = ({ action, onCancel, onConfirm }) => {
   const schema = React.useMemo(() => {
-    return getSchemaForTemplate(action.id);
+    return getTypedSchema(action.id);
   }, [action]);
 
   React.useEffect(() => {

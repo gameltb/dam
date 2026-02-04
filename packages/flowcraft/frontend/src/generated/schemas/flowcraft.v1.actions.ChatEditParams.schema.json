@@ -1,0 +1,31 @@
+{
+  "$id": "flowcraft.v1.actions.ChatEditParams.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^(messageId)$": {
+      "default": "",
+      "type": "string"
+    },
+    "^(newParts)$": {
+      "items": {
+        "$ref": "flowcraft.v1.actions.ChatMessagePart.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "properties": {
+    "message_id": {
+      "default": "",
+      "type": "string"
+    },
+    "new_parts": {
+      "items": {
+        "$ref": "flowcraft.v1.actions.ChatMessagePart.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "title": "Chat Edit Params",
+  "type": "object"
+}

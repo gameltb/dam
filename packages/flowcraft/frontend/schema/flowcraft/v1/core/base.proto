@@ -4,10 +4,10 @@ package flowcraft.v1.core;
 
 enum NodeKind {
   NODE_KIND_UNSPECIFIED = 0;
-  NODE_KIND_DYNAMIC = 1;   // 标准逻辑节点
-  NODE_KIND_GROUP = 2;     // 容器节点
-  NODE_KIND_PROCESS = 3;   // 长任务状态节点
-  NODE_KIND_NOTE = 4;      // 注释节点
+  NODE_KIND_DYNAMIC = 1;   // Standard logic node
+  NODE_KIND_GROUP = 2;     // Container node
+  NODE_KIND_PROCESS = 3;   // Long-running task status node
+  NODE_KIND_NOTE = 4;      // Annotation node
 }
 
 enum MutationSource {
@@ -54,6 +54,7 @@ message Presentation {
   bool is_locked = 7;
   bool is_initialized = 8;
   bool is_selected = 9;
+  string scope_id = 10;
 }
 
 message VisualHint {

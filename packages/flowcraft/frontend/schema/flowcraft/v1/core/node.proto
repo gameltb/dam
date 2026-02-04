@@ -8,6 +8,7 @@ import "flowcraft/v1/core/kernel.proto";
 import "flowcraft/v1/nodes/chat_node.proto";
 import "flowcraft/v1/nodes/ai_gen_node.proto";
 import "flowcraft/v1/nodes/media_node.proto";
+import "flowcraft/v1/nodes/subgraph_node.proto";
 
 message Node {
   // 1-15: Identity & Core Structural
@@ -28,7 +29,7 @@ message NodeTemplate {
   NodeData default_state = 4;
   int32 default_width = 5;
   int32 default_height = 6;
-  google.protobuf.Struct widgets_schema = 7; // JSON Schema for all widgets in this node
+  google.protobuf.Struct configuration_schema = 7; 
 }
 
 message NodeData {
@@ -36,7 +37,7 @@ message NodeData {
   string display_name = 1;      
   RenderMode active_mode = 2;
   string task_id = 3;
-  int32 schema_version = 4;     // Versioning for future migrations
+  int32 schema_version = 4;     
 
   // 16-50: UI & Common Components
   repeated RenderMode available_modes = 16;
@@ -52,12 +53,14 @@ message NodeData {
     flowcraft.v1.nodes.VisualNodeState visual = 53;
     flowcraft.v1.nodes.DocumentNodeState document = 54;
     flowcraft.v1.nodes.AcousticNodeState acoustic = 55;
+    flowcraft.v1.nodes.SubgraphNodeState subgraph = 56;
   }
 
   // 100+: Opaque/Legacy Data
   map<string, string> metadata = 100;
   google.protobuf.Struct widgets_values = 101; 
-  google.protobuf.Struct widgets_schema = 102; 
+  google.protobuf.Struct configuration_schema = 102; 
+  google.protobuf.Struct ui_state = 103; 
 }
 
 enum RenderMode {

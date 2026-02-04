@@ -1,4 +1,8 @@
 import "dotenv/config";
+
+import { initGlobal } from "../utils/initGlobal";
+initGlobal();
+
 import { fastifyConnectPlugin } from "@connectrpc/connect-fastify";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
@@ -14,9 +18,10 @@ import { DurableWorkflowService } from "./services/DurableWorkflowService";
 import { FlowServiceImpl } from "./services/FlowService";
 import { loadFromDisk } from "./services/PersistenceService";
 import { initTaskWatcher } from "./services/TaskService";
-import "./templates"; // 触发所有节点和动作的注册
+import "./templates"; // Triggers registration of all nodes and actions
 import { initSpacetime, onSpacetimeConnect } from "./spacetimeClient";
 import { ChatWorker } from "./workers/ChatWorker";
+import { McpWorker } from "./workers/McpWorker";
 
 const app = fastify();
 
@@ -28,28 +33,32 @@ DurableWorkflowService.start();
 
 onSpacetimeConnect((conn) => {
   const pbConn = wrapReducers(conn as any);
+
   const chatWorker = new ChatWorker(pbConn);
   void chatWorker.start();
+
+  const mcpWorker = new McpWorker(pbConn);
+  void mcpWorker.start();
 });
 
-// 2. 注册核心插件
+// 2. Register core plugins
 await app.register(multipart);
 await app.register(fastifyStatic, {
   prefix: "/uploads/",
   root: SERVER_CONFIG.assetsDir,
 });
 
-// 2. 加载持久化数据
+// 2. Load persistent data
 loadFromDisk();
 
-// 3. 注册 Connect 服务
+// 3. Register Connect services
 await app.register(fastifyConnectPlugin, {
   routes: (router) => {
     router.service(FlowService, FlowServiceImpl);
   },
 });
 
-// 4. 添加标准 HTTP 路由
+// 4. Add standard HTTP routes
 app.post("/api/upload", async (req, reply) => {
   try {
     const data = await req.file();
@@ -69,7 +78,7 @@ app.post("/api/upload", async (req, reply) => {
   }
 });
 
-// 5. 启动
+// 5. Start
 app.listen({ host: SERVER_CONFIG.host, port: SERVER_CONFIG.port }, (err) => {
   if (err) {
     console.error(err);

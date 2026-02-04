@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 
 import { NodeDataSchema, NodeTemplateSchema, RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
+import { StreamNodeStateSchema } from "@/generated/flowcraft/v1/nodes/core_nodes_pb";
 
 import { type NodeExecutionContext, NodeRegistry } from "../services/NodeRegistry";
 
@@ -15,6 +16,7 @@ NodeRegistry.register({
     }
     emitWidgetStream("output", "Done.", true);
   },
+  schema: StreamNodeStateSchema,
   template: create(NodeTemplateSchema, {
     defaultState: create(NodeDataSchema, {
       activeMode: RenderMode.MODE_WIDGETS,
@@ -23,6 +25,5 @@ NodeRegistry.register({
     }),
     displayName: "Stream Demo Node",
     menuPath: ["Debug"],
-    templateId: "flowcraft.node.debug.stream",
   }),
 });

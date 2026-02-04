@@ -1,0 +1,19 @@
+{
+  "$id": "flowcraft.v1.actions.ChatSwitchBranchParams.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^(targetMessageId)$": {
+      "default": "",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "target_message_id": {
+      "default": "",
+      "type": "string"
+    }
+  },
+  "title": "Chat Switch Branch Params",
+  "type": "object"
+}

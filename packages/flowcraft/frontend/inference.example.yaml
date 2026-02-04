@@ -1,0 +1,18 @@
+defaultEndpointId: openai
+defaultModel: gpt-4o-mini
+endpoints:
+  - id: openai
+    name: OpenAI
+    baseURL: https://api.openai.com/v1
+    apiKey: YOUR_OPENAI_API_KEY
+    models:
+      - gpt-4o
+      - gpt-4o-mini
+      - gpt-3.5-turbo
+  - id: anthropic
+    name: Anthropic (Proxy)
+    baseURL: https://api.anthropic.com/v1
+    apiKey: YOUR_ANTHROPIC_API_KEY
+    models:
+      - claude-3-5-sonnet-20240620
+      - claude-3-opus-20240229

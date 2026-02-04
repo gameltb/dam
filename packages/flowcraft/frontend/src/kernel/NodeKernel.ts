@@ -1,9 +1,8 @@
-import { fromJson, toJson } from "@bufbuild/protobuf";
-import { ValueSchema } from "@bufbuild/protobuf/wkt";
+import { create, fromBinary, type Message, toJson, toJsonString } from "@bufbuild/protobuf";
+import { produce } from "immer";
 
 import { TaskStatus } from "@/generated/flowcraft/v1/core/kernel_pb";
-import { NodeSchema } from "@/generated/flowcraft/v1/core/node_pb";
-import { createNodeDraft, type Draftable, type Result } from "@/utils/draft";
+import { NodeDataSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import { type PbConnection } from "@/utils/pb-client";
 
 import { type TaskPayloads, type TaskQueue } from "./protocol";
@@ -26,7 +25,7 @@ export class NodeKernel {
         status: TaskStatus.CANCELLED,
         taskId,
         type: "",
-      } as any,
+      },
     });
   }
 
@@ -38,9 +37,7 @@ export class NodeKernel {
     const busy = tasks.some(
       (t) =>
         t.nodeId === nodeId &&
-        (t.status.tag === "TASK_STATUS_RUNNING" ||
-          t.status.tag === "TASK_STATUS_CLAIMED" ||
-          t.status.tag === "TASK_STATUS_PENDING"),
+        (t.status === TaskStatus.RUNNING || t.status === TaskStatus.CLAIMED || t.status === TaskStatus.PENDING),
     );
     return busy;
   }
@@ -51,9 +48,7 @@ export class NodeKernel {
   createContext(taskId: string, nodeId: string, params: any): TaskContext {
     return {
       complete: async (result) => {
-        const resultValue = isProtobufMessage(result)
-          ? JSON.stringify(toJson((result as any).getType(), result as any))
-          : JSON.stringify(result);
+        const resultValue = isProtobufMessage(result) ? toJsonString(result.getType(), result) : JSON.stringify(result);
 
         await this.conn.pbreducers.completeTask({
           result: resultValue,
@@ -69,7 +64,7 @@ export class NodeKernel {
       },
       isCancelled: () => {
         const task = this.conn.db.tasks.id.find(taskId);
-        return task?.status.tag === "TASK_STATUS_CANCELLED";
+        return task?.status === TaskStatus.CANCELLED;
       },
       log: async (message, level = "info") => {
         await this.conn.pbreducers.logTaskEvent({
@@ -99,22 +94,56 @@ export class NodeKernel {
   }
 
   /**
-   * Returns a Result containing an ORM-style proxy for a node.
+   * Directly edits a node using an Immer recipe, syncing changes to SpacetimeDB.
    */
-  nodeDraft(nodeId: string): Result<Draftable<any>> {
+  editNode(nodeId: string, recipe: (draft: any) => void) {
     const nodeRow = this.conn.db.nodes.nodeId.find(nodeId);
-    if (!nodeRow) return { error: `[Kernel] Node ${nodeId} not found`, ok: false };
+    if (!nodeRow) {
+      console.warn(`[Kernel] Node ${nodeId} not found`);
+      return;
+    }
 
-    return createNodeDraft(nodeId, nodeRow.state, NodeSchema, (path: string, value: unknown) => {
-      this.conn.pbreducers.pathUpdatePb({
-        req: {
-          path: path,
-          targetId: nodeId,
-          type: 0, // REPLACE
-          value: fromJson(ValueSchema, value as any),
-        } as any,
-      });
-    });
+    const transform = this.conn.db.nodeTransforms.nodeId.find(nodeId);
+    const metadata = this.conn.db.nodeMetadata.nodeId.find(nodeId);
+    const dataRow = this.conn.db.nodeData.nodeId.find(nodeId);
+
+    const fullState = {
+      nodeId,
+      nodeKind: nodeRow.nodeKind,
+      presentation: {
+        height: transform?.height || 0,
+        parentId: metadata?.parentId || "",
+        position: { x: transform?.x || 0, y: transform?.y || 0 },
+        width: transform?.width || 0,
+      },
+      state: dataRow?.state ? fromBinary(NodeDataSchema, dataRow.state) : create(NodeDataSchema),
+      templateId: nodeRow.templateId,
+    };
+
+    const nextState = produce(fullState, recipe);
+
+    // Diff and Sync
+    const p = fullState.presentation;
+    const np = nextState.presentation;
+
+    if (p.position.x !== np.position.x || p.position.y !== np.position.y) {
+      this.conn.reducers.setNodePosition({ nodeId, x: np.position.x, y: np.position.y });
+    }
+
+    if (p.width !== np.width || p.height !== np.height) {
+      this.conn.reducers.setNodeSize({ height: np.height, nodeId, width: np.width });
+    }
+
+    if (p.parentId !== np.parentId) {
+      this.conn.reducers.setNodeParent({ nodeId, parentId: np.parentId });
+    }
+
+    const oldDataJson = JSON.stringify(toJson(NodeDataSchema, fullState.state));
+    const newDataJson = JSON.stringify(toJson(NodeDataSchema, nextState.state));
+
+    if (oldDataJson !== newDataJson) {
+      this.conn.pbreducers.setNodeDataPb({ nodeId, state: nextState.state });
+    }
   }
 
   /**
@@ -130,16 +159,16 @@ export class NodeKernel {
         contextNodeIds: [],
         params: {
           case: "paramsStruct",
-          value: payload as any,
+          value: payload as any, // Payload is strictly typed in protocol but needs to be Struct-compatible
         },
         sourceNodeId: nodeId,
-      } as any,
+      },
     });
 
     return taskId;
   }
 }
 
-function isProtobufMessage(obj: any): obj is { getType: () => any } {
-  return obj && typeof obj.getType === "function";
+function isProtobufMessage(obj: unknown): obj is Message & { getType: () => any } {
+  return !!obj && typeof (obj as any).getType === "function";
 }

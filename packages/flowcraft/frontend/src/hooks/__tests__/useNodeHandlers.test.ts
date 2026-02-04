@@ -6,7 +6,7 @@ import { NodeDataSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import { MediaType, RenderMode } from "@/types";
 import { type DynamicNodeData } from "@/types";
 
-import { useNodeHandlers } from "../useNodeHandlers";
+import { useNodeHandlers } from "@/hooks/nodes/useNodeHandlers";
 
 describe("useNodeHandlers", () => {
   it("should calculate correct styles and minHeight for widget mode", () => {

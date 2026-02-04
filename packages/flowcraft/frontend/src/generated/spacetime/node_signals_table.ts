@@ -9,14 +9,10 @@ import {
   type AlgebraicTypeType as __AlgebraicTypeType,
   type Infer as __Infer,
 } from "spacetimedb";
-import CoreNodeSignalPayload from "./core_node_signal_payload_type";
-
 
 export default __t.row({
   id: __t.string().primaryKey(),
   nodeId: __t.string(),
-  get payload() {
-    return CoreNodeSignalPayload;
-  },
+  payload: __t.byteArray(),
   timestamp: __t.u64(),
 });

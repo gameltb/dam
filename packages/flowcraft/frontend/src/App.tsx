@@ -4,22 +4,24 @@ import { Toaster } from "react-hot-toast";
 import { useShallow } from "zustand/react/shallow";
 
 import { type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
-import { useAppActions } from "@/hooks/useAppActions";
-import { useAppHotkeys } from "@/hooks/useAppHotkeys";
-import { initChatMaterializer } from "@/hooks/useChatMaterializer";
-import { useContextMenu } from "@/hooks/useContextMenu";
-import { useFlowHandlers } from "@/hooks/useFlowHandlers";
-import { useFlowSocket } from "@/hooks/useFlowSocket";
-import { useGenericMaterializer } from "@/hooks/useGenericMaterializer";
-import { useGraphOperations } from "@/hooks/useGraphOperations";
-import { type HelperLines, useHelperLines } from "@/hooks/useHelperLines";
-import { type PreviewData, useNodeEventListener } from "@/hooks/useNodeEventListener";
-import { useSpacetimeChat } from "@/hooks/useSpacetimeChat";
-import { useSpacetimeSync } from "@/hooks/useSpacetimeSync";
-import { useTheme } from "@/hooks/useTheme";
+import { useAppActions } from "@/hooks/ux/useAppActions";
+import { useAppHotkeys } from "@/hooks/ux/useAppHotkeys";
+import { initChatMaterializer } from "@/hooks/integration/useChatMaterializer";
+import { useContextMenu } from "@/hooks/ux/useContextMenu";
+import { useFlowHandlers } from "@/hooks/graph/useFlowHandlers";
+import { useFlowSocket } from "@/hooks/integration/useFlowSocket";
+import { useGenericMaterializer } from "@/hooks/integration/useGenericMaterializer";
+import { useGraphOperations } from "@/hooks/graph/useGraphOperations";
+import { type HelperLines, useHelperLines } from "@/hooks/graph/useHelperLines";
+import { type PreviewData, useNodeEventListener } from "@/hooks/nodes/useNodeEventListener";
+import { useSpacetimeChat } from "@/hooks/integration/useSpacetimeChat";
+import { useSpacetimeSync } from "@/hooks/integration/useSpacetimeSync";
+import { useTheme } from "@/hooks/ux/useTheme";
 import { cn } from "@/lib/utils";
 import { useFlowStore } from "@/store/flowStore";
 import { type RFState } from "@/store/types";
+import { NavigationStatus, useNavigationStore } from "@/store/ui/navigationStore";
+import { useSettingsStore } from "@/store/ui/settingsStore";
 import { useUiStore } from "@/store/uiStore";
 import { ChatViewMode } from "@/types";
 import { SocketStatus } from "@/utils/SocketClient";
@@ -31,7 +33,7 @@ import { ContextMenuOverlay } from "./components/menus/ContextMenuOverlay";
 import { Sidebar } from "./components/Sidebar";
 import { AppOverlays } from "./components/ui/AppOverlays";
 import { Button } from "./components/ui/button";
-import { useRecursiveNavigation } from "./hooks/useRecursiveNavigation";
+import { useRecursiveNavigation } from "@/hooks/graph/useRecursiveNavigation";
 
 function App() {
   useSpacetimeSync();
@@ -41,21 +43,13 @@ function App() {
 
   useEffect(() => {
     initChatMaterializer();
-    (window as any).flowStore = useFlowStore;
+    window.flowStore = useFlowStore;
   }, []);
 
   useGenericMaterializer();
 
-  const {
-    addNode: _addNodeToStore,
-    edges,
-    nodes,
-    onConnect,
-    onEdgesChange,
-    onNodesChange,
-  } = useFlowStore(
+  const { edges, nodes, onConnect, onEdgesChange, onNodesChange } = useFlowStore(
     useShallow((s: RFState) => ({
-      addNode: s.addNode,
       edges: s.edges,
       nodes: s.nodes,
       onConnect: s.onConnect,
@@ -70,9 +64,7 @@ function App() {
     dragMode,
     isSidebarOpen,
     setActiveChat,
-    setActiveScope,
     setChatFullscreen,
-    settings,
   } = useUiStore(
     useShallow((s) => ({
       activeChatNodeId: s.activeChatNodeId,
@@ -80,11 +72,18 @@ function App() {
       dragMode: s.dragMode,
       isSidebarOpen: s.isSidebarOpen,
       setActiveChat: s.setActiveChat,
-      setActiveScope: s.setActiveScope,
       setChatFullscreen: s.setChatFullscreen,
-      settings: s.settings,
     })),
   );
+
+  const { navigationStatus, setActiveScope } = useNavigationStore(
+    useShallow((s) => ({
+      navigationStatus: s.navigationStatus,
+      setActiveScope: s.setActiveScope,
+    })),
+  );
+
+  const { theme } = useSettingsStore();
 
   const [activeEditorId, setActiveEditorId] = useState<null | string>(null);
   const [previewData, setPreviewData] = useState<null | PreviewData>(null);
@@ -106,7 +105,14 @@ function App() {
     setContextMenu,
   } = useContextMenu();
 
-  const { onConnectEnd, onConnectStart, onInit, onNodesChangeWithSnapping } = useFlowHandlers({
+  const {
+    handleMove: onMove,
+    handleNodeDragStop: onNodeDragStop,
+    onConnectEnd,
+    onConnectStart,
+    onInit,
+    onNodesChangeWithSnapping,
+  } = useFlowHandlers({
     calculateLines,
     contextMenuDragStop: closeContextMenu,
     nodes,
@@ -118,7 +124,8 @@ function App() {
 
   const onMoveEnd = useCallback(
     (_: any, viewport: { x: number; y: number; zoom: number }) => {
-      updateViewport(viewport.x, viewport.y, viewport.zoom);
+      const scopeId = useNavigationStore.getState().activeScopeId || "root";
+      updateViewport(scopeId, viewport.x, viewport.y, viewport.zoom);
     },
     [updateViewport],
   );
@@ -130,7 +137,6 @@ function App() {
   useAppHotkeys();
 
   useNodeEventListener({
-    addNodeToStore: _addNodeToStore,
     cancelTask,
     executeTask,
     nodes,
@@ -140,7 +146,41 @@ function App() {
     streamAction,
   });
 
-  const { handleAddNode, handleExecuteAction } = useAppActions(setPendingAction, contextMenu, closeContextMenu);
+  const { exportBranch, handleAddNode, handleExecuteAction } = useAppActions(
+    setPendingAction,
+    contextMenu,
+    closeContextMenu,
+  );
+
+  // --- Global Navigation Lock Logic ---
+  useEffect(() => {
+    // Pre-initialize window property
+    if (!window.lastProcessedMousePos) {
+      window.lastProcessedMousePos = { x: 0, y: 0 };
+    }
+
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      // Store current pos for jump logic to capture
+      window.lastProcessedMousePos = { x: e.clientX, y: e.clientY };
+
+      const uiState = useUiStore.getState();
+      if (!uiState.navigatingNodeId || !uiState.isNavigatingViaKeyboard) return;
+
+      const dx = Math.abs(e.clientX - uiState.lastMousePos.x);
+      const dy = Math.abs(e.clientY - uiState.lastMousePos.y);
+
+      // If mouse moves more than 20px, it's a real intentional movement.
+      // Unlock the keyboard navigation focus so standard hover can take over.
+      if (dx > 20 || dy > 20) {
+        uiState.resetNavigatingNode(uiState.navigatingNodeId);
+      }
+    };
+
+    window.addEventListener("mousemove", handleGlobalMouseMove, { passive: true });
+    return () => {
+      window.removeEventListener("mousemove", handleGlobalMouseMove);
+    };
+  }, []);
 
   return (
     <div className="flex h-screen w-full flex-col bg-background overflow-hidden relative">
@@ -160,14 +200,23 @@ function App() {
             onEdgeContextMenu={onEdgeContextMenu}
             onEdgesChange={onEdgesChange}
             onInit={onInit}
+            onMove={onMove}
             onMoveEnd={onMoveEnd}
             onNodeContextMenu={onNodeContextMenu}
             onNodeDragStart={onNodeDragReset}
-            onNodeDragStop={onNodeDragReset}
+            onNodeDragStop={onNodeDragStop}
             onNodesChange={onNodesChangeWithSnapping}
             onPaneContextMenu={onPaneContextMenu}
             onSelectionContextMenu={onSelectionContextMenu}
-            theme={settings.theme}
+            theme={theme}
+          />
+
+          {/* Scope Transition Overlay */}
+          <div
+            className={cn(
+              "absolute inset-0 z-[1000] pointer-events-none bg-background/40 backdrop-blur-sm transition-opacity duration-300",
+              navigationStatus !== NavigationStatus.IDLE ? "opacity-100" : "opacity-0",
+            )}
           />
 
           <AppOverlays
@@ -197,6 +246,7 @@ function App() {
                   </div>
                   <div className="flex items-center gap-1">
                     <Button
+                      aria-label="Fullscreen Assistant"
                       className="h-8 w-8"
                       onClick={() => {
                         setChatFullscreen(true);
@@ -207,6 +257,7 @@ function App() {
                       <Minimize2 className="rotate-45" size={14} />
                     </Button>
                     <Button
+                      aria-label="Close Assistant"
                       className="h-8 w-8"
                       onClick={() => {
                         setActiveChat(null);
@@ -241,6 +292,7 @@ function App() {
         onDuplicate={duplicateSelected}
         onEnterScope={setActiveScope}
         onExecuteAction={handleExecuteAction}
+        onExportBranch={exportBranch}
         onGroup={groupSelected}
         onOpenEditor={(id) => {
           setActiveEditorId(id);

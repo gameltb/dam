@@ -1,22 +1,20 @@
-import { create, toJsonString } from "@bufbuild/protobuf";
 import { v4 as uuidv4 } from "uuid";
 
 import { MutationSource } from "@/generated/flowcraft/v1/core/base_pb";
-import { getSchemaForMessage } from "@/utils/schemaRegistry";
 
 import { useTaskStore } from "../taskStore";
 import { type GraphMiddleware, type GraphMutationEvent } from "./types";
 
 /**
  * TaskMiddleware
- * 负责记录变更到任务日志中（以 JSON 文本形式）
+ * Responsible for recording changes to the task log (in JSON text format).
  */
 export const taskMiddleware: GraphMiddleware = (event: GraphMutationEvent, next) => {
-  const { context, mutations } = event;
+  const { context, patches } = event;
   const source = context.source ?? MutationSource.SOURCE_USER;
   const taskId = context.taskId ?? "manual-action";
 
-  // 1. 确保任务在 taskStore 中注册
+  // 1. Ensure the task is registered in taskStore
   if (!useTaskStore.getState().tasks[taskId]) {
     useTaskStore.getState().registerTask({
       label: context.taskId ? `Task ${taskId}` : "Manual Action",
@@ -25,25 +23,10 @@ export const taskMiddleware: GraphMiddleware = (event: GraphMutationEvent, next)
     });
   }
 
-  // 2. 将 MutationInput 列表转为 JSON 字符串
-  const mutationsJson = JSON.stringify(
-    mutations.map((m) => {
-      const schema = getSchemaForMessage(m.$typeName);
-      if (schema) {
-        try {
-          // 防御性：确保 m 是一个真正的 Message 实例
-          const msg = create(schema, m);
-          return JSON.parse(toJsonString(schema, msg));
-        } catch (e) {
-          console.error(`[TaskMiddleware] Failed to serialize mutation ${m.$typeName}:`, e);
-          return { error: "Serialization failed", type: m.$typeName };
-        }
-      }
-      return m; // 非 PB 消息回退
-    }),
-  );
+  // 2. Convert the Patch list to a JSON string
+  const mutationsJson = JSON.stringify(patches);
 
-  // 3. 添加变更日志
+  // 3. Add mutation log
   const logId = uuidv4();
   useTaskStore.getState().addMutationLog({
     description: context.description ?? "Graph updated",
@@ -54,7 +37,7 @@ export const taskMiddleware: GraphMiddleware = (event: GraphMutationEvent, next)
     timestamp: Date.now(),
   });
 
-  // 4. 将日志链接到任务
+  // 4. Link the log to the task
   useTaskStore.getState().linkMutationToTask(taskId, logId);
 
   next(event);

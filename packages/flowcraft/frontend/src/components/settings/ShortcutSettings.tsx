@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
-
-import { type ShortcutConfig } from "@/store/uiStore";
+import { type ShortcutConfig } from "@/store/ui/settingsStore";
 
 interface ShortcutSettingsProps {
   setShortcut: (key: keyof ShortcutConfig, val: string) => void;
@@ -42,23 +41,16 @@ const ShortcutRecordButton: React.FC<{
 
   return (
     <button
+      className={`px-2 py-1 min-w-[80px] font-mono text-[11px] rounded border transition-colors ${
+        isRecording 
+          ? "bg-primary/20 border-primary text-primary" 
+          : "bg-white/5 border-white/10 text-foreground"
+      }`}
       onClick={() => {
         setIsRecording(true);
       }}
-      style={{
-        backgroundColor: isRecording ? "rgba(100, 108, 255, 0.2)" : "rgba(255,255,255,0.08)",
-        border: `1px solid ${isRecording ? "var(--primary-color)" : "rgba(255,255,255,0.1)"}`,
-        borderRadius: "6px",
-        color: isRecording ? "var(--primary-color)" : "#fff",
-        cursor: "pointer",
-        fontFamily: "monospace",
-        fontSize: "11px",
-        minWidth: "80px",
-        padding: "4px 10px",
-        textAlign: "center",
-      }}
     >
-      {isRecording ? "Press keys..." : value}
+      {isRecording ? "Press keys…" : value}
     </button>
   );
 };
@@ -75,19 +67,13 @@ export const ShortcutSettings: React.FC<ShortcutSettingsProps> = ({ setShortcut,
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+    <div className="flex flex-col gap-3">
       {shortcutList.map((s, i) => (
         <div
           key={i}
-          style={{
-            alignItems: "center",
-            borderBottom: "1px solid rgba(255,255,255,0.05)",
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "8px 0",
-          }}
+          className="flex items-center justify-between py-2 border-b border-white/5"
         >
-          <span style={{ fontSize: "13px" }}>{s.label}</span>
+          <span className="text-sm">{s.label}</span>
           <ShortcutRecordButton
             label={s.label}
             onSave={(val) => {
@@ -98,17 +84,7 @@ export const ShortcutSettings: React.FC<ShortcutSettingsProps> = ({ setShortcut,
         </div>
       ))}
 
-      <div
-        style={{
-          backgroundColor: "rgba(100, 108, 255, 0.05)",
-          borderRadius: "6px",
-          color: "var(--sub-text)",
-          fontSize: "11px",
-          fontStyle: "italic",
-          marginTop: "10px",
-          padding: "10px",
-        }}
-      >
+      <div className="mt-2 p-2.5 bg-primary/5 rounded text-[11px] text-muted-foreground italic">
         Click on a shortcut to re-bind it.
       </div>
     </div>

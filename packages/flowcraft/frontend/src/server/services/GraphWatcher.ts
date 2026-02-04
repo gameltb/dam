@@ -11,7 +11,7 @@ import {
   type NodeEvent,
 } from "@/generated/flowcraft/v1/core/service_pb";
 import { type NodeSignal, type WidgetSignal } from "@/generated/flowcraft/v1/core/signals_pb";
-import { toProtoEdge, toProtoNode } from "@/utils/protoAdapter";
+import { appEdgeToProto, appNodeToProto } from "@/utils/nodeProtoUtils";
 
 import { eventBus, serverGraph, serverVersion } from "./PersistenceService";
 
@@ -24,8 +24,8 @@ export async function* watchGraph(_req: unknown, ctx: { signal: AbortSignal }) {
       payload: {
         case: "snapshot",
         value: create(GraphSnapshotSchema, {
-          edges: serverGraph.edges.map(toProtoEdge),
-          nodes: serverGraph.nodes.map(toProtoNode),
+          edges: serverGraph.edges.map(appEdgeToProto),
+          nodes: serverGraph.nodes.map(appNodeToProto),
           version: BigInt(serverVersion),
         }),
       },
