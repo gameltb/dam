@@ -11,7 +11,7 @@ export const NodeLabel: React.FC<NodeLabelProps> = memo(({ selected }) => {
   const [displayName, setDisplayName] = useNodeProperty("displayName");
 
   const [isEditing, setIsEditing] = useState(false);
-  const [localValue, setLocalValue] = useState(displayName || "");
+  const [localValue, setLocalValue] = useState(displayName ?? "");
 
   const handleBlur = () => {
     setIsEditing(false);

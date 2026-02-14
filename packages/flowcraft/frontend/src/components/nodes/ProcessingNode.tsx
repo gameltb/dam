@@ -12,7 +12,7 @@ const ProcessingNodeContent: React.FC<{
   id: string;
 }> = memo(({ data, id }) => {
   const { cancelTask } = useFlowSocket();
-  const progress = data.progress || 0;
+  const progress = data.progress ?? 0;
 
   return (
     <div className="flex flex-col flex-1 p-4 min-w-[200px]">

@@ -14,6 +14,14 @@ interface TaskConsoleProps {
   taskId: string;
 }
 
+interface MutationPayload {
+  $typeName?: string;
+  id?: string;
+  nodeId?: string;
+  targetId?: string;
+  [key: string]: unknown;
+}
+
 export const TaskConsole: React.FC<TaskConsoleProps> = ({ mutationLogs, taskId }) => {
   const [stAuditLogs] = useTable(tables.taskAuditLog);
 
@@ -83,9 +91,9 @@ export const TaskConsole: React.FC<TaskConsoleProps> = ({ mutationLogs, taskId }
                 </div>
               ) : (
                 relatedMutations.map((log) => {
-                  let parsedMutations: any[] = [];
+                  let parsedMutations: MutationPayload[] = [];
                   try {
-                    parsedMutations = JSON.parse(log.mutationsJson);
+                    parsedMutations = JSON.parse(log.mutationsJson) as MutationPayload[];
                   } catch (e) {
                     console.error("Failed to parse mutation log", e);
                   }
@@ -100,8 +108,9 @@ export const TaskConsole: React.FC<TaskConsoleProps> = ({ mutationLogs, taskId }
                       </div>
                       <div className="space-y-1">
                         {parsedMutations.map((m, idx) => {
-                          const fullName = m.$typeName || "Unknown Type";
-                          const shortName = fullName.split(".").pop() || fullName;
+                          const fullName = m.$typeName ?? "Unknown Type";
+                          const shortName = fullName.split(".").pop() ?? fullName;
+                          const targetId = m.nodeId ?? m.targetId ?? m.id ?? "";
                           return (
                             <div
                               className="text-[10px] font-mono text-muted-foreground flex items-center gap-2"
@@ -109,7 +118,7 @@ export const TaskConsole: React.FC<TaskConsoleProps> = ({ mutationLogs, taskId }
                             >
                               <ChevronRight className="opacity-50" size={10} />
                               <span className="bg-muted/50 px-1 rounded text-[9px]">{shortName}</span>
-                              <span className="truncate opacity-50">{m.nodeId || m.targetId || m.id || ""}</span>
+                              <span className="truncate opacity-50">{targetId}</span>
                             </div>
                           );
                         })}

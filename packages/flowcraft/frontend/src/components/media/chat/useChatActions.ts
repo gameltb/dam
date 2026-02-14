@@ -1,4 +1,4 @@
-import { create, toJsonString } from "@bufbuild/protobuf";
+import { create } from "@bufbuild/protobuf";
 import { type FileUIPart } from "ai";
 import { useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
@@ -11,18 +11,17 @@ import {
   ChatMessagePartSchema,
   ChatSwitchBranchParamsSchema,
 } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
-import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
-import { NodeDataSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import { NodeSignalSchema } from "@/generated/flowcraft/v1/core/signals_pb";
 import { TaskQueue } from "@/kernel/protocol";
 import { useFlowStore } from "@/store/flowStore";
 import { commit, editNode } from "@/store/orchestrator";
-import { AppNodeType, type ChatNodeData, ChatStatus, isChatNode, RenderMode } from "@/types";
-import { uploadFile } from "@/utils/assetUtils";
+import { type ChatNodeData, ChatStatus, isChatNode } from "@/types";
 import { log } from "@/utils/logger";
 
 import { type ChatMessage, ChatRole, type ContextNode } from "./types";
 import { useLocalInference } from "./useLocalInference";
+import { processAttachments, mapAttachmentsToParts } from "./attachment-utils";
+import { createChatMessageNode } from "./chat-node-factory";
 
 export function useChatActions(
   nodeId: string,
@@ -54,45 +53,15 @@ export function useChatActions(
     ) => {
       setStatus(ChatStatus.SUBMITTED);
 
-      const finalAttachments: FileUIPart[] = [];
-      for (const file of files) {
-        if (file.url.startsWith("blob:")) {
-          const response = await fetch(file.url);
-          const blob = await response.blob();
-          const url = await uploadFile(
-            new File([blob], file.filename ?? "img.png", {
-              type: file.mediaType,
-            }),
-          );
-          if (url) finalAttachments.push({ ...file, url });
-        } else {
-          finalAttachments.push(file);
-        }
-      }
+      const finalAttachments = await processAttachments(files);
 
       const userMsgId = uuidv4();
       const userParts = [
         create(ChatMessagePartSchema, {
           part: { case: "text", value: content.trim() },
         }),
+        ...mapAttachmentsToParts(finalAttachments),
       ];
-
-      finalAttachments.forEach((att) => {
-        userParts.push(
-          create(ChatMessagePartSchema, {
-            part: {
-              case: "media",
-              value: {
-                aspectRatio: 0,
-                content: "",
-                galleryUrls: [],
-                type: att.mediaType.startsWith("image") ? MediaType.MEDIA_IMAGE : MediaType.MEDIA_UNSPECIFIED,
-                url: att.url,
-              },
-            },
-          }),
-        );
-      });
 
       const userMsg: ChatMessage = {
         attachments: finalAttachments,
@@ -120,46 +89,20 @@ export function useChatActions(
             const currentHead = data.extension.value.conversationHeadId;
 
             // 1. Add message node
-            draft.nodesById[userMsgId] = {
-              data: {
-                $typeName: NodeDataSchema.typeName,
-                activeMode: RenderMode.MODE_MARKDOWN,
-                availableModes: [RenderMode.MODE_MARKDOWN],
-                displayName: "User Message",
-                extension: { case: undefined, value: undefined },
-                inputPorts: [],
-                metadata: {
-                  parts_json: JSON.stringify([
-                    JSON.parse(
-                      toJsonString(
-                        ChatMessagePartSchema,
-                        create(ChatMessagePartSchema, {
-                          part: { case: "text", value: content.trim() },
-                        }),
-                      ),
-                    ),
-                  ]),
-                  role: "user",
-                  timestamp: Date.now().toString(),
-                },
-                outputPorts: [],
-                schemaVersion: 1,
-                taskId: "",
-                widgets: [],
-              },
-              height: 150,
-              id: userMsgId,
-              parentId: nodeId,
-              position: { x: chatNode.position.x, y: chatNode.position.y + 300 },
-              scopeId: chatNode.scopeId, // Inherit scope from parent
-              type: AppNodeType.CHAT_MESSAGE,
-              width: 300,
-            };
+            draft.nodesById[userMsgId] = createChatMessageNode(
+              userMsgId,
+              nodeId,
+              content,
+              chatNode.scopeId,
+              chatNode.position
+            ) as any;
+
             // 2. Establish connection (from old Head to new message)
-            const edgeId = `e-${currentHead || nodeId}-${userMsgId}`;
+            const sourceId = currentHead || nodeId;
+            const edgeId = `e-${sourceId}-${userMsgId}`;
             draft.edgesById[edgeId] = {
               id: edgeId,
-              source: currentHead || nodeId,
+              source: sourceId,
               target: userMsgId,
             };
 
@@ -170,6 +113,7 @@ export function useChatActions(
         },
         { description: "User sent message", isHistoryOp: true },
       );
+
       const localClient = localClients.find((c) => c.id === selectedEndpoint);
       if (localClient) {
         await performLocalInference(
@@ -229,6 +173,7 @@ export function useChatActions(
       getHistory,
       handleStreamChunk,
       sendNodeSignal,
+      getSpacetimeConn,
     ],
   );
 

@@ -1,3 +1,4 @@
+import { create } from "@bufbuild/protobuf";
 import { Layers, MessageSquareText } from "lucide-react";
 import React, { memo } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -45,7 +46,10 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
       type = mapToMediaType(v.mimeType.startsWith("video/") ? MediaType.MEDIA_VIDEO : MediaType.MEDIA_IMAGE);
       url = v.url;
       aspectRatio = 1.33;
-      galleryUrls = (v as any).galleryUrls || [];
+      // Use type guard or optional property check instead of any
+      if ("galleryUrls" in v && Array.isArray(v.galleryUrls)) {
+        galleryUrls = v.galleryUrls as string[];
+      }
     } else if (data.extension?.case === "document") {
       const d = data.extension.value;
       type = MediaType.MEDIA_MARKDOWN;
@@ -72,10 +76,10 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
 
   const media = getNormalizedMedia();
   if (!media) {
-    const isSubgraph = data.extension?.case === "subgraph" || (data as any).subgraph;
-    const subgraphData = data.extension?.case === "subgraph" ? data.extension.value : (data as any).subgraph;
+    const isSubgraph = data.extension?.case === "subgraph";
+    const subgraphData = data.extension?.case === "subgraph" ? data.extension.value : undefined;
 
-    if (isSubgraph) {
+    if (isSubgraph && subgraphData) {
       return (
         <div className="flex flex-col items-center justify-center h-full w-full bg-primary/5 text-primary border-2 border-primary/20 rounded-md gap-3">
           <div className="p-4 bg-primary/10 rounded-full">
@@ -111,7 +115,7 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
   const handleDimensionsLoad = (ratio: number) => {
     if (Math.abs((media.aspectRatio ?? 0) - ratio) > 0.01) {
       onChange(id, {
-        media: { ...media, $typeName: MediaContentSchema.typeName, aspectRatio: ratio } as any,
+        media: create(MediaContentSchema, { ...media, aspectRatio: ratio }),
       });
 
       const currentWidth = width ?? 240;
@@ -135,7 +139,7 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
 
     const Renderer = MEDIA_RENDERERS[mediaType];
     if (!Renderer) {
-      throw new Error(`[MediaContent] No renderer for MediaType: ${mediaType}`);
+      throw new Error(`[MediaContent] No renderer for MediaType: ${mediaType.toString()}`);
     }
 
     return (
@@ -149,7 +153,7 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
               extension: {
                 case: "document",
                 value: { ...data.extension.value, content: newContent },
-              } as any,
+              },
             });
           }
         }}

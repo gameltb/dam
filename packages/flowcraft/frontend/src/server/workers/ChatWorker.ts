@@ -34,7 +34,7 @@ export class ChatWorker extends BaseWorker {
     const extension = nodeData?.extension;
     const chatData = extension?.value && extension?.tag === "chat" ? extension.value : null;
     const treeId = chatData?.treeId || nodeId;
-    const parentId = chatData?.conversationHeadId || "";
+    const parentId = chatData?.conversationHeadId ?? "";
 
     await ctx.updateProgress(20, "Fetching history…");
     const history = await getChatHistory(treeId);

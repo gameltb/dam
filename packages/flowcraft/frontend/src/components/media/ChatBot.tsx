@@ -4,8 +4,7 @@ import React, { useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useShallow } from "zustand/react/shallow";
 
-import { ChatSyncMessageSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
-import { ChatMessagePartSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
+import { ChatMessagePartSchema, ChatSyncMessageSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
 import { InferenceConfigDiscoveryResponseSchema } from "@/generated/flowcraft/v1/core/service_pb";
 import { useSyncedBinding } from "@/hooks/core/useSyncedBinding";
@@ -29,7 +28,7 @@ interface ChatBotProps {
 }
 
 export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
-  const { spacetimeConn: _spacetimeConn } = useFlowStore(
+  const { spacetimeConn } = useFlowStore(
     useShallow((s) => ({
       spacetimeConn: s.spacetimeConn,
     })),
@@ -56,11 +55,11 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
     sliceHistory,
     status: chatStatus,
     streamingMessage,
-  } = useChatController(conversationHeadId, nodeId, treeId);
+  } = useChatController(conversationHeadId || "", nodeId, treeId || nodeId);
 
   // Combine local chat status with global task execution status
   const effectiveStatus = useMemo(() => {
-    return nodeController.status === "busy" ? ChatStatusEnum.SUBMITTED : chatStatus;
+    return nodeController.status === "busy" ? ChatStatusEnum.STREAMING : chatStatus;
   }, [nodeController.status, chatStatus]);
 
   const failedTask = useTaskStore((s) =>
@@ -69,7 +68,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
 
   const displayErrorMessage = useMemo(() => {
     if (!failedTask) return undefined;
-    return failedTask.message || (failedTask as any).error || "Unknown execution error";
+    return failedTask.message || "Unknown execution error";
   }, [failedTask]);
 
   const [selectedModel, setSelectedModel] = useState("gpt-4o-mini");
@@ -86,7 +85,9 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
     switchBranch,
   } = useChatActions(
     nodeId,
-    () => {},
+    () => {
+      console.debug("[ChatBot] onSuccess called");
+    },
     appendUserMessage,
     handleStreamChunk,
     () => messages,
@@ -103,7 +104,9 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
     try {
       await rawSendMessage(content, model, endpoint, search, files, context);
     } catch (err) {
-      console.error("Failed to send message", err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error("Failed to send message", errorMessage);
+      toast.error(`Failed to send message: ${errorMessage}`);
     }
   };
 
@@ -111,9 +114,9 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
     const targetMsg = messages[index];
     if (!targetMsg) return;
 
-    if (targetMsg.role === "assistant") {
+    if (targetMsg.role === ChatRole.ASSISTANT) {
       const userMsg = index > 0 ? messages[index - 1] : null;
-      if (userMsg?.role === "user") {
+      if (userMsg?.role === ChatRole.USER) {
         sliceHistory(index - 1);
         switchBranch(userMsg.parentId ?? "");
         const text = (userMsg.parts?.map((p) => (p.part.case === "text" ? p.part.value : "")) ?? []).join("\n");
@@ -127,7 +130,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
         );
         toast.success("Regenerating...");
       }
-    } else if (targetMsg.role === "user") {
+    } else if (targetMsg.role === ChatRole.USER) {
       if (index === messages.length - 1) {
         continueChat(effectiveModel, effectiveEndpoint);
       } else {
@@ -184,7 +187,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
         }
         e.preventDefault();
       } catch (err) {
-        console.error(err);
+        console.error("Failed to parse dropped node", err);
       }
     }
   };

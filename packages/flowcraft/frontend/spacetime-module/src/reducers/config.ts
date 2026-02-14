@@ -1,6 +1,6 @@
 import { type ReducerCtx, t } from "spacetimedb/server";
 
-import { NodeTemplateSchema } from "../generated/flowcraft/v1/core/node_pb";
+import { type NodeTemplate, NodeTemplateSchema } from "../generated/flowcraft/v1/core/node_pb";
 import { InferenceConfigDiscoveryResponseSchema } from "../generated/flowcraft/v1/core/service_pb";
 import { type AppSchema } from "../schema";
 
@@ -11,7 +11,7 @@ export const configReducers = {
     args: { template: NodeTemplateSchema },
     handler: (
       ctx: ReducerCtx<AppSchema>,
-      { template, templateBinary }: { template: any; templateBinary: Uint8Array },
+      { template, templateBinary }: { template: NodeTemplate; templateBinary: Uint8Array },
     ) => {
       const existing = ctx.db.nodeTemplates.templateId.find(template.templateId);
 

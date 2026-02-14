@@ -2,14 +2,24 @@ import { toBinary } from "@bufbuild/protobuf";
 import { type ReducerCtx, t } from "spacetimedb/server";
 
 import { ViewportSchema } from "../generated/flowcraft/v1/core/base_pb";
-import { EdgeSchema, NodeDataSchema, NodeSchema } from "../generated/flowcraft/v1/core/node_pb";
-import { AddSubGraphRequestSchema } from "../generated/flowcraft/v1/core/service_pb";
+import {
+  type Edge,
+  type Node,
+  type NodeData,
+  EdgeSchema,
+  NodeDataSchema,
+  NodeSchema,
+} from "../generated/flowcraft/v1/core/node_pb";
+import {
+  type AddSubGraphRequest,
+  AddSubGraphRequestSchema,
+} from "../generated/flowcraft/v1/core/service_pb";
 import { type AppSchema } from "../schema";
 
 export const nodeReducers = {
   add_edge_pb: {
     args: { edge: EdgeSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { edge, edgeBinary }: { edge: any; edgeBinary: Uint8Array }) => {
+    handler: (ctx: ReducerCtx<AppSchema>, { edge, edgeBinary }: { edge: Edge; edgeBinary: Uint8Array }) => {
       ctx.db.edges.insert({
         edgeId: edge.edgeId,
         sourceNodeId: edge.sourceNodeId,
@@ -24,33 +34,33 @@ export const nodeReducers = {
    */
   add_sub_graph_pb: {
     args: { req: AddSubGraphRequestSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { req }: { req: any }) => {
+    handler: (ctx: ReducerCtx<AppSchema>, { req }: { req: AddSubGraphRequest }) => {
       // 1. Batch create nodes
-      (req.nodes || []).forEach((node: any) => {
+      req.nodes.forEach((node) => {
         const nodeId = node.nodeId;
 
         // Identity
         ctx.db.nodes.insert({
           nodeId,
-          nodeKind: node.nodeKind,
+          nodeKind: node.nodeKind as unknown as number,
           templateId: node.templateId,
         });
 
         // Transform
         ctx.db.nodeTransforms.insert({
-          height: node.presentation?.height || 0,
+          height: node.presentation?.height ?? 0,
           nodeId,
-          width: node.presentation?.width || 0,
-          x: node.presentation?.position?.x || 0,
-          y: node.presentation?.position?.y || 0,
+          width: node.presentation?.width ?? 0,
+          x: node.presentation?.position?.x ?? 0,
+          y: node.presentation?.position?.y ?? 0,
         });
 
         // Metadata: Correctly mapping scopeId and parentId
         ctx.db.nodeMetadata.insert({
-          displayName: node.state?.displayName || "",
+          displayName: node.state?.displayName ?? "",
           nodeId,
-          parentId: node.presentation?.parentId || "",
-          scopeId: node.presentation?.scopeId || "root",
+          parentId: node.presentation?.parentId ?? "",
+          scopeId: node.presentation?.scopeId ?? "root",
         });
 
         // State Blob
@@ -63,7 +73,7 @@ export const nodeReducers = {
       });
 
       // 2. Batch create edges
-      (req.edges || []).forEach((edge: any) => {
+      req.edges.forEach((edge) => {
         ctx.db.edges.insert({
           edgeId: edge.edgeId,
           sourceNodeId: edge.sourceNodeId,
@@ -79,31 +89,31 @@ export const nodeReducers = {
    */
   create_node_pb: {
     args: { node: NodeSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { node }: { node: any }) => {
+    handler: (ctx: ReducerCtx<AppSchema>, { node }: { node: Node }) => {
       const nodeId = node.nodeId;
 
       // 1. Identity
       ctx.db.nodes.insert({
         nodeId,
-        nodeKind: node.nodeKind,
+        nodeKind: node.nodeKind as unknown as number,
         templateId: node.templateId,
       });
 
       // 2. Transform
       ctx.db.nodeTransforms.insert({
-        height: node.presentation?.height || 0,
+        height: node.presentation?.height ?? 0,
         nodeId,
-        width: node.presentation?.width || 0,
-        x: node.presentation?.position?.x || 0,
-        y: node.presentation?.position?.y || 0,
+        width: node.presentation?.width ?? 0,
+        x: node.presentation?.position?.x ?? 0,
+        y: node.presentation?.position?.y ?? 0,
       });
 
       // 3. Metadata: Supporting both scope and parent hierarchy
       ctx.db.nodeMetadata.insert({
-        displayName: node.state?.displayName || "",
+        displayName: node.state?.displayName ?? "",
         nodeId,
-        parentId: node.presentation?.parentId || "",
-        scopeId: node.presentation?.scopeId || "root",
+        parentId: node.presentation?.parentId ?? "",
+        scopeId: node.presentation?.scopeId ?? "root",
       });
 
       // 4. State Blob (NodeData)
@@ -149,7 +159,7 @@ export const nodeReducers = {
     args: { nodeId: t.string(), state: NodeDataSchema },
     handler: (
       ctx: ReducerCtx<AppSchema>,
-      { nodeId, state, stateBinary }: { nodeId: string; state: any; stateBinary: Uint8Array },
+      { nodeId, state, stateBinary }: { nodeId: string; state: NodeData; stateBinary: Uint8Array },
     ) => {
       const existing = ctx.db.nodeData.nodeId.find(nodeId);
       if (existing) {

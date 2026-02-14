@@ -10,7 +10,12 @@ import { uiReducers } from "./reducers/ui";
 import { type AppSchema, spacetimedb } from "./schema";
 import { wrapPbHandler } from "./utils/reducer-wrapper";
 
-const ALL: Record<string, ReducerDefinition<any>> = {
+interface ReducerDefinition {
+  args: Record<string, unknown>;
+  handler: (ctx: ReducerCtx<AppSchema>, params: any) => void;
+}
+
+const ALL: Record<string, ReducerDefinition> = {
   ...nodeReducers,
   ...chatReducers,
   ...configReducers,
@@ -19,11 +24,6 @@ const ALL: Record<string, ReducerDefinition<any>> = {
   ...kernelReducers,
   ...uiReducers,
 };
-
-interface ReducerDefinition<P extends Record<string, any>> {
-  args: Record<string, unknown>;
-  handler: (ctx: ReducerCtx<AppSchema>, params: P) => void;
-}
 
 // 1. Auto-register and wrap
 for (const [name, def] of Object.entries(ALL)) {
@@ -36,14 +36,14 @@ for (const [name, def] of Object.entries(ALL)) {
     }
   }
 
+  // Use 'any' for stArgs to avoid complex type mapping from Record<string, unknown> to ParamsObj
   spacetimedb.reducer(name, stArgs as any, wrapPbHandler(def.args, def.handler));
 }
 
 spacetimedb.clientDisconnected((ctx: ReducerCtx<AppSchema>) => {
   const identity = ctx.sender.toHexString();
   const assignments = ctx.db.clientTaskAssignments;
-  if (!assignments) return;
-  const existing = Array.from(assignments.iter()).find((r: any) => r.clientIdentity === identity);
+  const existing = Array.from(assignments.iter()).find((r) => r.clientIdentity === identity);
   if (existing) {
     assignments.delete(existing);
   }

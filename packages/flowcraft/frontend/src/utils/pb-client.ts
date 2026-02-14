@@ -1,4 +1,10 @@
-import { create, type DescMessage, type MessageShape, toBinary as pbToBinary, toJson } from "@bufbuild/protobuf";
+import {
+  create,
+  type DescMessage,
+  type MessageShape,
+  toBinary as pbToBinary,
+  toJson,
+} from "@bufbuild/protobuf";
 import { type GenMessage } from "@bufbuild/protobuf/codegenv2";
 
 import { PB_REDUCERS_MAP, TABLE_TO_PROTO } from "@/generated/pb_metadata";
@@ -51,11 +57,13 @@ type ProjectedReducers = PbReducersProjection<DbConnection["reducers"], typeof P
  * Cross-table aggregation logic removed, reverted to atomic component mapping.
  * @param _db Deprecated, no longer need to manually handle view joins
  */
-export function convertStdbToPb(tableName: string, row: any, _db?: any): any {
-  const meta = (TABLE_TO_PROTO as any)[tableName];
+export function convertStdbToPb(tableName: string, row: Record<string, unknown>, _db?: unknown): unknown {
+  const meta = TABLE_TO_PROTO[tableName];
   if (!meta) return row; // If no mapping exists, return the original row directly
 
-  const rawVal = row[meta.field];
+  const rawVal = row[meta.field] as Uint8Array | undefined;
+  if (!rawVal) return row;
+
   const pbObj = stdbToPb(meta.schema, rawVal);
 
   // Core Improvement: All mapped tables must go through create() to ensure default values (e.g., empty arrays) exist.
@@ -67,12 +75,12 @@ export function convertStdbToPb(tableName: string, row: any, _db?: any): any {
  * Converts an STDB Row to a pure JSON object (for debug display).
  * If a PB mapping exists, convert it to JSON format (enum names, including default values).
  */
-export function convertStdbToPbJson(tableName: string, row: any): any {
-  const meta = (TABLE_TO_PROTO as any)[tableName];
+export function convertStdbToPbJson(tableName: string, row: Record<string, unknown>): unknown {
+  const meta = TABLE_TO_PROTO[tableName];
   if (!meta) return row;
 
   // 1. Convert to PB Message
-  const msg = convertStdbToPb(tableName, row);
+  const msg = convertStdbToPb(tableName, row) as any;
 
   // 2. Convert Message to JSON
   // useProtoFieldName: false -> camelCase keys (standard for JSON)
@@ -111,7 +119,7 @@ export function createPbProxy(
           const val = wrapped[field];
           if (val && typeof val === "object" && !(val instanceof Uint8Array)) {
             try {
-              const msg = create(meta.schema, val);
+              const msg = create(meta.schema, val as any);
               wrapped[field] = pbToBinary(meta.schema, msg);
             } catch (e) {
               console.error(`[PbClient] Serialization failed for ${prop}.${field}:`, e);
@@ -128,10 +136,11 @@ export function createPbProxy(
  * Core wrapping function: Upgrades DbConnection to a version supporting automatic PB serialization
  */
 export function wrapReducers(conn: DbConnection): PbConnection {
-  const proxy = createPbProxy(conn.reducers, PB_REDUCERS_MAP);
-  const wrapped = Object.assign(conn, { pbreducers: proxy }) as any;
-  wrapped.kernel = new NodeKernel(wrapped);
+  const proxy = createPbProxy(conn.reducers as unknown as Record<string, unknown>, PB_REDUCERS_MAP);
+  const wrapped = Object.assign(conn, { pbreducers: proxy }) as PbConnection;
+  const connectionWithKernel = wrapped as PbConnection & { kernel: NodeKernel };
+  connectionWithKernel.kernel = new NodeKernel(wrapped);
   // Bind conversion function
-  wrapped.convertStdbToPb = (tableName: string, row: any) => convertStdbToPb(tableName, row);
-  return wrapped as PbConnection;
+  wrapped.convertStdbToPb = (tableName: string, row: Record<string, unknown>) => convertStdbToPb(tableName, row);
+  return wrapped;
 }

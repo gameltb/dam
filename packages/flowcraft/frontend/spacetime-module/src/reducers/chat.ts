@@ -20,7 +20,7 @@ export const chatReducers = {
           case: "chatMetadata",
           value: { attachmentUrls: [], modelId: message.modelId },
         },
-        parentId: message.parentId || "",
+        parentId: message.parentId,
         parts: message.parts,
         role: message.role,
         siblingIds: [],

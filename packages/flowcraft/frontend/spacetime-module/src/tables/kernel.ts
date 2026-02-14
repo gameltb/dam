@@ -13,7 +13,7 @@ export const tasks = table(
     ownerId: t.string(),
     paramsPayload: t.byteArray(),
     result: t.string(),
-    status: t.u32(),
+    status: Object.assign(t.u32(), { __pb_schema: "TaskStatus" }),
     taskType: t.string(),
     timestamp: t.u64(),
     version: t.u32(),

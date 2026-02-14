@@ -38,7 +38,7 @@ export const SubgraphNodeImplementation = memo(
               </div>
               <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 rounded text-[9px] font-bold opacity-70">
                 <MessageSquareText size={10} />
-                {extensionValue.nodeCount || 0} NODES
+                {extensionValue.nodeCount ?? 0} NODES
               </div>
 
               <button

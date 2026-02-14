@@ -5,6 +5,8 @@ import { useTable } from "spacetimedb/react";
 import { ActionExecutionRequestSchema } from "@/generated/flowcraft/v1/core/action_pb";
 import { ViewportSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import { TaskStatus, TaskUpdateSchema } from "@/generated/flowcraft/v1/core/kernel_pb";
+import { type NodeTemplate } from "@/generated/flowcraft/v1/core/node_pb";
+import { type InferenceConfigDiscoveryResponse } from "@/generated/flowcraft/v1/core/service_pb";
 import { tables } from "@/generated/spacetime";
 import { useFlowStore } from "@/store/flowStore";
 import { convertStdbToPb } from "@/utils/pb-client";
@@ -15,20 +17,20 @@ export const useFlowSocket = (_args?: unknown) => {
   const [stInferenceConfig] = useTable(tables.inferenceConfig);
 
   const templates = useMemo(() => {
-    return stTemplates.map((t: any) => {
-      const pbTemplate = convertStdbToPb("nodeTemplates", t, spacetimeConn?.db);
+    return stTemplates.map((t) => {
+      const pbTemplate = convertStdbToPb("nodeTemplates", t as any) as NodeTemplate;
       return {
         ...pbTemplate,
         templateId: t.templateId,
       };
     });
-  }, [stTemplates, spacetimeConn]);
+  }, [stTemplates]);
 
   const inferenceConfig = useMemo(() => {
     if (stInferenceConfig.length === 0) return null;
-    const firstConfig = stInferenceConfig[0];
-    return convertStdbToPb("inferenceConfig", firstConfig, spacetimeConn?.db);
-  }, [stInferenceConfig, spacetimeConn]);
+    const firstConfig = stInferenceConfig[0]!;
+    return convertStdbToPb("inferenceConfig", firstConfig as any) as InferenceConfigDiscoveryResponse;
+  }, [stInferenceConfig]);
 
   const executeTask = useCallback(
     (action: { id: string; params?: unknown }, nodeId: string) => {
@@ -87,7 +89,7 @@ export const useFlowSocket = (_args?: unknown) => {
       spacetimeConn?.pbreducers.updateViewport({
         id,
         viewport: create(ViewportSchema, { x, y, zoom }),
-      } as any);
+      });
     },
   };
 };

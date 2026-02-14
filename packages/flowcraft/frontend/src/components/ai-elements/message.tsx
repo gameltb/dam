@@ -264,7 +264,7 @@ export type MessageAttachmentProps = HTMLAttributes<HTMLDivElement> & {
 };
 
 export function MessageAttachment({ data, className, onRemove, ...props }: MessageAttachmentProps) {
-  const filename = data.filename || "";
+  const filename = data.filename ?? "";
   const mediaType = data.mediaType?.startsWith("image/") && data.url ? "image" : "file";
   const isImage = mediaType === "image";
   const attachmentLabel = filename || (isImage ? "Image" : "Attachment");

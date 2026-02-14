@@ -46,7 +46,7 @@ export const useAppActions = (
         position,
         presentation: createProto(PresentationSchema, {
           height: t.defaultHeight || 200,
-          parentId: activeScopeId || "",
+          parentId: activeScopeId ?? "",
           position: createProto(PositionSchema, position),
           scopeId: activeScopeId || Scope.ROOT,
           width: t.defaultWidth || 300,

@@ -11,7 +11,7 @@ import {
   NodeTransformsRow,
   ViewportStateRow,
 } from "@/generated/spacetime";
-import { type AppNode, AppNodeType, Scope } from "@/types";
+import { type AppNode, AppNodeType, type DynamicNodeData, Scope } from "@/types";
 
 import { convertStdbToPb } from "./pb-client";
 
@@ -22,12 +22,12 @@ import { convertStdbToPb } from "./pb-client";
  */
 export const GraphMapper = {
   applyData(node: AppNode, dataRow: Infer<typeof NodeDataRow>): AppNode {
-    const pbData = convertStdbToPb("nodeData", dataRow);
+    const pbData = convertStdbToPb("nodeData", dataRow as unknown as Record<string, unknown>) as DynamicNodeData;
     return {
       ...node,
       _lastSync: Date.now(),
       data: pbData,
-      scopeId: node.scopeId || Scope.ROOT,
+      scopeId: node.scopeId ?? Scope.ROOT,
     };
   },
 
@@ -43,7 +43,7 @@ export const GraphMapper = {
       presentation: node.presentation
         ? {
             ...node.presentation,
-            parentId: metadataRow.parentId || "",
+            parentId: metadataRow.parentId ?? "",
             scopeId: metadataRow.scopeId || Scope.ROOT,
           }
         : undefined,
@@ -72,7 +72,17 @@ export const GraphMapper = {
   createSkeleton(nodeRow: Infer<typeof NodesRow>): AppNode {
     return {
       _lastSync: Date.now(),
-      data: { availableModes: [], displayName: "Loading…" } as any, // Initial loading state
+      data: {
+        activeMode: 0,
+        availableModes: [],
+        displayName: "Loading…",
+        extension: { case: undefined, value: undefined },
+        inputPorts: [],
+        outputPorts: [],
+        schemaVersion: 1,
+        taskId: "",
+        widgets: [],
+      } as unknown as DynamicNodeData, // Initial loading state
       height: 200,
       id: nodeRow.nodeId,
       position: { x: 0, y: 0 },
@@ -83,19 +93,21 @@ export const GraphMapper = {
   },
 
   toEdge(edgeRow: Infer<typeof EdgesRow>): RFEdge {
-    const pbEdge = convertStdbToPb("edges", edgeRow);
+    const pbEdge = convertStdbToPb("edges", edgeRow as unknown as Record<string, unknown>) as any;
     return {
       data: pbEdge.metadata,
       id: pbEdge.edgeId,
       source: pbEdge.sourceNodeId,
-      sourceHandle: pbEdge.sourceHandle || undefined,
+      sourceHandle: pbEdge.sourceHandle ?? undefined,
       target: pbEdge.targetNodeId,
-      targetHandle: pbEdge.targetHandle || undefined,
+      targetHandle: pbEdge.targetHandle ?? undefined,
     };
   },
 
   toViewport(entry: Infer<typeof ViewportStateRow>) {
-    const remote = convertStdbToPb("viewportState", entry as Record<string, unknown>);
-    return remote && !isNaN(remote.x) ? { x: remote.x, y: remote.y, zoom: remote.zoom } : null;
+    const remote = convertStdbToPb("viewportState", entry as unknown as Record<string, unknown>) as any;
+    return remote && typeof remote.x === "number" && !isNaN(remote.x)
+      ? { x: remote.x, y: remote.y, zoom: remote.zoom }
+      : null;
   },
 };

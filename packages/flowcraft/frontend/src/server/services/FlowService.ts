@@ -61,12 +61,12 @@ export const FlowServiceImpl: ServiceImpl<typeof FlowService> = {
   async getHistory(req) {
     const rawEntries = getMutations(Number(req.fromSeq), Number(req.toSeq));
     const entries = rawEntries.map((e) => ({
-      description: e.description || "",
+      description: e.description ?? "",
       mutation: undefined, // Requires translation from binary payload
       seq: BigInt(e.seq),
       source: e.source as MutationSource,
       timestamp: BigInt(e.timestamp),
-      userId: e.user_id || "",
+      userId: e.user_id ?? "",
     }));
     return { entries };
   },

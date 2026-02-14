@@ -4,6 +4,7 @@ import { create } from "zustand";
 
 import { PositionSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import { EdgeSchema } from "@/generated/flowcraft/v1/core/node_pb";
+import { type WidgetSignal } from "@/generated/flowcraft/v1/core/signals_pb";
 import { type AppNode, MutationSource, Scope } from "@/types";
 import { globalToLocal, localToGlobal } from "@/utils/coordinateUtils";
 import { socketClient } from "@/utils/SocketClient";
@@ -39,9 +40,9 @@ export const useFlowStore = create<RFState>((set, get) => ({
       (draft) => {
         const n = draft.nodesById[nodeId];
         if (n) {
-          n.scopeId = newScopeId || Scope.ROOT;
+          n.scopeId = newScopeId ?? Scope.ROOT;
           if (n.presentation) {
-            n.presentation.scopeId = newScopeId || Scope.ROOT;
+            n.presentation.scopeId = newScopeId ?? Scope.ROOT;
           }
         }
       },
@@ -55,9 +56,9 @@ export const useFlowStore = create<RFState>((set, get) => ({
   onConnect: (connection) => {
     const protoEdge = createProto(EdgeSchema, {
       edgeId: crypto.randomUUID(),
-      sourceHandle: connection.sourceHandle || "",
+      sourceHandle: connection.sourceHandle ?? "",
       sourceNodeId: connection.source,
-      targetHandle: connection.targetHandle || "",
+      targetHandle: connection.targetHandle ?? "",
       targetNodeId: connection.target,
     });
 
@@ -176,9 +177,10 @@ export const useFlowStore = create<RFState>((set, get) => ({
 
   redo: () => {
     const { edgesById, nodesById, redoStack, undoStack } = get();
-    if (redoStack.length === 0) return;
+    const next = redoStack[0];
+    if (!next) return;
+
     const current = structuredClone({ edgesById, nodesById });
-    const next = redoStack[0]!;
     set({
       edgesById: next.edgesById,
       nodesById: next.nodesById,
@@ -203,17 +205,17 @@ export const useFlowStore = create<RFState>((set, get) => ({
 
     // Reparenting now only changes the physical parentId within the SAME scope
     // Cross-scope movement is a separate "moveNodeToScope" operation
-    const currentGlobalPos = localToGlobal(node.position, node.parentId || null, nodesById);
+    const currentGlobalPos = localToGlobal(node.position, node.parentId ?? null, nodesById);
     const newLocalPos = globalToLocal(currentGlobalPos, newParentId, nodesById);
 
     commit(
       (draft) => {
         const n = draft.nodesById[nodeId];
         if (n) {
-          n.parentId = newParentId || undefined;
+          n.parentId = newParentId ?? undefined;
           n.position = newLocalPos;
           if (n.presentation) {
-            n.presentation.parentId = newParentId || "";
+            n.presentation.parentId = newParentId ?? "";
           }
         }
       },
@@ -225,13 +227,18 @@ export const useFlowStore = create<RFState>((set, get) => ({
     set({ edges: [], edgesById: {}, nodes: [], nodesById: {}, redoStack: [], undoStack: [] });
   },
 
-  sendNodeSignal: (signal) => get().spacetimeConn?.pbreducers.sendNodeSignal({ signal }),
+  sendNodeSignal: (signal) => {
+    const conn = get().spacetimeConn;
+    if (conn) {
+      conn.pbreducers.sendNodeSignal({ signal });
+    }
+  },
 
-  sendWidgetSignal: (signal) => {
+  sendWidgetSignal: (signal: unknown) => {
     socketClient.send({
       payload: {
         case: "widgetSignal",
-        value: signal as any,
+        value: signal as WidgetSignal,
       },
     });
   },
@@ -277,9 +284,10 @@ export const useFlowStore = create<RFState>((set, get) => ({
   },
   undo: () => {
     const { edgesById, nodesById, redoStack, undoStack } = get();
-    if (undoStack.length === 0) return;
+    const previous = undoStack[0];
+    if (!previous) return;
+
     const current = structuredClone({ edgesById, nodesById });
-    const previous = undoStack[0]!;
     set({
       edgesById: previous.edgesById,
       nodesById: previous.nodesById,

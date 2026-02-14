@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 import { useShallow } from "zustand/react/shallow";
 
-import { type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
 import { useFlowHandlers } from "@/hooks/graph/useFlowHandlers";
 import { useGraphOperations } from "@/hooks/graph/useGraphOperations";
 import { type HelperLines, useHelperLines } from "@/hooks/graph/useHelperLines";

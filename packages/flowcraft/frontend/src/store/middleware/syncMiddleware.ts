@@ -1,6 +1,8 @@
+import { type Edge } from "@xyflow/react";
 import { type Patch } from "immer";
 
-import { type MutationContext } from "@/types";
+import { type AppNode, type DynamicNodeData, type MutationContext } from "@/types";
+import { log } from "@/utils/logger";
 import { type PbConnection } from "@/utils/pb-client";
 
 import { useFlowStore } from "../flowStore";
@@ -46,7 +48,7 @@ const SYNC_REGISTRY: SyncDescriptor[] = [
       const node = store.nodesById[id];
       if (!node) throw new Error(`[Sync] Node ${id} not found for transform`);
 
-      console.log(`[Sync] Committing transform for node ${id}`);
+      log.sync("OUT", `Committing transform for node ${id}`);
       conn.reducers.setNodePosition({ nodeId: id, x: node.position.x, y: node.position.y });
       conn.reducers.setNodeSize({ height: node.height, nodeId: id, width: node.width });
     },
@@ -65,7 +67,7 @@ const SYNC_REGISTRY: SyncDescriptor[] = [
 
       const node = store.nodesById[id];
       if (!node) throw new Error(`[Sync] Node ${id} not found for hierarchy`);
-      conn.reducers.setNodeParent({ nodeId: id, parentId: node.parentId || "" });
+      conn.reducers.setNodeParent({ nodeId: id, parentId: node.parentId ?? "" });
     },
     matches: (path) =>
       path[0] === "nodesById" && (path[2] === "parentId" || (path[2] === "presentation" && path[3] === "parentId")),
@@ -83,8 +85,9 @@ const SYNC_REGISTRY: SyncDescriptor[] = [
   {
     execute: (id, patch, _, conn) => {
       if (patch.op === "add") {
-        const node = patch.value;
-        const templateId = node?.data?.templateId;
+        const node = patch.value as AppNode;
+        const data = node.data as DynamicNodeData;
+        const templateId = data.templateId;
 
         if (!node) throw new Error("[Sync] Missing node value");
         if (!templateId)
@@ -100,7 +103,7 @@ const SYNC_REGISTRY: SyncDescriptor[] = [
               isInitialized: true,
               isLocked: false,
               isSelected: false,
-              parentId: node.parentId || "",
+              parentId: node.parentId ?? "",
               position: { x: node.position.x, y: node.position.y },
               scopeId: node.scopeId || "root",
               width: node.width,
@@ -119,8 +122,8 @@ const SYNC_REGISTRY: SyncDescriptor[] = [
   // 6. Graph Topology Layer (Immediate)
   {
     execute: (id, patch, _, conn) => {
-      if (patch.op === "add" && patch.value?.source) {
-        conn.pbreducers.addEdgePb({ edge: patch.value });
+      if (patch.op === "add" && patch.value && typeof patch.value === "object" && "source" in patch.value) {
+        conn.pbreducers.addEdgePb({ edge: patch.value as Edge });
       } else if (patch.op === "remove") {
         conn.reducers.removeEdge({ id });
       }
@@ -128,8 +131,6 @@ const SYNC_REGISTRY: SyncDescriptor[] = [
     matches: (path) => path[0] === "edgesById",
   },
 ];
-
-import { log } from "@/utils/logger";
 
 export const syncMiddleware: GraphMiddleware = (event, next) => {
   const { context, direction, patches } = event;
@@ -140,7 +141,6 @@ export const syncMiddleware: GraphMiddleware = (event, next) => {
   }
 
   const store = useFlowStore.getState();
-
   const conn = store.spacetimeConn;
 
   if (!conn) {

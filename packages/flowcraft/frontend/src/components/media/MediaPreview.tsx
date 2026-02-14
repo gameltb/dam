@@ -155,7 +155,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({ initialIndex, node, 
         )}
 
         <MediaContentRenderer
-          currentUrl={currentUrl || ""}
+          currentUrl={currentUrl ?? ""}
           handleMouseDown={handleMouseDown}
           isDragging={isDragging}
           isImage={isImage}

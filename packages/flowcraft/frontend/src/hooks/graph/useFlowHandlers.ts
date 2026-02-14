@@ -1,5 +1,5 @@
 import { create as createProto } from "@bufbuild/protobuf";
-import { type Node, type NodeChange, type NodePositionChange, type XYPosition } from "@xyflow/react";
+import { type NodeChange, type NodePositionChange, type XYPosition } from "@xyflow/react";
 import { useCallback } from "react";
 
 import { PositionSchema } from "@/generated/flowcraft/v1/core/base_pb";
@@ -10,8 +10,8 @@ import { type AppNode } from "@/types";
 
 interface FlowHandlersProps {
   calculateLines: (
-    draggingNode: Node<any, any>,
-    allNodes: Node<any, any>[],
+    draggingNode: AppNode,
+    allNodes: AppNode[],
     shouldUpdateState: boolean,
     overriddenPosition?: XYPosition,
   ) => { helperLines: HelperLines; snappedPosition: XYPosition };
@@ -48,8 +48,8 @@ export const useFlowHandlers = ({
         const node = nodesById[positionChange.id];
         if (node) {
           const { helperLines, snappedPosition } = calculateLines(
-            node as any,
-            nodes as any,
+            node,
+            nodes,
             false,
             positionChange.position,
           );
@@ -77,15 +77,15 @@ export const useFlowHandlers = ({
               n.type === "groupNode" &&
               node.position.x > 0 &&
               node.position.y > 0 &&
-              node.position.x < (n.measured?.width || 0) &&
-              node.position.y < (n.measured?.height || 0),
+              node.position.x < (n.measured?.width ?? 0) &&
+              node.position.y < (n.measured?.height ?? 0),
           );
 
           if (potentialParent && node.parentId !== potentialParent.id) {
             reparentNode(node.id, potentialParent.id);
           } else if (!potentialParent && node.parentId && node.parentId !== activeScopeId) {
             const padding = 20;
-            const parent = nodesById[activeScopeId || ""];
+            const parent = nodesById[activeScopeId ?? ""];
             // Perform edge detection only when the parent node is loaded and has dimension information
             if (
               parent?.measured &&
@@ -129,7 +129,7 @@ export const useFlowHandlers = ({
     contextMenuDragStop();
   }, [contextMenuDragStop]);
 
-  const onInit = useCallback((_rf: any) => {
+  const onInit = useCallback(() => {
     console.log("[Flow] Canvas Initialized");
   }, []);
 

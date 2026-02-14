@@ -96,7 +96,7 @@ export function appNodeToProto(node: AppNode): ProtoNode {
     width: getDimension("width"),
   });
 
-  const nodeKind = KIND_MAPPING[node.type || ""] ?? NodeKind.DYNAMIC;
+  const nodeKind = KIND_MAPPING[node.type ?? ""] ?? NodeKind.DYNAMIC;
 
   return create(NodeSchema, {
     nodeId: node.id,

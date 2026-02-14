@@ -32,7 +32,7 @@ export const taskReducers = {
   clear_node_tasks: {
     args: { nodeId: t.string() },
     handler: (ctx: ReducerCtx<AppSchema>, { nodeId }: { nodeId: string }) => {
-      const tasks = [...(ctx.db.tasks.iter() || [])];
+      const tasks = [...ctx.db.tasks.iter()];
       for (const task of tasks) {
         if (task.nodeId === nodeId) {
           ctx.db.tasks.id.delete(task.id);
@@ -53,9 +53,9 @@ export const taskReducers = {
         lastHeartbeat: ctx.timestamp.toMillis(),
         nodeId: request.sourceNodeId,
         ownerId: "",
-        paramsPayload: new TextEncoder().encode(JSON.stringify(request.params || {})),
+        paramsPayload: new TextEncoder().encode(JSON.stringify(request.params ?? {})),
         result: "",
-        status: TaskStatus.PENDING,
+        status: TaskStatus.PENDING as unknown as number,
         taskType: request.actionId,
         timestamp: ctx.timestamp.toMillis(),
         version: 0,
@@ -72,7 +72,7 @@ export const taskReducers = {
       { signal, signalBinary }: { signal: ProtoNodeSignal; signalBinary: Uint8Array },
     ) => {
       ctx.db.nodeSignals.insert({
-        id: `sig-${signal.nodeId}-${ctx.timestamp.toMillis()}-${ctx.db.nodeSignals.count() || 0}`,
+        id: `sig-${signal.nodeId}-${ctx.timestamp.toMillis().toString()}-${ctx.db.nodeSignals.count().toString()}`,
         nodeId: signal.nodeId,
         payload: signalBinary,
         timestamp: ctx.timestamp.toMillis(),
@@ -85,8 +85,9 @@ export const taskReducers = {
     handler: (ctx: ReducerCtx<AppSchema>, { update }: { update: ProtoTaskUpdate }) => {
       const task = ctx.db.tasks.id.find(update.taskId);
       if (task && update.status !== undefined) {
+        const status = update.status as unknown as TaskStatus;
         let taskMessage = update.message;
-        if (!taskMessage && update.status === TaskStatus.FAILED) {
+        if (!taskMessage && status === TaskStatus.FAILED) {
           // TASK_STATUS_FAILED
           if (update.result?.kind?.case === "stringValue") {
             taskMessage = update.result.kind.value;

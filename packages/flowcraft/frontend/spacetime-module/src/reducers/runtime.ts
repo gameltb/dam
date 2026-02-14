@@ -17,7 +17,7 @@ export const runtimeReducers = {
       }
 
       // 2. Clear related tasks (if any)
-      for (const task of ctx.db.tasks.iter() || []) {
+      for (const task of ctx.db.tasks.iter()) {
         if (task.nodeId === req.nodeId) {
           ctx.db.tasks.id.delete(task.id);
         }

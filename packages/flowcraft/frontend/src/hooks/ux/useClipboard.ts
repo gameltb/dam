@@ -39,8 +39,8 @@ export const useClipboard = () => {
               ...n,
               id: newId,
               position: {
-                x: position.x + (n.position.x - (clipboard.nodes[0]?.position.x || 0)),
-                y: position.y + (n.position.y - (clipboard.nodes[0]?.position.y || 0)),
+                x: position.x + (n.position.x - (clipboard.nodes[0]?.position.x ?? 0)),
+                y: position.y + (n.position.y - (clipboard.nodes[0]?.position.y ?? 0)),
               },
               selected: true,
             };

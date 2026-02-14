@@ -2,11 +2,24 @@ import { create, fromBinary, type Message, toJson, toJsonString } from "@bufbuil
 import { produce } from "immer";
 
 import { TaskStatus } from "@/generated/flowcraft/v1/core/kernel_pb";
-import { NodeDataSchema } from "@/generated/flowcraft/v1/core/node_pb";
+import { type NodeData, NodeDataSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import { type PbConnection } from "@/utils/pb-client";
 
 import { type TaskPayloads, type TaskQueue } from "./protocol";
 import { type TaskContext } from "./TaskContext";
+
+interface NodeState {
+  nodeId: string;
+  nodeKind: number;
+  presentation: {
+    height: number;
+    parentId: string;
+    position: { x: number; y: number };
+    width: number;
+  };
+  state: NodeData;
+  templateId: string;
+}
 
 export class NodeKernel {
   constructor(private conn: PbConnection) {}
@@ -34,11 +47,15 @@ export class NodeKernel {
    */
   async checkNodeBusy(nodeId: string): Promise<boolean> {
     const tasks = Array.from(this.conn.db.tasks.iter());
-    const busy = tasks.some(
-      (t) =>
-        t.nodeId === nodeId &&
-        (t.status === TaskStatus.RUNNING || t.status === TaskStatus.CLAIMED || t.status === TaskStatus.PENDING),
-    );
+    const busy = tasks.some((t) => {
+      if (t.nodeId !== nodeId) return false;
+      const status = typeof t.status === "number" ? t.status : (t.status as unknown as { value: number }).value;
+      return (
+        status === (TaskStatus.RUNNING as number) ||
+        status === (TaskStatus.CLAIMED as number) ||
+        status === (TaskStatus.PENDING as number)
+      );
+    });
     return busy;
   }
 
@@ -47,8 +64,13 @@ export class NodeKernel {
    */
   createContext(taskId: string, nodeId: string, params: any): TaskContext {
     return {
-      complete: async (result) => {
-        const resultValue = isProtobufMessage(result) ? toJsonString(result.getType(), result) : JSON.stringify(result);
+      complete: async (result: unknown) => {
+        let resultValue: string;
+        if (isProtobufMessage(result)) {
+          resultValue = toJsonString(result.getType(), result);
+        } else {
+          resultValue = typeof result === "string" ? result : JSON.stringify(result);
+        }
 
         await this.conn.pbreducers.completeTask({
           result: resultValue,
@@ -56,7 +78,7 @@ export class NodeKernel {
         });
       },
       config: {}, // To be populated from node state if needed
-      fail: async (error) => {
+      fail: async (error: string) => {
         await this.conn.pbreducers.failTask({
           error,
           taskId,
@@ -64,9 +86,12 @@ export class NodeKernel {
       },
       isCancelled: () => {
         const task = this.conn.db.tasks.id.find(taskId);
-        return task?.status === TaskStatus.CANCELLED;
+        if (!task) return false;
+        const status =
+          typeof task.status === "number" ? task.status : (task.status as unknown as { value: number }).value;
+        return status === (TaskStatus.CANCELLED as number);
       },
-      log: async (message, level = "info") => {
+      log: async (message: string, level = "info") => {
         await this.conn.pbreducers.logTaskEvent({
           log: {
             eventType: level,
@@ -80,10 +105,10 @@ export class NodeKernel {
       nodeId,
       params,
       taskId,
-      updateProgress: async (percentage, message) => {
+      updateProgress: async (percentage: number, message?: string) => {
         await this.conn.pbreducers.updateTaskProgress({
           update: {
-            message: message || "",
+            message: message ?? "",
             progress: percentage,
             status: TaskStatus.RUNNING,
             taskId,
@@ -96,7 +121,7 @@ export class NodeKernel {
   /**
    * Directly edits a node using an Immer recipe, syncing changes to SpacetimeDB.
    */
-  editNode(nodeId: string, recipe: (draft: any) => void) {
+  editNode(nodeId: string, recipe: (draft: NodeState) => void) {
     const nodeRow = this.conn.db.nodes.nodeId.find(nodeId);
     if (!nodeRow) {
       console.warn(`[Kernel] Node ${nodeId} not found`);
@@ -107,14 +132,14 @@ export class NodeKernel {
     const metadata = this.conn.db.nodeMetadata.nodeId.find(nodeId);
     const dataRow = this.conn.db.nodeData.nodeId.find(nodeId);
 
-    const fullState = {
+    const fullState: NodeState = {
       nodeId,
       nodeKind: nodeRow.nodeKind,
       presentation: {
-        height: transform?.height || 0,
-        parentId: metadata?.parentId || "",
-        position: { x: transform?.x || 0, y: transform?.y || 0 },
-        width: transform?.width || 0,
+        height: transform?.height ?? 0,
+        parentId: metadata?.parentId ?? "",
+        position: { x: transform?.x ?? 0, y: transform?.y ?? 0 },
+        width: transform?.width ?? 0,
       },
       state: dataRow?.state ? fromBinary(NodeDataSchema, dataRow.state) : create(NodeDataSchema),
       templateId: nodeRow.templateId,
@@ -159,7 +184,7 @@ export class NodeKernel {
         contextNodeIds: [],
         params: {
           case: "paramsStruct",
-          value: payload as any, // Payload is strictly typed in protocol but needs to be Struct-compatible
+          value: payload as any,
         },
         sourceNodeId: nodeId,
       },

@@ -87,9 +87,11 @@ export function calculateNodeRelations(
   // 2. Establish logical left/right relations (based on edges)
 
   edges.forEach((e) => {
-    if (relations[e.source]) relations[e.source]!.right = e.target;
+    const sourceRel = relations[e.source];
+    if (sourceRel) sourceRel.right = e.target;
 
-    if (relations[e.target]) relations[e.target]!.left = e.source;
+    const targetRel = relations[e.target];
+    if (targetRel) targetRel.left = e.source;
   });
 
   // 3. Establish hierarchical relations (drill-down/up)
@@ -97,9 +99,10 @@ export function calculateNodeRelations(
   // Find the first child for each parent
 
   nodes.forEach((n) => {
-    if (n.parentId && relations[n.parentId]) {
-      if (!relations[n.parentId]!.firstChildId) {
-        relations[n.parentId]!.firstChildId = n.id;
+    if (n.parentId) {
+      const parentRel = relations[n.parentId];
+      if (parentRel && !parentRel.firstChildId) {
+        parentRel.firstChildId = n.id;
       }
     }
   });
@@ -109,7 +112,7 @@ export function calculateNodeRelations(
   const nodesByParent: Record<string, string[]> = {};
 
   nodes.forEach((n) => {
-    const pId = n.parentId || "root";
+    const pId = n.parentId ?? "root";
 
     if (!nodesByParent[pId]) nodesByParent[pId] = [];
 
@@ -118,11 +121,21 @@ export function calculateNodeRelations(
 
   Object.values(nodesByParent).forEach((childrenIds) => {
     for (let i = 0; i < childrenIds.length; i++) {
-      const current = childrenIds[i]!;
+      const currentId = childrenIds[i];
+      if (!currentId) continue;
+      
+      const currentRel = relations[currentId];
+      if (!currentRel) continue;
 
-      if (i > 0) relations[current]!.prevSiblingId = childrenIds[i - 1];
+      if (i > 0) {
+        const prevId = childrenIds[i - 1];
+        if (prevId) currentRel.prevSiblingId = prevId;
+      }
 
-      if (i < childrenIds.length - 1) relations[current]!.nextSiblingId = childrenIds[i + 1];
+      if (i < childrenIds.length - 1) {
+        const nextId = childrenIds[i + 1];
+        if (nextId) currentRel.nextSiblingId = nextId;
+      }
     }
   });
 

@@ -89,7 +89,7 @@ export const ChatMessageNode = memo(({ data, id, selected }: NodeProps) => {
 
           <div className="flex-1 overflow-auto">
             <MarkdownRenderer
-              content={content || ""}
+              content={content ?? ""}
               isEditing={isEditing}
               onEdit={setContent}
               onToggleEditing={setIsEditing}

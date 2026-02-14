@@ -15,7 +15,7 @@ export async function addChatMessage(nodeId: string, role: string, content: stri
   pbConn.pbreducers.addChatMessage({
     message: create(ChatSyncMessageSchema, {
       id: msgId,
-      parentId: parentId || "",
+      parentId: parentId ?? "",
       parts: [{ part: { case: "text", value: content } }],
       role: role as any,
       timestamp: BigInt(Date.now()),

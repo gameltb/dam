@@ -48,9 +48,10 @@ export function useNodeController(nodeId: string): NodeController {
       if (spacetimeConn) {
         // Direct call to specialized reset reducer
         // Since ResetNodeRequest was added to FlowMessage, we might need a dedicated reducer in STDB
-        // or send it as a message. For now, assuming a reducer resetNode exists or using pbreducers.
-        if (spacetimeConn.pbreducers.resetNode) {
-          spacetimeConn.pbreducers.resetNode({
+        // or send it as a message.
+        const pbreducers = spacetimeConn.pbreducers as any;
+        if (pbreducers.resetNode) {
+          pbreducers.resetNode({
             req: create(ResetNodeRequestSchema, {
               clearData,
               nodeId,

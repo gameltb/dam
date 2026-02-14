@@ -1,8 +1,13 @@
-import { WorkerLanguage } from "@/generated/flowcraft/v1/core/kernel_pb";
+import { type Infer } from "spacetimedb";
+
+import { TaskStatus, WorkerLanguage } from "@/generated/flowcraft/v1/core/kernel_pb";
+import { type TasksRow } from "@/generated/spacetime";
 import { type PbConnection } from "@/utils/pb-client";
 
 import { NodeKernel } from "./NodeKernel";
 import { type TaskContext } from "./TaskContext";
+
+type Task = Infer<typeof TasksRow>;
 
 export abstract class BaseWorker {
   protected activeTasks = new Set<string>();
@@ -17,7 +22,8 @@ export abstract class BaseWorker {
     protected tags: Record<string, string> = {},
   ) {
     this.kernel = new NodeKernel(conn);
-    this.workerId = `worker-${process.env.WORKER_TYPE || "generic"}-${crypto.randomUUID()}`;
+    const workerType = process.env["WORKER_TYPE"] || "generic";
+    this.workerId = `worker-${workerType}-${crypto.randomUUID()}`;
   }
 
   abstract handleTask(type: string, ctx: TaskContext): Promise<void>;
@@ -34,16 +40,16 @@ export abstract class BaseWorker {
     }
 
     // 2. Worker Heartbeat
-    this.heartbeatInterval = setInterval(() => this.register(), 5000);
+    this.heartbeatInterval = setInterval(() => void this.register(), 5000);
 
     // 3. Task Heartbeat (Update liveness for active tasks)
-    this.taskHeartbeatInterval = setInterval(() => this.updateActiveTaskHeartbeats(), 10000);
+    this.taskHeartbeatInterval = setInterval(() => void this.updateActiveTaskHeartbeats(), 10000);
 
     // 4. Explicit Subscription
     // IMPORTANT: Node.js client needs explicit subscription to receive row events
     console.log(`[Worker] Subscribing to tasks table...`);
     try {
-      await (this.conn as any)
+      await this.conn
         .subscriptionBuilder()
         .onApplied(() => {
           console.log(
@@ -52,12 +58,7 @@ export abstract class BaseWorker {
 
           // Check existing pending tasks after subscription is applied
           for (const task of this.conn.db.tasks.iter()) {
-            const statusTag = (task.status as any).tag || task.status;
-            console.log(`[Worker] Inspecting existing task: ${task.id}, type: ${task.taskType}, status: ${statusTag}`);
-            if (statusTag === "TASK_STATUS_PENDING" && this.capabilities.includes(task.taskType)) {
-              console.log(`[Worker] Found matching existing task: ${task.id}`);
-              void this.tryClaimAndExecute(task);
-            }
+            this.evaluateTask(task);
           }
         })
         .subscribe(["SELECT * FROM tasks"]);
@@ -67,20 +68,25 @@ export abstract class BaseWorker {
 
     // 5. Subscribe to new tasks
     this.conn.db.tasks.onInsert((_ctx, task) => {
-      const statusTag = (task.status as any).tag || task.status;
-      console.log(`[Worker] ON_INSERT task: ${task.id} (${task.taskType}), status: ${statusTag}`);
-      if (statusTag === "TASK_STATUS_PENDING" && this.capabilities.includes(task.taskType)) {
-        console.log(`[Worker] Matching new task: ${task.id}`);
-        void this.tryClaimAndExecute(task);
-      } else {
-        console.log(`[Worker] Task ${task.id} filtered out (type mismatch or not pending)`);
-      }
+      this.evaluateTask(task);
     });
   }
 
   stop() {
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
     if (this.taskHeartbeatInterval) clearInterval(this.taskHeartbeatInterval);
+  }
+
+  private evaluateTask(task: Task) {
+    // SpacetimeDB enums might be wrapped in an object or be a raw number depending on version/gen
+    const status = typeof task.status === "number" ? task.status : (task.status as unknown as { value: number }).value;
+
+    console.log(`[Worker] Evaluating task: ${task.id} (${task.taskType}), status: ${status}`);
+
+    if (status === (TaskStatus.PENDING as number) && this.capabilities.includes(task.taskType)) {
+      console.log(`[Worker] Matching task found: ${task.id}`);
+      void this.tryClaimAndExecute(task);
+    }
   }
 
   private async register() {
@@ -95,7 +101,7 @@ export abstract class BaseWorker {
     });
   }
 
-  private async tryClaimAndExecute(task: any) {
+  private async tryClaimAndExecute(task: Task) {
     console.log(`[Worker] Attempting to CLAIM task: ${task.id} for worker ${this.workerId}`);
     try {
       // Atomic claim
@@ -112,9 +118,10 @@ export abstract class BaseWorker {
 
       console.log(`[Worker] COMPLETED handleTask for: ${task.id}`);
       this.activeTasks.delete(task.id);
-    } catch (err: any) {
+    } catch (err) {
       this.activeTasks.delete(task.id);
-      if (err.message?.includes("TASK_ALREADY_CLAIMED")) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.includes("TASK_ALREADY_CLAIMED")) {
         console.log(`[Worker] CLAIM CONFLICT: Task ${task.id} already claimed by another worker.`);
         return;
       }
@@ -123,7 +130,7 @@ export abstract class BaseWorker {
       // Fallback: try to mark as failed if we already claimed it but it crashed early
       try {
         await this.conn.pbreducers.failTask({
-          error: err.message || String(err),
+          error: errorMessage,
           taskId: task.id,
         });
       } catch (failErr) {
@@ -139,7 +146,7 @@ export abstract class BaseWorker {
           update: {
             message: "Active execution (Heartbeat updated)",
             taskId,
-          } as any,
+          },
         });
       } catch (err) {
         console.error(`[Worker] Failed to update heartbeat for task ${taskId}:`, err);

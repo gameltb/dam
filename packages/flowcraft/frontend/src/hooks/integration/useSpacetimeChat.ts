@@ -24,7 +24,7 @@ export const useSpacetimeChat = (filterId?: string, _treeId?: string, headId?: s
   const addMessage = useCallback(
     (message: Partial<ChatSyncMessage>) => {
       if (spacetimeConn) {
-        const parentId = headId || "";
+        const parentId = headId ?? "";
 
         spacetimeConn.pbreducers.addChatMessage({
           message: create(ChatSyncMessageSchema, {
@@ -35,7 +35,7 @@ export const useSpacetimeChat = (filterId?: string, _treeId?: string, headId?: s
             role: message.role,
             timestamp: message.timestamp,
           }),
-          nodeId: filterId || "",
+          nodeId: filterId ?? "",
         });
       }
     },
