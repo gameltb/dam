@@ -1,19 +1,17 @@
-import { useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
+
 import { useFlowStore } from "@/store/flowStore";
-import { useNavigationStore } from "@/store/ui/navigationStore";
 import { commit } from "@/store/orchestrator";
-import { GraphMapper } from "@/utils/graphMapper";
-import { type SyncedLens, type BindingOptions } from "@/utils/lens-types";
+import { useNavigationStore } from "@/store/ui/navigationStore";
 import { MutationSource } from "@/types";
+import { GraphMapper } from "@/utils/graphMapper";
+import { type BindingOptions, type SyncedLens } from "@/utils/lens-types";
 
 /**
  * useSyncedBinding (V3.3 - Reactive Viewport Pull)
  */
-export function useSyncedBinding<T>(
-  lens: SyncedLens<T>,
-  options: BindingOptions<T> = {}
-): [T, (newValue: T) => void] {
+export function useSyncedBinding<T>(lens: SyncedLens<T>, options: BindingOptions<T> = {}): [T, (newValue: T) => void] {
   const { spacetimeConn: conn } = useFlowStore();
   const activeScopeId = useNavigationStore((s) => s.activeScopeId);
 
@@ -21,7 +19,7 @@ export function useSyncedBinding<T>(
   useEffect(() => {
     if (!conn || !lens.category) return;
 
-    if (lens.category === 'viewport') {
+    if (lens.category === "viewport") {
       const pullViewport = () => {
         const currentScope = activeScopeId || "root";
         let entry = null;
@@ -57,19 +55,25 @@ export function useSyncedBinding<T>(
   }, [value, options]);
 
   // 3. Outgoing logic
-  const setValue = useCallback((val: T) => {
-    isLocalUpdateRef.current = true;
-    lastKnownValueRef.current = val;
-    commit((draft) => {
-      lens.set(draft as any, val);
-    }, {
-      description: lens.description,
-      isHistoryOp: options.undoable ?? (lens.category !== 'viewport'),
-      source: MutationSource.SOURCE_USER,
-      isInteractionEnd: true,
-      transient: options.transient
-    });
-  }, [lens, options]);
+  const setValue = useCallback(
+    (val: T) => {
+      isLocalUpdateRef.current = true;
+      lastKnownValueRef.current = val;
+      commit(
+        (draft) => {
+          lens.set(draft as any, val);
+        },
+        {
+          description: lens.description,
+          isHistoryOp: options.undoable ?? lens.category !== "viewport",
+          isInteractionEnd: true,
+          source: MutationSource.SOURCE_USER,
+          transient: options.transient,
+        },
+      );
+    },
+    [lens, options],
+  );
 
   return [value, setValue];
 }

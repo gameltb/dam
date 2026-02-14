@@ -135,4 +135,3 @@ export const SpacetimeTableBrowser: React.FC = () => {
     </div>
   );
 };
-

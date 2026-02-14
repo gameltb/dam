@@ -4,7 +4,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import { useFlowStore } from "@/store/flowStore";
 import { useNavigationStore } from "@/store/ui/navigationStore";
-import { type DynamicNodeData, type GroupNodeData } from "@/types";
+import { AppNodeType, type DynamicNodeData, type GroupNodeData } from "@/types";
 
 const ENTER_ZOOM_THRESHOLD = 2.0;
 const EXIT_ZOOM_THRESHOLD = 0.3;
@@ -36,8 +36,6 @@ export const useRecursiveNavigation = () => {
 
   const lastZoomRef = useRef(zoom);
   const isTransitioning = useRef(false);
-  const nodesRef = useRef(nodes);
-  nodesRef.current = nodes;
 
   useEffect(() => {
     if (isTransitioning.current) return;
@@ -45,17 +43,16 @@ export const useRecursiveNavigation = () => {
     const prevZoom = lastZoomRef.current;
     lastZoomRef.current = zoom;
 
-    // Zoom-in entry logic
     if (zoom > ENTER_ZOOM_THRESHOLD && prevZoom <= ENTER_ZOOM_THRESHOLD) {
       const flowCenter = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
 
-      const targetNode = nodesRef.current.find((n) => {
+      const targetNode = nodes.find((n) => {
         const data = n.data as DynamicNodeData | GroupNodeData;
-        const isLens = data.managedScopeId !== undefined || n.type === "groupNode";
+        const isLens = data.managedScopeId !== undefined || n.type === AppNodeType.GROUP;
         if (!isLens) return false;
 
-        const w = n.measured?.width || 300;
-        const h = n.measured?.height || 200;
+        const w = n.measured?.width ?? 300;
+        const h = n.measured?.height ?? 200;
         return (
           flowCenter.x > n.position.x &&
           flowCenter.x < n.position.x + w &&
@@ -67,40 +64,33 @@ export const useRecursiveNavigation = () => {
       if (targetNode) {
         isTransitioning.current = true;
 
-        // 1. Save current level viewport
         saveViewportForScope(activeScopeId, { x, y, zoom });
 
         const data = targetNode.data as DynamicNodeData | GroupNodeData;
-        const targetScope = data.managedScopeId || targetNode.id;
+        const targetScope = data.managedScopeId ?? targetNode.id;
         setActiveScope(targetScope);
 
-        // 2. Restore target level viewport (if any)
         const saved = getViewportForScope(targetScope);
-        const nextViewport = saved || { x: window.innerWidth / 2, y: window.innerHeight / 2, zoom: 0.8 };
+        const nextViewport = saved ?? { x: window.innerWidth / 2, y: window.innerHeight / 2, zoom: 0.8 };
 
-        setViewport(nextViewport, { duration: 500 }).finally(() => {
+        void setViewport(nextViewport, { duration: 500 }).finally(() => {
           isTransitioning.current = false;
         });
       }
     }
 
-    // Zoom-out exit logic
     if (zoom < EXIT_ZOOM_THRESHOLD && prevZoom >= EXIT_ZOOM_THRESHOLD && activeScopeId) {
       isTransitioning.current = true;
 
-      // 1. Save current sub-level viewport
       saveViewportForScope(activeScopeId, { x, y, zoom });
 
-      // 2. Fall back to top level or parent
-      // FIXME: Currently we only support root back-navigation. Need a parentId registry for deep nesting.
       const targetScope = null;
       setActiveScope(targetScope);
 
-      // 3. Restore parent level viewport
       const saved = getViewportForScope(targetScope);
-      const nextViewport = saved || { x: window.innerWidth / 2, y: window.innerHeight / 2, zoom: 1.0 };
+      const nextViewport = saved ?? { x: window.innerWidth / 2, y: window.innerHeight / 2, zoom: 1.0 };
 
-      setViewport(nextViewport, { duration: 500 }).finally(() => {
+      void setViewport(nextViewport, { duration: 500 }).finally(() => {
         isTransitioning.current = false;
       });
     }
@@ -108,6 +98,7 @@ export const useRecursiveNavigation = () => {
     zoom,
     x,
     y,
+    nodes,
     activeScopeId,
     setActiveScope,
     setViewport,

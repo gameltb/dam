@@ -1,8 +1,9 @@
 import { useMemo } from "react";
+
 import { useNodeId } from "@/contexts/NodeContext";
+import { useSyncedBinding } from "@/hooks/core/useSyncedBinding";
 import { type DynamicNodeData } from "@/types";
 import { NodeLenses } from "@/utils/lenses";
-import { useSyncedBinding } from "@/hooks/core/useSyncedBinding";
 
 /**
  * useNodeProperty

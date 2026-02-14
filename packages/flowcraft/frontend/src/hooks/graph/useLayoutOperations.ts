@@ -1,37 +1,38 @@
-import { useCallback } from "react";
 import dagre from "dagre";
-import { Scope } from "@/types";
+import { useCallback } from "react";
+
 import { useFlowStore } from "@/store/flowStore";
-import { useNavigationStore } from "@/store/ui/navigationStore";
 import { commit } from "@/store/orchestrator";
+import { useNavigationStore } from "@/store/ui/navigationStore";
+import { Scope } from "@/types";
 
 export const useLayoutOperations = () => {
-  const { nodes, edges } = useFlowStore();
+  const { edges, nodes } = useFlowStore();
 
-  const autoLayout = useCallback(
-    () => {
-      const activeScopeId = useNavigationStore.getState().activeScopeId || Scope.ROOT;
-      const g = new dagre.graphlib.Graph();
-      g.setGraph({ rankdir: "LR", nodesep: 50, ranksep: 100 });
-      g.setDefaultEdgeLabel(() => ({}));
+  const autoLayout = useCallback(() => {
+    const activeScopeId = useNavigationStore.getState().activeScopeId || Scope.ROOT;
+    const g = new dagre.graphlib.Graph();
+    g.setGraph({ nodesep: 50, rankdir: "LR", ranksep: 100 });
+    g.setDefaultEdgeLabel(() => ({}));
 
-      const currentNodes = nodes.filter(n => n.scopeId === activeScopeId);
-      const currentEdges = edges.filter(e => {
-        const source = nodes.find(n => n.id === e.source);
-        return source?.scopeId === activeScopeId;
-      });
+    const currentNodes = nodes.filter((n) => n.scopeId === activeScopeId);
+    const currentEdges = edges.filter((e) => {
+      const source = nodes.find((n) => n.id === e.source);
+      return source?.scopeId === activeScopeId;
+    });
 
-      currentNodes.forEach((node) => {
-        g.setNode(node.id, { width: node.width || 200, height: node.height || 100 });
-      });
+    currentNodes.forEach((node) => {
+      g.setNode(node.id, { height: node.height || 100, width: node.width || 200 });
+    });
 
-      currentEdges.forEach((edge) => {
-        g.setEdge(edge.source, edge.target);
-      });
+    currentEdges.forEach((edge) => {
+      g.setEdge(edge.source, edge.target);
+    });
 
-      dagre.layout(g);
+    dagre.layout(g);
 
-      commit((draft) => {
+    commit(
+      (draft) => {
         currentNodes.forEach((node) => {
           const dagreNode = g.node(node.id);
           const dn = draft.nodesById[node.id];
@@ -42,10 +43,10 @@ export const useLayoutOperations = () => {
             };
           }
         });
-      }, { description: "Auto layout" });
-    },
-    [nodes, edges]
-  );
+      },
+      { description: "Auto layout" },
+    );
+  }, [nodes, edges]);
 
   return { autoLayout };
 };

@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { type FileUIPart } from "ai";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { toast } from "react-hot-toast";
 import { useShallow } from "zustand/react/shallow";
 
@@ -8,10 +8,10 @@ import { ChatSyncMessageSchema } from "@/generated/flowcraft/v1/actions/chat_act
 import { ChatMessagePartSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 import { MediaType } from "@/generated/flowcraft/v1/core/base_pb";
 import { InferenceConfigDiscoveryResponseSchema } from "@/generated/flowcraft/v1/core/service_pb";
+import { useSyncedBinding } from "@/hooks/core/useSyncedBinding";
 import { useFlowSocket } from "@/hooks/integration/useFlowSocket";
 import { useNodeController } from "@/hooks/nodes/useNodeController";
 import { useNodeMutation } from "@/hooks/nodes/useNodeMutation";
-import { useSyncedBinding } from "@/hooks/core/useSyncedBinding";
 import { useFlowStore } from "@/store/flowStore";
 import { useTaskStore } from "@/store/taskStore";
 import { ChatStatus as ChatStatusEnum, TaskStatus } from "@/types";
@@ -76,6 +76,9 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
   const [selectedEndpoint, setSelectedEndpoint] = useState("openai");
   const [useWebSearch, setUseWebSearch] = useState(false);
 
+  const effectiveModel = inferenceConfig?.defaultModel ?? selectedModel;
+  const effectiveEndpoint = inferenceConfig?.defaultEndpointId ?? selectedEndpoint;
+
   const {
     continueChat,
     editMessage,
@@ -88,16 +91,6 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
     handleStreamChunk,
     () => messages,
   );
-
-  useEffect(() => {
-    if (!inferenceConfig) return;
-    if (inferenceConfig.defaultModel && selectedModel === "gpt-4o-mini") {
-      setSelectedModel(inferenceConfig.defaultModel);
-    }
-    if (inferenceConfig.defaultEndpointId && selectedEndpoint === "openai") {
-      setSelectedEndpoint(inferenceConfig.defaultEndpointId);
-    }
-  }, [inferenceConfig, selectedModel, selectedEndpoint]);
 
   const sendMessageWrapper = async (
     content: string,
@@ -126,8 +119,8 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
         const text = (userMsg.parts?.map((p) => (p.part.case === "text" ? p.part.value : "")) ?? []).join("\n");
         void sendMessageWrapper(
           text,
-          selectedModel,
-          selectedEndpoint,
+          effectiveModel,
+          effectiveEndpoint,
           useWebSearch,
           userMsg.attachments ?? [],
           userMsg.contextNodes ?? [],
@@ -136,11 +129,11 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
       }
     } else if (targetMsg.role === "user") {
       if (index === messages.length - 1) {
-        continueChat(selectedModel, selectedEndpoint);
+        continueChat(effectiveModel, effectiveEndpoint);
       } else {
         sliceHistory(index);
         switchBranch(targetMsg.id);
-        continueChat(selectedModel, selectedEndpoint);
+        continueChat(effectiveModel, effectiveEndpoint);
       }
     }
   };
@@ -205,7 +198,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
       conn.pbreducers.addChatMessage({
         message: create(ChatSyncMessageSchema, {
           id: newMsgId,
-          modelId: selectedModel,
+          modelId: effectiveModel,
           parts: [create(ChatMessagePartSchema, { part: { case: "text", value: content } })],
           role: ChatRole.USER,
           timestamp: BigInt(Date.now()),

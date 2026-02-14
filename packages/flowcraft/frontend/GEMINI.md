@@ -68,7 +68,7 @@ Nodes are dynamic and driven by backend-defined JSON/Protobuf schemas.
 - **Code Style:** Prioritize elegant, decoupled design patterns (e.g., Mapper, Repository, Lenses). Keep business logic out of components.
 - **Comments & Documentation:**
   - **Language:** Always use English for all code comments and documentation to maintain international collaboration standards.
-  - **Content:** Add code comments sparingly. Focus on *why* something is done, especially for complex logic, rather than *what* is done.
+  - **Content:** Add code comments sparingly. Focus on _why_ something is done, especially for complex logic, rather than _what_ is done.
   - **Cleanliness:** NEVER use `// ...` or similar ellipsis placeholders in code or patches.
 - **Event Bus:** Use the centralized event bus in `flowStore` (`dispatchNodeEvent`) for inter-component signaling (e.g., opening previews or editors). **Define event names as Enums.**
 - **Components & Performance:**

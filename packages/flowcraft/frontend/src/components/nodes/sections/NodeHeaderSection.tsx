@@ -2,8 +2,8 @@ import { LayoutGrid, MessageSquare, MonitorPlay, Settings2 } from "lucide-react"
 import { memo, useCallback } from "react";
 
 import { RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
-import { useNodeHandlers } from "@/hooks/nodes/useNodeHandlers";
 import { useNodeProperty } from "@/hooks/core/useNodeProperty";
+import { useNodeHandlers } from "@/hooks/nodes/useNodeHandlers";
 import { cn } from "@/lib/utils";
 import { type DynamicNodeData } from "@/types";
 

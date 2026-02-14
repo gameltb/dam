@@ -38,11 +38,11 @@ export const Breadcrumbs: React.FC = () => {
       if (node) {
         items.unshift({
           id: node.id,
-          label: (node.data as any)?.displayName || node.id,
-          parentId: node.parentId || null,
+          label: (node.data as { displayName?: string }).displayName ?? node.id,
+          parentId: node.parentId ?? null,
         });
 
-        const nextPId: null | string = node.parentId || null;
+        const nextPId: null | string = node.parentId ?? null;
         if (nextPId === _currId) break;
         _currId = nextPId;
       } else {

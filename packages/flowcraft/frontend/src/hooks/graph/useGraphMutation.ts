@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+
 import { commit } from "@/store/orchestrator";
 
 /**
@@ -10,7 +11,7 @@ export const useGraphMutation = () => {
       (draft) => {
         draft.viewport = { x, y, zoom };
       },
-      { description: "Update viewport", transient: true }
+      { description: "Update viewport", transient: true },
     );
   }, []);
 

@@ -1,18 +1,16 @@
 import { useFlowStore } from "@/store/flowStore";
 import { type NavigationState, useNavigationStore } from "@/store/ui/navigationStore";
+import { Scope } from "@/types";
 import { GraphMapper } from "@/utils/graphMapper";
 import { type SyncedLens } from "@/utils/lens-types";
-import { type PbConnection } from "@/utils/pb-client";
-import { Scope } from "@/types";
 import { log } from "@/utils/logger";
+import { type PbConnection } from "@/utils/pb-client";
 
 /**
  * ViewportMaterializer
  */
 export const viewportMaterializer = {
   name: "viewport",
-  tables: ["viewport_state"],
-
   setup: (conn: PbConnection) => {
     // Listen for changes in global activeScopeId to perform data fetching
     const unsubscribe = useNavigationStore.subscribe((state: NavigationState) => {
@@ -28,15 +26,21 @@ export const viewportMaterializer = {
         }
       }
     });
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+    };
   },
+
+  tables: ["viewport_state"],
 };
 
 export const ViewportLenses = {
   prop: <K extends "x" | "y" | "zoom">(property: K): SyncedLens<number> => ({
-    category: 'viewport',
+    category: "viewport",
+    description: `Update viewport ${property}`,
     get: (s) => s.viewport[property],
-    set: (d, val) => { d.viewport[property] = val; },
-    description: `Update viewport ${property}`
-  })
+    set: (d, val) => {
+      d.viewport[property] = val;
+    },
+  }),
 };

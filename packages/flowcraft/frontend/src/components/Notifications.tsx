@@ -1,14 +1,15 @@
 import { useState } from "react";
 
 import { useTheme } from "@/hooks/ux/useTheme";
-import { useNotificationStore } from "@/store/notificationStore";
+import { NotificationType, useNotificationStore } from "@/store/notificationStore";
+import { Theme } from "@/types";
 
 export function Notifications() {
   const { clearNotifications, notifications } = useNotificationStore();
   const [isOpen, setIsOpen] = useState(false);
   const { theme } = useTheme();
 
-  const isDark = theme === "dark";
+  const isDark = theme === Theme.DARK;
 
   const buttonStyle: React.CSSProperties = {
     alignItems: "center",
@@ -199,9 +200,9 @@ export function Notifications() {
                     <strong
                       style={{
                         color:
-                          n.type === "error"
+                          n.type === NotificationType.ERROR
                             ? "#ff4d4f"
-                            : n.type === "success"
+                            : n.type === NotificationType.SUCCESS
                               ? "#52c41a"
                               : isDark
                                 ? "#1890ff"

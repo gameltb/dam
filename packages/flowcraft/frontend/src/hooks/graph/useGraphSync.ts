@@ -1,25 +1,21 @@
 import { useEffect } from "react";
-import { useFlowStore } from "@/store/flowStore";
-import { useNavigationStore } from "@/store/ui/navigationStore";
-import { type AppNode } from "@/types";
-import { GraphMapper } from "@/utils/graphMapper";
-import { 
-  registerMaterializer, 
-  getMaterializers 
-} from "@/utils/materializerRegistry";
+import { type Infer } from "spacetimedb";
 
+import { type NodesRow } from "@/generated/spacetime";
+import { useFlowStore } from "@/store/flowStore";
 import { coreMaterializer } from "@/store/materializers/coreMaterializer";
 import { nodeMaterializer } from "@/store/materializers/nodeMaterializer";
 import { viewportMaterializer } from "@/store/materializers/viewportMaterializer";
+import { useNavigationStore } from "@/store/ui/navigationStore";
+import { type AppNode } from "@/types";
+import { GraphMapper } from "@/utils/graphMapper";
+import { getMaterializers, registerMaterializer } from "@/utils/materializerRegistry";
+import { applySyncDelete, applySyncInsert } from "@/utils/syncUtils";
 
-// 1. Initialize registry
 registerMaterializer(coreMaterializer);
 registerMaterializer(nodeMaterializer);
 registerMaterializer(viewportMaterializer);
 
-/**
- * useGraphSync
- */
 export const useGraphSync = (isActive: boolean) => {
   const { spacetimeConn: conn } = useFlowStore();
   const activeScopeId = useNavigationStore((s) => s.activeScopeId);
@@ -30,23 +26,17 @@ export const useGraphSync = (isActive: boolean) => {
     const reconcile = () => {
       const nodes: Record<string, AppNode> = { ...useFlowStore.getState().nodesById };
       for (const row of conn.db.nodes.iter()) {
-        if (!nodes[row.nodeId]) nodes[row.nodeId] = GraphMapper.createSkeleton(row);
+        nodes[row.nodeId] ??= GraphMapper.createSkeleton(row);
       }
       useFlowStore.setState({ nodesById: nodes });
     };
 
-    const onInsert = (_ctx: any, row: any) => {
-      useFlowStore.setState(s => ({
-        nodesById: { ...s.nodesById, [row.nodeId]: GraphMapper.createSkeleton(row) }
-      }));
+    const onInsert = (_ctx: unknown, row: Infer<typeof NodesRow>) => {
+      applySyncInsert(row.nodeId, GraphMapper.createSkeleton(row));
     };
 
-    const onDelete = (_ctx: any, row: any) => {
-      useFlowStore.setState(s => {
-        const next = { ...s.nodesById };
-        delete next[row.nodeId];
-        return { nodesById: next };
-      });
+    const onDelete = (_ctx: unknown, row: Infer<typeof NodesRow>) => {
+      applySyncDelete(row.nodeId);
     };
 
     conn.db.nodes.onInsert(onInsert);
@@ -54,13 +44,13 @@ export const useGraphSync = (isActive: boolean) => {
 
     reconcile();
 
-    const cleanups = getMaterializers().map(m => m.setup(conn, activeScopeId));
+    const cleanups = getMaterializers().map((m) => m.setup(conn, activeScopeId));
 
     return () => {
       conn.db.nodes.removeOnInsert(onInsert);
       conn.db.nodes.removeOnDelete(onDelete);
-      cleanups.forEach(cleanup => {
-        if (typeof cleanup === 'function') cleanup();
+      cleanups.forEach((cleanup) => {
+        if (typeof cleanup === "function") cleanup();
       });
     };
   }, [isActive, conn, activeScopeId]);

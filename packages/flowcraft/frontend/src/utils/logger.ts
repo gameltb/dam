@@ -14,14 +14,25 @@ const COLORS = {
 };
 
 export const log = {
-  error: (context: string, error: any) => {
+  debug: (context: string, message: string, ...args: unknown[]) => {
+    if (!import.meta.env.DEV) return;
+    console.debug(
+      `%c[DEBUG] %c[${context}] %c${message}`,
+      "color: #8b5cf6; font-weight: bold;",
+      "color: #6366f1; font-weight: bold;",
+      "color: inherit;",
+      ...args,
+    );
+  },
+
+  error: (context: string, error: unknown) => {
     console.error(`%c[ERROR] ${context}`, `color: ${COLORS.ERROR}; font-weight: bold;`, error);
   },
 
   /**
    * Logs synchronization events with directional highlighting.
    */
-  sync: (direction: SyncDirection, message: string, detail?: any) => {
+  sync: (direction: SyncDirection, message: string, detail?: unknown) => {
     if (!import.meta.env.DEV) return;
 
     const color = COLORS[direction];
@@ -47,14 +58,7 @@ export const log = {
     }
   },
 
-  debug: (context: string, message: string, ...args: any[]) => {
-    if (!import.meta.env.DEV) return;
-    console.debug(
-      `%c[DEBUG] %c[${context}] %c${message}`,
-      "color: #8b5cf6; font-weight: bold;",
-      "color: #6366f1; font-weight: bold;",
-      "color: inherit;",
-      ...args,
-    );
+  warn: (context: string, ...args: unknown[]) => {
+    console.warn(`%c[WARN] ${context}`, `color: ${COLORS.ERROR}; font-weight: bold;`, ...args);
   },
 };

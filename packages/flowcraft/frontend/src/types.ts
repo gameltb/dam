@@ -53,10 +53,10 @@ export enum FlowEvent {
 }
 
 export enum InboundChangeCategory {
-  NODE = "node",
   EDGE = "edge",
-  VIEWPORT = "viewport",
+  NODE = "node",
   UI = "ui",
+  VIEWPORT = "viewport",
 }
 
 export enum NodeSignalCase {
@@ -126,10 +126,10 @@ export interface BaseAppNode {
   id: string;
   measured?: { height: number; width: number };
   parentId?: string; // Physical nesting (for group coordinates)
-  scopeId: string;   // Logical scope (for navigation/visibility)
   position: { x: number; y: number };
   presentation?: Presentation;
   resizing?: boolean;
+  scopeId: string; // Logical scope (for navigation/visibility)
   selectable?: boolean;
   selected?: boolean;
   style?: React.CSSProperties;

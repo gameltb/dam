@@ -42,45 +42,48 @@ export const NodeAssembler = memo((props: NodeProps<DynamicNodeType>) => {
   const { containerStyle, shouldLockAspectRatio } = useNodeHandlers(data, selected);
 
   // 2. Implementation Resolution
+  const extension = data.extension as undefined | { case: string };
+  const extensionCase = extension?.case;
   const implementation = useMemo(() => {
-    return data.extension?.case ? resolveNodeComponent(data) : undefined;
-  }, [data.extension?.case]);
+    return extensionCase ? resolveNodeComponent(data) : undefined;
+  }, [extensionCase, data]);
 
   const isGeneric = !implementation;
   const isWidgetMode = data.activeMode === RenderMode.MODE_WIDGETS;
   const hasExplicitHeight = Number.isFinite(presentationHeight);
 
-  const ContentComponent = implementation?.component || GenericNode;
+  const ContentComponent = implementation?.component ?? GenericNode;
 
   // 3. Dimension Management Strategy
   const sizingStrategy = useMemo(() => {
-    // Media nodes with aspect ratio requirements
-    if (data.extension?.case === "visual" || data.extension?.case === "acoustic") {
+    if (extensionCase === "visual" || extensionCase === "acoustic") {
       return SizingStrategy.ASPECT_RATIO;
     }
-    // Generic form-based nodes or widget mode
     if ((isGeneric || isWidgetMode) && !hasExplicitHeight) {
       return SizingStrategy.CONTENT_FIT;
     }
     return SizingStrategy.MANUAL;
-  }, [data.extension?.case, isGeneric, isWidgetMode, hasExplicitHeight]);
+  }, [extensionCase, isGeneric, isWidgetMode, hasExplicitHeight]);
 
   // Handle resizing end by updating both local and persistence state
   const handleResizeEnd = useCallback(
-    (_: any, params: { height: number; width: number }) => {
+    (_: unknown, params: { height: number; width: number }) => {
       updateLayout({ height: params.height, width: params.width });
     },
     [updateLayout],
   );
 
-  const minConstraints = implementation?.constraints || { minHeight: 100, minWidth: 200 };
+  const minConstraints = implementation?.constraints ?? { minHeight: 100, minWidth: 200 };
 
   // 4. Interaction Handlers
-  const onMouseEnter = useCallback((e: React.MouseEvent) => {
-    setNavigatingNode(id, false);
-    // Update mouse pos for potential context-aware actions
-    useUiStore.getState().setLastMousePos({ x: e.clientX, y: e.clientY });
-  }, [id, setNavigatingNode]);
+  const onMouseEnter = useCallback(
+    (e: React.MouseEvent) => {
+      setNavigatingNode(id, false);
+      // Update mouse pos for potential context-aware actions
+      useUiStore.getState().setLastMousePos({ x: e.clientX, y: e.clientY });
+    },
+    [id, setNavigatingNode],
+  );
 
   const onMouseLeave = useCallback(() => {
     resetNavigatingNode(id);
@@ -89,11 +92,7 @@ export const NodeAssembler = memo((props: NodeProps<DynamicNodeType>) => {
   if (!exists) return null;
 
   return (
-    <div
-      className="group/node relative w-full h-full"
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-    >
+    <div className="group/node relative w-full h-full" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       <NodeJumpOverlay id={id} />
 
       <NodeShell nodeId={id} selected={selected} sizingStrategy={sizingStrategy} style={containerStyle}>
@@ -109,7 +108,7 @@ export const NodeAssembler = memo((props: NodeProps<DynamicNodeType>) => {
 
         <div className="w-full h-full overflow-hidden rounded-[inherit] flex flex-col">
           {/* Injecting content based on resolved type */}
-          <ContentComponent data={data} id={id} node={props as any} selected={selected} />
+          <ContentComponent data={data} id={id} node={props as never} selected={selected} />
         </div>
       </NodeShell>
     </div>

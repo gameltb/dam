@@ -193,5 +193,3 @@ export const TableDataView: React.FC<TableDataViewProps> = ({ filterText, tableI
     </div>
   );
 };
-
-

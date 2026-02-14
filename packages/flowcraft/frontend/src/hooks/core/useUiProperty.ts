@@ -1,8 +1,7 @@
 import { useMemo } from "react";
 
-import { type SyncedLens } from "@/utils/lens-types";
-
 import { useSyncedBinding } from "@/hooks/core/useSyncedBinding";
+import { type SyncedLens } from "@/utils/lens-types";
 
 /**
  * useUiProperty

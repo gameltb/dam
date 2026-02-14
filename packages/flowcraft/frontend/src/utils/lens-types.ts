@@ -1,24 +1,24 @@
 import { type RFState } from "@/store/types";
 
-export interface SyncedLens<T> {
-  get: (state: RFState) => T;
-  set: (draft: RFState, newValue: T) => void;
-  description?: string;
-  category?: 'node' | 'edge' | 'viewport' | 'ui' | 'task';
-  
-  // New: Unique identifier for precise subscription
-  id?: string; 
+export interface BindingBackend<T> {
+  setValue: (lens: SyncedLens<T>, newValue: T, options: BindingOptions<T>) => void;
+  useValue: (lens: SyncedLens<T>, options: BindingOptions<T>) => T;
 }
 
 export interface BindingOptions<T> {
-  undoable?: boolean;
-  transient?: boolean;
+  backend?: "custom" | "store" | "table";
   debounce?: number;
-  backend?: 'store' | 'table' | 'custom';
   onIncoming?: (newValue: T, oldValue: T) => void;
+  transient?: boolean;
+  undoable?: boolean;
 }
 
-export interface BindingBackend<T> {
-  useValue: (lens: SyncedLens<T>, options: BindingOptions<T>) => T;
-  setValue: (lens: SyncedLens<T>, newValue: T, options: BindingOptions<T>) => void;
+export interface SyncedLens<T> {
+  category?: "edge" | "node" | "task" | "ui" | "viewport";
+  description?: string;
+  get: (state: RFState) => T;
+  // New: Unique identifier for precise subscription
+  id?: string;
+
+  set: (draft: RFState, newValue: T) => void;
 }

@@ -160,12 +160,12 @@ export const syncMiddleware: GraphMiddleware = (event, next) => {
         if (!executed.has(key)) {
           // LOG: Outgoing sync
           const pathStr = patch.path.join(".");
-          log.sync("OUT", `Syncing ${pathStr}`, { 
-            context, 
+          log.sync("OUT", `Syncing ${pathStr}`, {
+            context,
             entityId: id,
             op: patch.op,
             path: patch.path,
-            value: patch.value 
+            value: patch.value,
           });
 
           descriptor.execute(id, patch, store, conn, context);

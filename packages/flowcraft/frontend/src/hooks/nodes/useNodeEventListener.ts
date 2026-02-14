@@ -9,9 +9,10 @@ import { useTaskStore } from "@/store/taskStore";
 import { type AppNode, AppNodeType, FlowEvent, isDynamicNode, MediaType, MutationSource, type NodeId } from "@/types";
 
 export interface ContextMenuData {
+  edgeId?: string;
   galleryItemType?: MediaType;
   galleryItemUrl?: string;
-  nodeId: NodeId;
+  nodeId?: NodeId;
   x: number;
   y: number;
 }

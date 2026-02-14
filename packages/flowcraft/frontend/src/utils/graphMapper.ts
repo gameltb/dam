@@ -7,8 +7,8 @@ import {
   EdgesRow,
   NodeDataRow,
   NodeMetadataRow,
-  NodeTransformsRow,
   NodesRow,
+  NodeTransformsRow,
   ViewportStateRow,
 } from "@/generated/spacetime";
 import { type AppNode, AppNodeType, Scope } from "@/types";

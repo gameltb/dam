@@ -1,9 +1,9 @@
 import { Handle, type NodeProps, NodeResizer, Position } from "@xyflow/react";
 import { memo, useCallback, useMemo } from "react";
 
-import { useNodeMutation } from "@/hooks/nodes/useNodeMutation";
 import { useSyncedBinding } from "@/hooks/core/useSyncedBinding";
 import { useUiProperty } from "@/hooks/core/useUiProperty";
+import { useNodeMutation } from "@/hooks/nodes/useNodeMutation";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/store/uiStore";
 import { NodeLenses } from "@/utils/lenses";
@@ -12,10 +12,11 @@ import { NodeShell } from "../base/NodeShell";
 import { MarkdownRenderer } from "../media/MarkdownRenderer";
 import { NodeJumpOverlay } from "./parts/NodeJumpOverlay";
 
-export const ChatMessageNode = memo(({ data, id, selected }: NodeProps<any>) => {
-  const { metadata } = data;
-  const role = metadata?.role || "unknown";
-  const createdAtStr = metadata?.timestamp || Date.now().toString();
+export const ChatMessageNode = memo(({ data, id, selected }: NodeProps) => {
+  const typedData = data as { metadata?: { role?: string; timestamp?: string }; presentation?: { height?: number } };
+  const metadata = typedData.metadata;
+  const role = metadata?.role ?? "unknown";
+  const createdAtStr = metadata?.timestamp ?? "";
 
   const [isEditing, setIsEditing] = useUiProperty(id, "isEditing", false);
   const { updateLayout } = useNodeMutation(id);
@@ -28,7 +29,7 @@ export const ChatMessageNode = memo(({ data, id, selected }: NodeProps<any>) => 
   const resetNavigatingNode = useUiStore((s) => s.resetNavigatingNode);
 
   const handleResizeEnd = useCallback(
-    (_: any, params: { height: number; width: number }) => {
+    (_: unknown, params: { height: number; width: number }) => {
       updateLayout({ height: params.height, width: params.width });
     },
     [updateLayout],
@@ -48,7 +49,7 @@ export const ChatMessageNode = memo(({ data, id, selected }: NodeProps<any>) => 
       <NodeJumpOverlay id={id} isEditing={isEditing} />
 
       <NodeShell
-        autoHeight={!data.presentation?.height}
+        autoHeight={!typedData.presentation?.height}
         className={cn("min-w-[250px]", isUser ? "bg-primary/10" : "bg-card")}
         nodeId={id}
         onDoubleClick={() => {

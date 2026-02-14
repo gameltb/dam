@@ -1,9 +1,10 @@
 import { Settings, X } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { useSettingsStore, type ShortcutConfig } from "@/store/ui/settingsStore";
+import { type ShortcutConfig, useSettingsStore } from "@/store/ui/settingsStore";
 import { useUiStore } from "@/store/uiStore";
+
 import { AiSettings } from "./settings/AiSettings";
 import { GeneralSettings } from "./settings/GeneralSettings";
 import { ShortcutSettings } from "./settings/ShortcutSettings";
@@ -18,33 +19,36 @@ export function SettingsModal() {
     })),
   );
 
-  const { 
-    theme,
+  const {
+    activeLocalClientId,
+    hotkeys: shortcuts,
     serverAddress,
+    setSettings,
     showControls,
     showMinimap,
-    activeLocalClientId,
-    setSettings, 
-    updateHotkeys, 
-    hotkeys: shortcuts 
+    theme,
+    updateHotkeys,
   } = useSettingsStore(
     useShallow((s) => ({
-      theme: s.theme,
+      activeLocalClientId: s.activeLocalClientId,
+      hotkeys: s.hotkeys,
       serverAddress: s.serverAddress,
+      setSettings: s.setSettings,
       showControls: s.showControls,
       showMinimap: s.showMinimap,
-      activeLocalClientId: s.activeLocalClientId,
-      setSettings: s.setSettings,
+      theme: s.theme,
       updateHotkeys: s.updateHotkeys,
-      hotkeys: s.hotkeys,
-    }))
+    })),
   );
 
-  const settings = { theme, serverAddress, showControls, showMinimap, activeLocalClientId };
+  const settings = { activeLocalClientId, serverAddress, showControls, showMinimap, theme };
 
-  const setShortcut = useCallback((key: keyof ShortcutConfig, val: string) => {
-    updateHotkeys({ [key]: val });
-  }, [updateHotkeys]);
+  const setShortcut = useCallback(
+    (key: keyof ShortcutConfig, val: string) => {
+      updateHotkeys({ [key]: val });
+    },
+    [updateHotkeys],
+  );
 
   const [activeTab, setActiveTab] = useState<"ai" | "general" | "shortcuts">("general");
 
@@ -83,12 +87,12 @@ export function SettingsModal() {
         <div className="flex px-2">
           {(["general", "ai", "shortcuts"] as const).map((tab) => (
             <button
-              key={tab}
               className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors capitalize ${
                 activeTab === tab
                   ? "border-primary text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
+              key={tab}
               onClick={() => {
                 setActiveTab(tab);
               }}
@@ -109,9 +113,7 @@ export function SettingsModal() {
             />
           )}
           {activeTab === "ai" && <AiSettings />}
-          {activeTab === "shortcuts" && (
-            <ShortcutSettings setShortcut={setShortcut} shortcuts={shortcuts} />
-          )}
+          {activeTab === "shortcuts" && <ShortcutSettings setShortcut={setShortcut} shortcuts={shortcuts} />}
         </div>
       </div>
     </div>

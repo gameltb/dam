@@ -19,6 +19,7 @@ import { useFlowStore } from "@/store/flowStore";
 import { commit, editNode } from "@/store/orchestrator";
 import { AppNodeType, type ChatNodeData, ChatStatus, isChatNode, RenderMode } from "@/types";
 import { uploadFile } from "@/utils/assetUtils";
+import { log } from "@/utils/logger";
 
 import { type ChatMessage, ChatRole, type ContextNode } from "./types";
 import { useLocalInference } from "./useLocalInference";
@@ -30,16 +31,17 @@ export function useChatActions(
   handleStreamChunk: (chunk: string) => void,
   getHistory: () => ChatMessage[],
 ) {
-  const { nodesById, spacetimeConn } = useFlowStore(
+  const { nodesById } = useFlowStore(
     useShallow((s) => ({
       nodesById: s.nodesById,
-      spacetimeConn: s.spacetimeConn,
     })),
   );
 
   const node = nodesById[nodeId];
   const sendNodeSignal = useFlowStore((s) => s.sendNodeSignal);
   const { localClients, performLocalInference } = useLocalInference(nodeId);
+
+  const getSpacetimeConn = useCallback(() => useFlowStore.getState().spacetimeConn, []);
 
   const sendMessage = useCallback(
     async (
@@ -102,64 +104,72 @@ export function useChatActions(
         timestamp: BigInt(Date.now()),
       };
 
-            appendUserMessage(userMsg);
-      
-            if (!node) {
-              console.warn("[useChatActions] Node not found for head update:", nodeId);
-              return;
-            }
-      
-            // Atomic commit: add node + establish connection + update Head
-            commit((draft) => {
-              const chatNode = draft.nodesById[nodeId];
-              if (chatNode && isChatNode(chatNode)) {
-                const data = chatNode.data as ChatNodeData;
-                const currentHead = data.extension.value.conversationHeadId;
-                
-                          // 1. Add message node
-                          draft.nodesById[userMsgId] = {
-                            id: userMsgId,
-                            type: AppNodeType.CHAT_MESSAGE,
-                            position: { x: chatNode.position.x, y: chatNode.position.y + 300 },
-                            width: 300,
-                            height: 150,
-                            scopeId: chatNode.scopeId, // Inherit scope from parent
-                            data: {
-                              $typeName: NodeDataSchema.typeName,
-                              displayName: "User Message",
-                              activeMode: RenderMode.MODE_MARKDOWN,
-                              taskId: "",
-                              schemaVersion: 1,
-                              availableModes: [RenderMode.MODE_MARKDOWN],
-                              metadata: {
-                                role: "user",
-                                timestamp: Date.now().toString(),
-                                parts_json: JSON.stringify([
-                                  JSON.parse(toJsonString(ChatMessagePartSchema, create(ChatMessagePartSchema, {
-                                    part: { case: "text", value: content.trim() }
-                                  })))
-                                ])
-                              },
-                              widgets: [],
-                              inputPorts: [],
-                              outputPorts: [],
-                              extension: { case: undefined, value: undefined }
-                            },
-                            parentId: nodeId
-                          };      
-                // 2. Establish connection (from old Head to new message)
-                const edgeId = `e-${currentHead || nodeId}-${userMsgId}`;
-                draft.edgesById[edgeId] = {
-                  id: edgeId,
-                  source: currentHead || nodeId,
-                  target: userMsgId,
-                };
-      
-                // 3. Update Head
-                data.extension.value.conversationHeadId = userMsgId;
-                data.extension.value.isHistoryCleared = false;
-              }
-            }, { description: "User sent message", isHistoryOp: true });
+      appendUserMessage(userMsg);
+
+      if (!node) {
+        log.warn("[useChatActions] Node not found for head update:", nodeId);
+        return;
+      }
+
+      // Atomic commit: add node + establish connection + update Head
+      commit(
+        (draft) => {
+          const chatNode = draft.nodesById[nodeId];
+          if (chatNode && isChatNode(chatNode)) {
+            const data = chatNode.data as ChatNodeData;
+            const currentHead = data.extension.value.conversationHeadId;
+
+            // 1. Add message node
+            draft.nodesById[userMsgId] = {
+              data: {
+                $typeName: NodeDataSchema.typeName,
+                activeMode: RenderMode.MODE_MARKDOWN,
+                availableModes: [RenderMode.MODE_MARKDOWN],
+                displayName: "User Message",
+                extension: { case: undefined, value: undefined },
+                inputPorts: [],
+                metadata: {
+                  parts_json: JSON.stringify([
+                    JSON.parse(
+                      toJsonString(
+                        ChatMessagePartSchema,
+                        create(ChatMessagePartSchema, {
+                          part: { case: "text", value: content.trim() },
+                        }),
+                      ),
+                    ),
+                  ]),
+                  role: "user",
+                  timestamp: Date.now().toString(),
+                },
+                outputPorts: [],
+                schemaVersion: 1,
+                taskId: "",
+                widgets: [],
+              },
+              height: 150,
+              id: userMsgId,
+              parentId: nodeId,
+              position: { x: chatNode.position.x, y: chatNode.position.y + 300 },
+              scopeId: chatNode.scopeId, // Inherit scope from parent
+              type: AppNodeType.CHAT_MESSAGE,
+              width: 300,
+            };
+            // 2. Establish connection (from old Head to new message)
+            const edgeId = `e-${currentHead || nodeId}-${userMsgId}`;
+            draft.edgesById[edgeId] = {
+              id: edgeId,
+              source: currentHead || nodeId,
+              target: userMsgId,
+            };
+
+            // 3. Update Head
+            data.extension.value.conversationHeadId = userMsgId;
+            data.extension.value.isHistoryCleared = false;
+          }
+        },
+        { description: "User sent message", isHistoryOp: true },
+      );
       const localClient = localClients.find((c) => c.id === selectedEndpoint);
       if (localClient) {
         await performLocalInference(
@@ -174,8 +184,9 @@ export function useChatActions(
         return;
       }
 
-      if (spacetimeConn) {
-        spacetimeConn.kernel.submit(
+      const conn = getSpacetimeConn();
+      if (conn) {
+        conn.kernel.submit(
           TaskQueue.CHAT_GENERATE,
           {
             endpointId: selectedEndpoint,
@@ -204,7 +215,7 @@ export function useChatActions(
           }),
         );
       } catch (err) {
-        console.error("Failed to send chat generate signal:", err);
+        log.error("useChatActions/sendMessage", err);
         setStatus(ChatStatus.READY);
       }
     },
@@ -225,8 +236,9 @@ export function useChatActions(
     (selectedModel: string, selectedEndpoint: string) => {
       setStatus(ChatStatus.SUBMITTED);
 
-      if (spacetimeConn) {
-        spacetimeConn.kernel.submit(
+      const conn = getSpacetimeConn();
+      if (conn) {
+        conn.kernel.submit(
           TaskQueue.CHAT_GENERATE,
           {
             endpointId: selectedEndpoint,
@@ -255,11 +267,11 @@ export function useChatActions(
           }),
         );
       } catch (err) {
-        console.error("Failed to send chat continue signal:", err);
+        log.error("useChatActions/continueChat", err);
         setStatus(ChatStatus.READY);
       }
     },
-    [nodeId, setStatus, sendNodeSignal],
+    [nodeId, setStatus, sendNodeSignal, getSpacetimeConn],
   );
 
   const editMessage = useCallback(
@@ -287,7 +299,7 @@ export function useChatActions(
           }),
         );
       } catch (err) {
-        console.error("Failed to send chat edit signal:", err);
+        log.error("useChatActions/editMessage", err);
       }
     },
     [nodeId, sendNodeSignal],
@@ -308,7 +320,7 @@ export function useChatActions(
           }),
         );
       } catch (err) {
-        console.error("Failed to send chat switch signal:", err);
+        log.error("useChatActions/switchBranch", err);
       }
     },
     [nodeId, sendNodeSignal],

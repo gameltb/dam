@@ -1,7 +1,9 @@
 import { useCallback, useMemo } from "react";
-import { ChatLenses } from "@/utils/lenses";
+
 import { useSyncedBinding } from "@/hooks/core/useSyncedBinding";
 import { useNodeController } from "@/hooks/nodes/useNodeController";
+import { ChatLenses } from "@/utils/lenses";
+
 import { type ChatMessage } from "./types";
 
 /**
@@ -9,9 +11,7 @@ import { type ChatMessage } from "./types";
  */
 export function useChatController(_conversationHeadId: string, nodeId: string, _treeId: string) {
   // 1. Use lens to get real-time history
-  const [messages] = useSyncedBinding(
-    useMemo(() => ChatLenses.history(nodeId), [nodeId])
-  );
+  const [messages] = useSyncedBinding(useMemo(() => ChatLenses.history(nodeId), [nodeId]));
 
   const nodeController = useNodeController(nodeId);
 
@@ -26,7 +26,7 @@ export function useChatController(_conversationHeadId: string, nodeId: string, _
   return {
     appendUserMessage,
     handleStreamChunk,
-    messages: messages as ChatMessage[],
+    messages: messages,
     sliceHistory,
     status: nodeController.status as any,
     streamingMessage: null as any,

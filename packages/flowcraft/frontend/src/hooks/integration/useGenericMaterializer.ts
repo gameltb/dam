@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+
 import { commit } from "@/store/orchestrator";
 
 /**
@@ -14,7 +15,7 @@ export const useGenericMaterializer = () => {
       (_draft) => {
         // Materialize logic
       },
-      { description: "Materialize data" }
+      { description: "Materialize data" },
     );
   };
 

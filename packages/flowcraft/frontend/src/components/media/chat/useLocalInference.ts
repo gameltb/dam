@@ -1,8 +1,11 @@
 import { useCallback } from "react";
+
 import { useFlowStore } from "@/store/flowStore";
 import { useSettingsStore } from "@/store/ui/settingsStore";
 import { type LocalLLMClientConfig } from "@/types";
-import { ChatStatus, type ChatMessage } from "./types";
+import { log } from "@/utils/logger";
+
+import { type ChatMessage, ChatStatus } from "./types";
 
 export function useLocalInference(nodeId: string) {
   const { localClients } = useSettingsStore();
@@ -16,10 +19,9 @@ export function useLocalInference(nodeId: string) {
       _setStatus: (s: ChatStatus) => void,
       _handleStreamChunk: (chunk: string) => void,
       _userMsgId: string,
-      _userParts: any[],
+      _userParts: unknown[],
     ) => {
-      // TODO: Implement local LLM invocation logic via fetch or SDK
-      console.warn("Local inference not yet fully implemented");
+      log.debug("useLocalInference", `Local inference requested for node ${nodeId}, but not yet implemented`);
     },
     [nodeId, spacetimeConn],
   );

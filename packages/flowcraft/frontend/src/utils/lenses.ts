@@ -1,6 +1,7 @@
 import { type ChatMessage, ChatRole } from "@/components/media/chat/types";
-import { type ChatNodeData, isChatNode } from "@/types";
 import { NodeLenses } from "@/store/materializers/nodeMaterializer";
+import { type ChatNodeData, isChatNode } from "@/types";
+
 import { type SyncedLens } from "./lens-types";
 
 export * from "@/store/materializers/nodeMaterializer";
@@ -11,7 +12,8 @@ export * from "@/store/materializers/viewportMaterializer";
  */
 export const ChatLenses = {
   history: (chatNodeId: string): SyncedLens<ChatMessage[]> => ({
-    category: 'node',
+    category: "node",
+    description: `Compute chat history for ${chatNodeId}`,
     get: (s) => {
       const chatNode = s.nodesById[chatNodeId];
       if (!chatNode || !isChatNode(chatNode)) return [];
@@ -32,21 +34,20 @@ export const ChatLenses = {
         const nodeData = node.data;
 
         history.unshift({
-          id: node.id,
-          role: (nodeData.metadata?.role as ChatRole) || ChatRole.USER,
           content: NodeLenses.messageContent(node.id).get(s),
-          timestamp: nodeData.metadata?.timestamp ? BigInt(nodeData.metadata.timestamp) : undefined,
+          id: node.id,
           parts: nodeData.metadata?.parts_json ? JSON.parse(nodeData.metadata.parts_json) : [],
+          role: (nodeData.metadata?.role as ChatRole) || ChatRole.USER,
+          timestamp: nodeData.metadata?.timestamp ? BigInt(nodeData.metadata.timestamp) : undefined,
         });
 
-        const parentEdge = s.edges.find(e => e.target === currentId);
+        const parentEdge = s.edges.find((e) => e.target === currentId);
         currentId = parentEdge ? parentEdge.source : "";
         if (currentId === chatNodeId) break;
       }
       return history;
     },
     set: () => {},
-    description: `Compute chat history for ${chatNodeId}`
   }),
 };
 

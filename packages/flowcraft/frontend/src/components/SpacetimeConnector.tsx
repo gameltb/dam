@@ -1,9 +1,11 @@
+import { AlertCircle, Settings2 } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { SpacetimeDBProvider } from "spacetimedb/react";
-import { AlertCircle, Settings2 } from "lucide-react";
+
+import { DbConnection } from "@/generated/spacetime";
 import { useSettingsStore } from "@/store/ui/settingsStore";
 import { useUiStore } from "@/store/uiStore";
-import { DbConnection } from "@/generated/spacetime";
+
 import { Button } from "./ui/button";
 
 interface SpacetimeConnectorProps {
@@ -46,7 +48,7 @@ function normalizeUri(uri: string): string {
 export const SpacetimeConnector: React.FC<SpacetimeConnectorProps> = ({ children }) => {
   const serverAddress = useSettingsStore((s) => s.serverAddress);
   const setSettingsOpen = useUiStore((s) => s.setSettingsOpen);
-  const [initError, setInitError] = useState<string | null>(null);
+  const [initError, setInitError] = useState<null | string>(null);
 
   const normalizedUri = useMemo(() => normalizeUri(serverAddress), [serverAddress]);
 
@@ -58,11 +60,9 @@ export const SpacetimeConnector: React.FC<SpacetimeConnectorProps> = ({ children
       }
 
       console.log(`[Spacetime] Attempting connection to: ${normalizedUri}`);
-      return DbConnection.builder()
-        .withUri(normalizedUri)
-        .withModuleName("flowcraft");
-    } catch (e: any) {
-      const msg = e.message || "Failed to initialize SpacetimeDB builder";
+      return DbConnection.builder().withUri(normalizedUri).withModuleName("flowcraft");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to initialize SpacetimeDB builder";
       setInitError(msg);
       console.error(`[Spacetime] Init Error: ${msg}`);
       return null;
@@ -71,7 +71,7 @@ export const SpacetimeConnector: React.FC<SpacetimeConnectorProps> = ({ children
 
   return (
     <>
-      {(initError || !builder) ? (
+      {initError || !builder ? (
         <div className="fixed inset-0 flex items-center justify-center bg-background z-[9999]">
           <div className="max-w-md w-full p-8 border border-destructive/20 bg-destructive/5 rounded-2xl flex flex-col items-center text-center gap-6 shadow-2xl backdrop-blur-md animate-in zoom-in-95 duration-300">
             <div className="p-4 bg-destructive/10 rounded-full text-destructive">
@@ -85,24 +85,24 @@ export const SpacetimeConnector: React.FC<SpacetimeConnectorProps> = ({ children
                   {serverAddress || "(empty)"}
                 </code>
               </p>
-              {initError && (
-                <p className="text-xs text-destructive font-mono mt-2 italic">Reason: {initError}</p>
-              )}
+              {initError && <p className="text-xs text-destructive font-mono mt-2 italic">Reason: {initError}</p>}
             </div>
-            <Button 
-              onClick={() => setSettingsOpen(true)}
+            <Button
               className="w-full gap-2 py-6 text-base shadow-lg"
+              onClick={() => {
+                setSettingsOpen(true);
+              }}
             >
               <Settings2 size={18} />
               Open Settings to Fix
             </Button>
             <div className="flex flex-col gap-1 items-center">
-              <p className="text-[10px] uppercase tracking-widest opacity-30 font-bold">
-                Recovery Environment
-              </p>
-              <button 
-                onClick={() => window.location.reload()}
+              <p className="text-[10px] uppercase tracking-widest opacity-30 font-bold">Recovery Environment</p>
+              <button
                 className="text-[10px] text-primary hover:underline font-bold"
+                onClick={() => {
+                  window.location.reload();
+                }}
               >
                 Retry Connection
               </button>
@@ -110,21 +110,17 @@ export const SpacetimeConnector: React.FC<SpacetimeConnectorProps> = ({ children
           </div>
         </div>
       ) : (
-        <SpacetimeDBProvider connectionBuilder={builder}>
-          {children}
-        </SpacetimeDBProvider>
+        <SpacetimeDBProvider connectionBuilder={builder}>{children}</SpacetimeDBProvider>
       )}
-      
+
       {/* 
         CRITICAL: If we are in error mode, we still need to render the settings modal container 
         so that it can be opened. Since SettingsModal is inside App (children), 
         we render children in a hidden port if error occurs, OR we ensure it's outside.
         Actually, the most robust way is to render children but wrapped in a 'disabled' context.
       */}
-      {(initError || !builder) && (
-        <div className="pointer-events-none opacity-0 absolute inset-0 -z-10 overflow-hidden">
-          {children}
-        </div>
+      {(initError !== null || !builder) && (
+        <div className="pointer-events-none opacity-0 absolute inset-0 -z-10 overflow-hidden">{children}</div>
       )}
     </>
   );

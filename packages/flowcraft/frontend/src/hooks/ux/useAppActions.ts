@@ -7,13 +7,14 @@ import type { NodeTemplate } from "@/types";
 
 import { PositionSchema, PresentationSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import { NodeDataSchema, RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
+import { type ContextMenuData } from "@/hooks/nodes/useNodeEventListener";
 import { useFlowStore } from "@/store/flowStore";
 import { useNavigationStore } from "@/store/ui/navigationStore";
 import { AppNodeType, Scope } from "@/types";
 
 export const useAppActions = (
-  setPendingAction: (a: any | null) => void,
-  contextMenu: any,
+  setPendingAction: (a: { actionId: string; nodeId: string } | null) => void,
+  contextMenu: ContextMenuData | null,
   closeContextMenu: () => void,
 ) => {
   const { addNode } = useFlowStore();
@@ -42,15 +43,15 @@ export const useAppActions = (
         height: t.defaultHeight || 200,
         id: nodeId,
         parentId: activeScopeId || undefined,
-        scopeId: activeScopeId || Scope.ROOT,
         position,
         presentation: createProto(PresentationSchema, {
           height: t.defaultHeight || 200,
           parentId: activeScopeId || "",
-          scopeId: activeScopeId || Scope.ROOT,
           position: createProto(PositionSchema, position),
+          scopeId: activeScopeId || Scope.ROOT,
           width: t.defaultWidth || 300,
         }),
+        scopeId: activeScopeId || Scope.ROOT,
         type: AppNodeType.DYNAMIC,
         width: t.defaultWidth || 300,
       });
@@ -61,17 +62,17 @@ export const useAppActions = (
   );
 
   const handleExecuteAction = useCallback(
-    (action: ActionTemplate, _params?: any) => {
-      if (contextMenu?.node?.id) {
-        setPendingAction({ actionId: action.id, nodeId: contextMenu.node.id });
+    (_action: ActionTemplate, _params?: Record<string, unknown>) => {
+      if (contextMenu?.nodeId) {
+        setPendingAction({ actionId: _action.id, nodeId: contextMenu.nodeId });
+        closeContextMenu();
       }
-      closeContextMenu();
     },
     [setPendingAction, closeContextMenu, contextMenu],
   );
 
   const exportBranch = useCallback(() => {
-    if (!contextMenu?.node) return;
+    if (!contextMenu?.nodeId) return;
     toast.success("Branch export started (legacy logic to be updated)");
     closeContextMenu();
   }, [contextMenu, closeContextMenu]);

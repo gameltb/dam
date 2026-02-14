@@ -4,18 +4,19 @@ import { Toaster } from "react-hot-toast";
 import { useShallow } from "zustand/react/shallow";
 
 import { type ActionTemplate } from "@/generated/flowcraft/v1/core/action_pb";
-import { useAppActions } from "@/hooks/ux/useAppActions";
-import { useAppHotkeys } from "@/hooks/ux/useAppHotkeys";
-import { initChatMaterializer } from "@/hooks/integration/useChatMaterializer";
-import { useContextMenu } from "@/hooks/ux/useContextMenu";
 import { useFlowHandlers } from "@/hooks/graph/useFlowHandlers";
-import { useFlowSocket } from "@/hooks/integration/useFlowSocket";
-import { useGenericMaterializer } from "@/hooks/integration/useGenericMaterializer";
 import { useGraphOperations } from "@/hooks/graph/useGraphOperations";
 import { type HelperLines, useHelperLines } from "@/hooks/graph/useHelperLines";
-import { type PreviewData, useNodeEventListener } from "@/hooks/nodes/useNodeEventListener";
+import { useRecursiveNavigation } from "@/hooks/graph/useRecursiveNavigation";
+import { initChatMaterializer } from "@/hooks/integration/useChatMaterializer";
+import { useFlowSocket } from "@/hooks/integration/useFlowSocket";
+import { useGenericMaterializer } from "@/hooks/integration/useGenericMaterializer";
 import { useSpacetimeChat } from "@/hooks/integration/useSpacetimeChat";
 import { useSpacetimeSync } from "@/hooks/integration/useSpacetimeSync";
+import { type PreviewData, useNodeEventListener } from "@/hooks/nodes/useNodeEventListener";
+import { useAppActions } from "@/hooks/ux/useAppActions";
+import { useAppHotkeys } from "@/hooks/ux/useAppHotkeys";
+import { useContextMenu } from "@/hooks/ux/useContextMenu";
 import { useTheme } from "@/hooks/ux/useTheme";
 import { cn } from "@/lib/utils";
 import { useFlowStore } from "@/store/flowStore";
@@ -33,7 +34,6 @@ import { ContextMenuOverlay } from "./components/menus/ContextMenuOverlay";
 import { Sidebar } from "./components/Sidebar";
 import { AppOverlays } from "./components/ui/AppOverlays";
 import { Button } from "./components/ui/button";
-import { useRecursiveNavigation } from "@/hooks/graph/useRecursiveNavigation";
 
 function App() {
   useSpacetimeSync();
@@ -58,14 +58,7 @@ function App() {
     })),
   );
 
-  const {
-    activeChatNodeId,
-    chatViewMode,
-    dragMode,
-    isSidebarOpen,
-    setActiveChat,
-    setChatFullscreen,
-  } = useUiStore(
+  const { activeChatNodeId, chatViewMode, dragMode, isSidebarOpen, setActiveChat, setChatFullscreen } = useUiStore(
     useShallow((s) => ({
       activeChatNodeId: s.activeChatNodeId,
       chatViewMode: s.chatViewMode,
@@ -87,7 +80,7 @@ function App() {
 
   const [activeEditorId, setActiveEditorId] = useState<null | string>(null);
   const [previewData, setPreviewData] = useState<null | PreviewData>(null);
-  const [pendingAction, setPendingAction] = useState<ActionTemplate | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ actionId: string; nodeId: string } | null>(null);
   const [helperLines, setHelperLines] = useState<HelperLines>({});
 
   const { cancelTask, executeTask, streamAction, templates, updateViewport } = useFlowSocket();
@@ -123,8 +116,8 @@ function App() {
   });
 
   const onMoveEnd = useCallback(
-    (_: any, viewport: { x: number; y: number; zoom: number }) => {
-      const scopeId = useNavigationStore.getState().activeScopeId || "root";
+    (_: unknown, viewport: { x: number; y: number; zoom: number }) => {
+      const scopeId = useNavigationStore.getState().activeScopeId ?? "root";
       updateViewport(scopeId, viewport.x, viewport.y, viewport.zoom);
     },
     [updateViewport],
@@ -155,9 +148,7 @@ function App() {
   // --- Global Navigation Lock Logic ---
   useEffect(() => {
     // Pre-initialize window property
-    if (!window.lastProcessedMousePos) {
-      window.lastProcessedMousePos = { x: 0, y: 0 };
-    }
+    window.lastProcessedMousePos ??= { x: 0, y: 0 };
 
     const handleGlobalMouseMove = (e: MouseEvent) => {
       // Store current pos for jump logic to capture

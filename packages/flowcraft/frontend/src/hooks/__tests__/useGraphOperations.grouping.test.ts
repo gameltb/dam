@@ -3,10 +3,9 @@ import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 import { NodeKind } from "@/generated/flowcraft/v1/core/base_pb";
 import { type GraphMutation } from "@/generated/flowcraft/v1/core/service_pb";
+import { useGraphOperations } from "@/hooks/graph/useGraphOperations";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
-
-import { useGraphOperations } from "@/hooks/graph/useGraphOperations";
 
 // Mock the stores
 vi.mock("@/store/flowStore", () => ({

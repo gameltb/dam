@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { useShallow } from "zustand/react/shallow";
+
 import { useUiStore } from "@/store/uiStore";
 
 export const Sidebar = memo(() => {
@@ -23,15 +24,15 @@ export const Sidebar = memo(() => {
         <div className="p-4 border-b border-border bg-muted/20">
           <h2 className="text-sm font-bold uppercase tracking-widest opacity-50">Explorer</h2>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {/* Node items or tree would go here */}
-        </div>
+        <div className="flex-1 overflow-y-auto">{/* Node items or tree would go here */}</div>
       </div>
 
       {/* Resize Handle (Placeholder for actual resizer) */}
       <div
         className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 transition-colors"
-        onDoubleClick={() => setSidebarOpen(false)}
+        onDoubleClick={() => {
+          setSidebarOpen(false);
+        }}
       />
     </aside>
   );

@@ -1,7 +1,8 @@
 import { useReactFlow } from "@xyflow/react";
 import { useCallback } from "react";
-import { useNavigationStore, NavigationStatus } from "@/store/ui/navigationStore";
+
 import { useFlowStore } from "@/store/flowStore";
+import { NavigationStatus, useNavigationStore } from "@/store/ui/navigationStore";
 
 /**
  * useNavigation
@@ -18,7 +19,7 @@ export function useNavigation() {
    * Navigate to a specified scope
    */
   const navigateTo = useCallback(
-    async (targetScopeId: string | null, options: { focusNodeId?: string; immediate?: boolean } = {}) => {
+    async (targetScopeId: null | string, options: { focusNodeId?: string; immediate?: boolean } = {}) => {
       const currentStatus = useNavigationStore.getState().navigationStatus;
       if (currentStatus !== NavigationStatus.IDLE) return;
 
@@ -50,7 +51,7 @@ export function useNavigation() {
         setStatus(NavigationStatus.IDLE);
       }, 50);
     },
-    [fitView, setViewport, setActiveScope, setStatus, getViewportForScope]
+    [fitView, setViewport, setActiveScope, setStatus, getViewportForScope],
   );
 
   /**
@@ -62,9 +63,9 @@ export function useNavigation() {
 
     const currentNode = nodesById[activeScopeId];
     const parentScopeId = currentNode?.scopeId || null;
-    
+
     navigateTo(parentScopeId);
   }, [nodesById, navigateTo]);
 
-  return { navigateTo, goBack };
+  return { goBack, navigateTo };
 }

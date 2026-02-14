@@ -1,61 +1,48 @@
 import { create as createProto, fromJsonString, toJsonString } from "@bufbuild/protobuf";
 import { type Infer } from "spacetimedb";
 
+import { partsToText } from "@/components/media/chat/utils";
 import { ChatMessagePartSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 import { PositionSchema } from "@/generated/flowcraft/v1/core/base_pb";
-import { type NodeDataRow, type NodeTransformsRow, type NodesRow } from "@/generated/spacetime";
+import { type NodeDataRow, type NodesRow, type NodeTransformsRow } from "@/generated/spacetime";
 import { useFlowStore } from "@/store/flowStore";
-import { type DynamicNodeData, Scope, isChatNode } from "@/types";
+import { type DynamicNodeData, isChatNode, Scope } from "@/types";
 import { GraphMapper } from "@/utils/graphMapper";
 import { type SyncedLens } from "@/utils/lens-types";
-import { partsToText } from "@/components/media/chat/utils";
-import { type PbConnection } from "@/utils/pb-client";
 import { log } from "@/utils/logger";
+import { type PbConnection } from "@/utils/pb-client";
+import { applySyncInsert, applySyncUpdate } from "@/utils/syncUtils";
 
-/**
- * NodeMaterializer (V2.1 - Correct Listener Management)
- */
 export const nodeMaterializer = {
   name: "node",
 
-  setup: (conn: PbConnection, activeScopeId: string | null) => {
-    // 1. Define Listeners
-    const onInsert = (_ctx: any, row: Infer<typeof NodesRow>) => {
+  setup: (conn: PbConnection, activeScopeId: null | string) => {
+    const onInsert = (_ctx: unknown, row: Infer<typeof NodesRow>) => {
       log.sync("IN", `Node Insert: ${row.nodeId}`, { row });
-      useFlowStore.setState((s) => ({
-        nodesById: { ...s.nodesById, [row.nodeId]: GraphMapper.createSkeleton(row) },
-      }));
+      applySyncInsert(row.nodeId, GraphMapper.createSkeleton(row));
     };
 
-    const onUpdateTransform = (_ctx: any, _oldRow: any, row: Infer<typeof NodeTransformsRow>) => {
+    const onUpdateTransform = (
+      _ctx: unknown,
+      _oldRow: Infer<typeof NodeTransformsRow> | null,
+      row: Infer<typeof NodeTransformsRow>,
+    ) => {
       log.sync("IN", `Transform Update: ${row.nodeId}`, { row });
-      useFlowStore.setState((s) => {
-        const n = s.nodesById[row.nodeId];
-        if (!n || n.dragging) return s;
-        return { nodesById: { ...s.nodesById, [row.nodeId]: GraphMapper.applyTransform(n, row) } };
-      });
+      applySyncUpdate(row.nodeId, (n) => GraphMapper.applyTransform(n, row));
     };
 
-    const onInsertTransform = (_ctx: any, row: Infer<typeof NodeTransformsRow>) => {
-      // Re-use update logic for insert, as it just applies the transform
+    const onInsertTransform = (_ctx: unknown, row: Infer<typeof NodeTransformsRow>) => {
       onUpdateTransform(_ctx, null, row);
     };
 
-    const onUpdateData = (_ctx: any, _oldRow: any, row: Infer<typeof NodeDataRow>) => {
+    const onUpdateData = (_ctx: unknown, _oldRow: Infer<typeof NodeDataRow> | null, row: Infer<typeof NodeDataRow>) => {
       log.sync("IN", `Data Update: ${row.nodeId}`, { row });
-      useFlowStore.setState((s) => {
-        const n = s.nodesById[row.nodeId];
-        if (!n) return s;
-        return { nodesById: { ...s.nodesById, [row.nodeId]: GraphMapper.applyData(n, row) } };
-      });
+      applySyncUpdate(row.nodeId, (n) => GraphMapper.applyData(n, row), false);
     };
 
-    const onInsertData = (_ctx: any, row: Infer<typeof NodeDataRow>) => {
-      // Re-use update logic for insert
+    const onInsertData = (_ctx: unknown, row: Infer<typeof NodeDataRow>) => {
       onUpdateData(_ctx, null, row);
     };
-
-    // 2. Register Listeners
     conn.db.nodes.onInsert(onInsert);
     conn.db.nodeTransforms.onUpdate(onUpdateTransform);
     conn.db.nodeTransforms.onInsert(onInsertTransform);
@@ -123,9 +110,7 @@ export const NodeLenses = {
     set: () => {},
   }),
 
-  layout: (
-    nodeId: string,
-  ): SyncedLens<{ height?: number; width?: number; x?: number; y?: number }> => ({
+  layout: (nodeId: string): SyncedLens<{ height?: number; width?: number; x?: number; y?: number }> => ({
     category: "node",
     description: `Update transform for node ${nodeId}`,
     get: (s) => {
@@ -164,10 +149,10 @@ export const NodeLenses = {
       const n = s.nodesById[nodeId];
       try {
         const metadata = n?.data?.metadata;
-        const json = metadata ? metadata["parts_json"] : undefined;
+        const json = metadata ? metadata.parts_json : undefined;
         if (!json) return "";
         const rawParts = JSON.parse(json);
-        const parts = rawParts.map((p: any) =>
+        const parts = rawParts.map((p: Record<string, unknown>) =>
           fromJsonString(ChatMessagePartSchema, JSON.stringify(p)),
         );
         return partsToText(parts).trim();
@@ -178,22 +163,17 @@ export const NodeLenses = {
     id: nodeId,
     set: (d, newText) => {
       const node = d.nodesById[nodeId];
-      if (node && node.data) {
+      if (node?.data) {
         if (!node.data.metadata) node.data.metadata = {};
         const part = createProto(ChatMessagePartSchema, {
           part: { case: "text", value: newText },
         });
-        node.data.metadata["parts_json"] = JSON.stringify([
-          JSON.parse(toJsonString(ChatMessagePartSchema, part)),
-        ]);
+        node.data.metadata.parts_json = JSON.stringify([JSON.parse(toJsonString(ChatMessagePartSchema, part))]);
       }
     },
   }),
 
-  prop: <K extends keyof DynamicNodeData>(
-    nodeId: string,
-    key: K,
-  ): SyncedLens<DynamicNodeData[K]> => ({
+  prop: <K extends keyof DynamicNodeData>(nodeId: string, key: K): SyncedLens<DynamicNodeData[K]> => ({
     category: "node",
     description: `Update node ${nodeId}.${String(key)}`,
     get: (s) => (s.nodesById[nodeId]?.data as DynamicNodeData)?.[key],
@@ -201,7 +181,7 @@ export const NodeLenses = {
     set: (d, val) => {
       const node = d.nodesById[nodeId];
       // Safer check using type assertion for indexing into known structure
-      if (node && node.data) {
+      if (node?.data) {
         (node.data as DynamicNodeData)[key] = val;
       }
     },

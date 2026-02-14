@@ -25,17 +25,18 @@ export interface RFState {
   edgesById: Record<string, Edge>;
   handleIncomingWidgetSignal: (payload: unknown) => void;
 
+  // New: Track incoming change signals from DB
+  lastInboundChange: null | {
+    category: InboundChangeCategory;
+    id: string; // node.id or 'viewport' etc.
+    timestamp: number;
+  };
   lastLocalUpdate: Record<string, number>;
-    lastNodeEvent: null | { payload: unknown; timestamp: number; type: FlowEvent };
-    
-    // New: Track incoming change signals from DB
-    lastInboundChange: null | {
-      category: InboundChangeCategory;
-      id: string; // node.id or 'viewport' etc.
-      timestamp: number;
-    };
-  
-    nodeRelations: Record<
+
+  lastNodeEvent: null | { payload: unknown; timestamp: number; type: FlowEvent };
+
+  moveNodeToScope: (nodeId: string, newScopeId: null | string) => void;
+  nodeRelations: Record<
     string,
     {
       firstChildId?: string;
@@ -46,25 +47,22 @@ export interface RFState {
       right?: string;
     }
   >;
-  nodes: AppNode[];
 
+  nodes: AppNode[];
   nodesById: Record<string, AppNode>;
   onConnect: OnConnect;
   onEdgesChange: OnEdgesChange;
   onNodesChange: OnNodesChange<AppNode>;
+
   redo: () => void;
 
-    redoStack: { edgesById: Record<string, Edge>; nodesById: Record<string, AppNode> }[];
+  redoStack: { edgesById: Record<string, Edge>; nodesById: Record<string, AppNode> }[];
 
-  
+  refreshView: () => void;
 
-    refreshView: () => void;
+  reparentNode: (nodeId: string, newParentId: null | string) => void;
 
-    reparentNode: (nodeId: string, newParentId: null | string) => void;
-
-    moveNodeToScope: (nodeId: string, newScopeId: string | null) => void;
-
-    resetStore: () => void;
+  resetStore: () => void;
   sendNodeSignal: (signal: unknown) => void;
   sendWidgetSignal: (signal: unknown) => void;
   setClipboard: (content: null | { edges: Edge[]; nodes: AppNode[] }) => void;

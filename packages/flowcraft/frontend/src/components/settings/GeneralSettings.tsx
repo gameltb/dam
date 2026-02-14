@@ -34,14 +34,16 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ dragMode, setD
         <label className="block mb-3 text-sm font-medium text-muted-foreground">Canvas Interaction</label>
         <div className="flex gap-3">
           {[
-            { id: DragMode.PAN, icon: MousePointer2, label: "Panning" },
-            { id: DragMode.SELECT, icon: Keyboard, label: "Selection" },
+            { icon: MousePointer2, id: DragMode.PAN, label: "Panning" },
+            { icon: Keyboard, id: DragMode.SELECT, label: "Selection" },
           ].map(({ icon: Icon, id, label }) => (
             <button
-              key={id}
               className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-lg border transition-all ${
-                dragMode === id ? "bg-primary/10 border-primary text-primary" : "bg-white/5 border-node-border text-foreground"
+                dragMode === id
+                  ? "bg-primary/10 border-primary text-primary"
+                  : "bg-white/5 border-node-border text-foreground"
               }`}
+              key={id}
               onClick={() => {
                 setDragMode(id);
               }}
@@ -58,14 +60,16 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ dragMode, setD
         <label className="block mb-3 text-sm font-medium text-muted-foreground">Appearance</label>
         <div className="flex gap-3">
           {[
-            { id: Theme.DARK, icon: Moon, label: "Dark Mode" },
-            { id: Theme.LIGHT, icon: Sun, label: "Light Mode" },
+            { icon: Moon, id: Theme.DARK, label: "Dark Mode" },
+            { icon: Sun, id: Theme.LIGHT, label: "Light Mode" },
           ].map(({ icon: Icon, id, label }) => (
             <button
-              key={id}
               className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border transition-all ${
-                settings.theme === id ? "bg-primary/10 border-primary text-primary" : "bg-white/5 border-node-border text-foreground"
+                settings.theme === id
+                  ? "bg-primary/10 border-primary text-primary"
+                  : "bg-white/5 border-node-border text-foreground"
               }`}
+              key={id}
               onClick={() => {
                 setSettings({ theme: id });
               }}

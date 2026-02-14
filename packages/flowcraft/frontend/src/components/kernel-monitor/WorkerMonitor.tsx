@@ -1,5 +1,5 @@
 import { Cpu, HardDrive, ShieldCheck } from "lucide-react";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useTable } from "spacetimedb/react";
 
 import { WorkerLanguage } from "@/generated/flowcraft/v1/core/kernel_pb";
@@ -10,9 +10,19 @@ import { ScrollArea } from "../ui/scroll-area";
 
 export const WorkerMonitor: React.FC = () => {
   const [workers] = useTable(tables.workers);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
 
   const getStatusColor = (lastHeartbeat: bigint) => {
-    const diff = Date.now() - Number(lastHeartbeat);
+    const diff = now - Number(lastHeartbeat);
     if (diff < 10000) return "bg-green-500";
     if (diff < 30000) return "bg-yellow-500";
     return "bg-red-500";
@@ -41,7 +51,7 @@ export const WorkerMonitor: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="text-primary" size={12} />
                     <span className="text-xs font-bold uppercase tracking-tight">
-                      {WorkerLanguage[worker.lang]?.replace("WORKER_LANG_", "") || worker.lang} Worker
+                      {WorkerLanguage[worker.lang]?.replace("WORKER_LANG_", "") ?? worker.lang} Worker
                     </span>
                   </div>
                 </div>

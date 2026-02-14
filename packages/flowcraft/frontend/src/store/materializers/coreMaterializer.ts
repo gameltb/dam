@@ -1,6 +1,6 @@
 import { useFlowStore } from "@/store/flowStore";
-import { type PbConnection } from "@/utils/pb-client";
 import { log } from "@/utils/logger";
+import { type PbConnection } from "@/utils/pb-client";
 
 /**
  * CoreMaterializer

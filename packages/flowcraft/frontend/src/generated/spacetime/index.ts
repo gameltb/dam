@@ -46,10 +46,10 @@ import SetNodeDataPbReducer from "./set_node_data_pb_reducer";
 export { SetNodeDataPbReducer };
 import SetNodeParentReducer from "./set_node_parent_reducer";
 export { SetNodeParentReducer };
-import SetNodeScopeReducer from "./set_node_scope_reducer";
-export { SetNodeScopeReducer };
 import SetNodePositionReducer from "./set_node_position_reducer";
 export { SetNodePositionReducer };
+import SetNodeScopeReducer from "./set_node_scope_reducer";
+export { SetNodeScopeReducer };
 import SetNodeSizeReducer from "./set_node_size_reducer";
 export { SetNodeSizeReducer };
 import UpdateViewportReducer from "./update_viewport_reducer";
@@ -486,8 +486,8 @@ const reducersSchema = __reducers(
   __reducerSchema("remove_node", RemoveNodeReducer),
   __reducerSchema("set_node_data_pb", SetNodeDataPbReducer),
   __reducerSchema("set_node_parent", SetNodeParentReducer),
-  __reducerSchema("set_node_scope", SetNodeScopeReducer),
   __reducerSchema("set_node_position", SetNodePositionReducer),
+  __reducerSchema("set_node_scope", SetNodeScopeReducer),
   __reducerSchema("set_node_size", SetNodeSizeReducer),
   __reducerSchema("update_viewport", UpdateViewportReducer),
   __reducerSchema("updateWidgetValue", UpdateWidgetValueReducer),

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+
 import { type ShortcutConfig } from "@/store/ui/settingsStore";
 
 interface ShortcutSettingsProps {
@@ -42,9 +43,7 @@ const ShortcutRecordButton: React.FC<{
   return (
     <button
       className={`px-2 py-1 min-w-[80px] font-mono text-[11px] rounded border transition-colors ${
-        isRecording 
-          ? "bg-primary/20 border-primary text-primary" 
-          : "bg-white/5 border-white/10 text-foreground"
+        isRecording ? "bg-primary/20 border-primary text-primary" : "bg-white/5 border-white/10 text-foreground"
       }`}
       onClick={() => {
         setIsRecording(true);
@@ -69,10 +68,7 @@ export const ShortcutSettings: React.FC<ShortcutSettingsProps> = ({ setShortcut,
   return (
     <div className="flex flex-col gap-3">
       {shortcutList.map((s, i) => (
-        <div
-          key={i}
-          className="flex items-center justify-between py-2 border-b border-white/5"
-        >
+        <div className="flex items-center justify-between py-2 border-b border-white/5" key={i}>
           <span className="text-sm">{s.label}</span>
           <ShortcutRecordButton
             label={s.label}

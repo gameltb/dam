@@ -3,10 +3,9 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { NodeDataSchema } from "@/generated/flowcraft/v1/core/node_pb";
+import { useNodeHandlers } from "@/hooks/nodes/useNodeHandlers";
 import { MediaType, RenderMode } from "@/types";
 import { type DynamicNodeData } from "@/types";
-
-import { useNodeHandlers } from "@/hooks/nodes/useNodeHandlers";
 
 describe("useNodeHandlers", () => {
   it("should calculate correct styles and minHeight for widget mode", () => {

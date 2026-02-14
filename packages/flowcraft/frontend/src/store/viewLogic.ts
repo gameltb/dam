@@ -1,7 +1,8 @@
 import { type Edge as RFEdge } from "@xyflow/react";
+
+import { useNavigationStore } from "@/store/ui/navigationStore";
 import { type AppNode, Scope } from "@/types";
 import { calculateNodeRelations } from "@/utils/nodeUtils";
-import { useNavigationStore } from "@/store/ui/navigationStore";
 
 /**
  * Computes which nodes and edges should be displayed in the current scope.
@@ -45,8 +46,8 @@ export function computeView(nodesById: Record<string, AppNode>, edgesById: Recor
   const nodeRelations = calculateNodeRelations(allNodes, allEdges);
 
   return {
-    nodes: nextNodes,
     edges: nextEdges,
     nodeRelations,
+    nodes: nextNodes,
   };
 }

@@ -1,5 +1,11 @@
-import { describe, it } from "vitest";
+import { describe, it, beforeAll } from "vitest";
+import { enablePatches } from "immer";
+
 import { commit } from "../orchestrator";
+
+beforeAll(() => {
+  enablePatches();
+});
 
 describe("Task Traceability", () => {
   it("should trace mutations back to tasks", () => {
@@ -7,7 +13,7 @@ describe("Task Traceability", () => {
       (_draft) => {
         // Test mutation
       },
-      { description: "Test mutation", taskId: "test-task" }
+      { description: "Test mutation", taskId: "test-task" },
     );
   });
 

@@ -180,19 +180,6 @@ export const nodeReducers = {
   },
 
   /**
-   * Update logical Scope (used for moving across levels).
-   */
-  set_node_scope: {
-    args: { nodeId: t.string(), scopeId: t.string() },
-    handler: (ctx: ReducerCtx<AppSchema>, { nodeId, scopeId }: { nodeId: string; scopeId: string }) => {
-      const metadata = ctx.db.nodeMetadata.nodeId.find(nodeId);
-      if (metadata) {
-        ctx.db.nodeMetadata.nodeId.update({ ...metadata, scopeId });
-      }
-    },
-  },
-
-  /**
    * High frequency: only update coordinates.
    */
   set_node_position: {
@@ -201,6 +188,19 @@ export const nodeReducers = {
       const transform = ctx.db.nodeTransforms.nodeId.find(nodeId);
       if (transform) {
         ctx.db.nodeTransforms.nodeId.update({ ...transform, x, y });
+      }
+    },
+  },
+
+  /**
+   * Update logical Scope (used for moving across levels).
+   */
+  set_node_scope: {
+    args: { nodeId: t.string(), scopeId: t.string() },
+    handler: (ctx: ReducerCtx<AppSchema>, { nodeId, scopeId }: { nodeId: string; scopeId: string }) => {
+      const metadata = ctx.db.nodeMetadata.nodeId.find(nodeId);
+      if (metadata) {
+        ctx.db.nodeMetadata.nodeId.update({ ...metadata, scopeId });
       }
     },
   },

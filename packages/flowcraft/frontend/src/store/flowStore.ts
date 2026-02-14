@@ -2,15 +2,14 @@ import { create as createProto } from "@bufbuild/protobuf";
 import { applyEdgeChanges, applyNodeChanges, type Edge as RFEdge } from "@xyflow/react";
 import { create } from "zustand";
 
-import { EdgeSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import { PositionSchema } from "@/generated/flowcraft/v1/core/base_pb";
+import { EdgeSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import { type AppNode, MutationSource, Scope } from "@/types";
 import { globalToLocal, localToGlobal } from "@/utils/coordinateUtils";
 import { socketClient } from "@/utils/SocketClient";
 
 import { commit } from "./orchestrator";
 import { type RFState } from "./types";
-
 import { computeView } from "./viewLogic";
 
 export const useFlowStore = create<RFState>((set, get) => ({
@@ -23,19 +22,32 @@ export const useFlowStore = create<RFState>((set, get) => ({
       { description: `Added node ${node.id}` },
     );
   },
+  clipboard: null,
   dispatchNodeEvent: (type, payload) => {
     set({ lastNodeEvent: { payload, timestamp: Date.now(), type } });
   },
   edges: [],
   edgesById: {},
-  clipboard: null,
-  setClipboard: (content) => set({ clipboard: content }),
-  lastInboundChange: null,
   handleIncomingWidgetSignal: (payload) => {
     console.debug("[Store] Incoming widget signal", payload);
   },
+  lastInboundChange: null,
   lastLocalUpdate: {},
   lastNodeEvent: null,
+  moveNodeToScope: (nodeId, newScopeId) => {
+    commit(
+      (draft) => {
+        const n = draft.nodesById[nodeId];
+        if (n) {
+          n.scopeId = newScopeId || Scope.ROOT;
+          if (n.presentation) {
+            n.presentation.scopeId = newScopeId || Scope.ROOT;
+          }
+        }
+      },
+      { description: `Moved node ${nodeId} to scope ${newScopeId}` },
+    );
+  },
   nodeRelations: {},
   nodes: [],
   nodesById: {},
@@ -135,7 +147,7 @@ export const useFlowStore = create<RFState>((set, get) => ({
                 dn.presentation.height = n.height ?? dn.presentation.height;
               }
             } else {
-              draft.nodesById[n.id] = n as AppNode;
+              draft.nodesById[n.id] = n;
             }
           });
         },
@@ -209,26 +221,12 @@ export const useFlowStore = create<RFState>((set, get) => ({
     );
   },
 
-  moveNodeToScope: (nodeId, newScopeId) => {
-    commit(
-      (draft) => {
-        const n = draft.nodesById[nodeId];
-        if (n) {
-          n.scopeId = newScopeId || Scope.ROOT;
-          if (n.presentation) {
-            n.presentation.scopeId = newScopeId || Scope.ROOT;
-          }
-        }
-      },
-      { description: `Moved node ${nodeId} to scope ${newScopeId}` },
-    );
-  },
-
   resetStore: () => {
     set({ edges: [], edgesById: {}, nodes: [], nodesById: {}, redoStack: [], undoStack: [] });
   },
 
   sendNodeSignal: (signal) => get().spacetimeConn?.pbreducers.sendNodeSignal({ signal }),
+
   sendWidgetSignal: (signal) => {
     socketClient.send({
       payload: {
@@ -236,6 +234,9 @@ export const useFlowStore = create<RFState>((set, get) => ({
         value: signal as any,
       },
     });
+  },
+  setClipboard: (content) => {
+    set({ clipboard: content });
   },
 
   setEdges: (edges) => {

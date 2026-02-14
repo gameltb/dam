@@ -17,8 +17,8 @@ interface Props {
   activeEditorId: string | null;
   setActiveEditorId: (id: string | null) => void;
   connectionStatus: SocketStatus;
-  pendingAction: ActionTemplate | null;
-  setPendingAction: (a: ActionTemplate | null) => void;
+  pendingAction: { actionId: string; nodeId: string } | null;
+  setPendingAction: (a: { actionId: string; nodeId: string } | null) => void;
   onExecuteAction: (action: ActionTemplate, params?: Record<string, unknown>) => void;
 }
 
@@ -55,8 +55,8 @@ export const AppOverlays: React.FC<Props> = ({
       <SettingsModal />
       {pendingAction && (
         <ActionParamsModal
-          action={pendingAction}
-          onConfirm={(p) => onExecuteAction(pendingAction, p)}
+          action={pendingAction as unknown as ActionTemplate}
+          onConfirm={(p) => onExecuteAction(pendingAction as unknown as ActionTemplate, p)}
           onCancel={() => setPendingAction(null)}
         />
       )}

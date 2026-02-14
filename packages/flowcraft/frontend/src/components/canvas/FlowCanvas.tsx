@@ -18,9 +18,9 @@ import {
 import React, { useCallback } from "react";
 
 import { defaultEdgeOptions, edgeTypes, nodeTypes } from "@/flowConfig";
-import { useFileDrop } from "@/hooks/ux/useFileDrop";
 import { useGraphMutation } from "@/hooks/graph/useGraphMutation";
 import { type HelperLines } from "@/hooks/graph/useHelperLines";
+import { useFileDrop } from "@/hooks/ux/useFileDrop";
 import { type AppNode, DragMode, Theme } from "@/types";
 
 import { HelperLinesRenderer } from "../HelperLinesRenderer";
@@ -52,23 +52,29 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = (props) => {
   const { handleDragOver, handleDrop } = useFileDrop();
   const { updateViewport } = useGraphMutation();
 
+  const onMoveEndCallback = props.onMoveEnd;
+
   const handleMoveEnd: OnMoveEnd = useCallback(
     (_e, viewport) => {
       updateViewport(viewport.x, viewport.y, viewport.zoom);
-      props.onMoveEnd?.(_e, viewport);
+      onMoveEndCallback(_e, viewport);
     },
-    [updateViewport, props.onMoveEnd],
+    [updateViewport, onMoveEndCallback],
   );
 
   return (
     <div
       className="w-full h-full"
       onDragOver={handleDragOver}
-      onDrop={handleDrop}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        void handleDrop(e);
+      }}
       style={{ touchAction: "manipulation" }}
     >
       <ReactFlow<AppNode>
-        colorMode={props.theme as any}
+        colorMode={(props.theme === Theme.DARK ? "dark" : "light") as unknown as undefined}
         defaultEdgeOptions={defaultEdgeOptions}
         edges={props.edges}
         edgeTypes={edgeTypes}

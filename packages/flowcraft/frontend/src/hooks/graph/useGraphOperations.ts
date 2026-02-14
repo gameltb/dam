@@ -1,7 +1,7 @@
-import { useFlowStore } from "@/store/flowStore";
-import { useClipboard } from "@/hooks/ux/useClipboard";
 import { useLayoutOperations } from "@/hooks/graph/useLayoutOperations";
 import { useNodeOperations } from "@/hooks/nodes/useNodeOperations";
+import { useClipboard } from "@/hooks/ux/useClipboard";
+import { useFlowStore } from "@/store/flowStore";
 import { commit } from "@/store/orchestrator";
 
 export const useGraphOperations = () => {
@@ -34,19 +34,22 @@ export const useGraphOperations = () => {
       .filter((e) => e.selected)
       .map((e) => e.id);
 
-    commit((draft) => {
-      selectedNodeIds.forEach((id) => {
-        delete draft.nodesById[id];
-        Object.values(draft.edgesById).forEach((edge: any) => {
-          if (edge.source === id || edge.target === id) {
-            delete draft.edgesById[edge.id];
-          }
+    commit(
+      (draft) => {
+        selectedNodeIds.forEach((id) => {
+          delete draft.nodesById[id];
+          Object.values(draft.edgesById).forEach((edge: any) => {
+            if (edge.source === id || edge.target === id) {
+              delete draft.edgesById[edge.id];
+            }
+          });
         });
-      });
-      selectedEdgeIds.forEach((id) => {
-        delete draft.edgesById[id];
-      });
-    }, { description: `Delete selected entities` });
+        selectedEdgeIds.forEach((id) => {
+          delete draft.edgesById[id];
+        });
+      },
+      { description: `Delete selected entities` },
+    );
   };
 
   const handleGroupSelected = () => {

@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
-import { useSettingsStore } from "@/store/ui/settingsStore";
+
 import { ThemeContext } from "@/contexts/ThemeContext";
+import { useSettingsStore } from "@/store/ui/settingsStore";
 import { Theme } from "@/types";
 
 /**
@@ -8,7 +9,7 @@ import { Theme } from "@/types";
  * Manages the application's visual theme and persists it to SettingsStore.
  */
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { theme, setSettings } = useSettingsStore();
+  const { setSettings, theme } = useSettingsStore();
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -22,9 +23,5 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
 };

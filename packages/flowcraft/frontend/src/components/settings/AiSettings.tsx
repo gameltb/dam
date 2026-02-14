@@ -9,23 +9,17 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 
 export const AiSettings: React.FC = () => {
-  const { 
-    addLocalClient, 
-    removeLocalClient, 
-    activeLocalClientId, 
-    localClients, 
-    updateLocalClient,
-    setSettings 
-  } = useSettingsStore(
-    useShallow((s) => ({
-      addLocalClient: s.addLocalClient,
-      removeLocalClient: s.removeLocalClient,
-      activeLocalClientId: s.activeLocalClientId,
-      localClients: s.localClients,
-      updateLocalClient: s.updateLocalClient,
-      setSettings: s.setSettings
-    })),
-  );
+  const { activeLocalClientId, addLocalClient, localClients, removeLocalClient, setSettings, updateLocalClient } =
+    useSettingsStore(
+      useShallow((s) => ({
+        activeLocalClientId: s.activeLocalClientId,
+        addLocalClient: s.addLocalClient,
+        localClients: s.localClients,
+        removeLocalClient: s.removeLocalClient,
+        setSettings: s.setSettings,
+        updateLocalClient: s.updateLocalClient,
+      })),
+    );
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<null | string>(null);

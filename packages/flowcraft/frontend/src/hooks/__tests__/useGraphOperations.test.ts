@@ -2,10 +2,9 @@ import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 import { type GraphMutation } from "@/generated/flowcraft/v1/core/service_pb";
+import { useGraphOperations } from "@/hooks/graph/useGraphOperations";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
-
-import { useGraphOperations } from "@/hooks/graph/useGraphOperations";
 
 const mockApplyMutations = vi.fn();
 const mockSetClipboard = vi.fn();
