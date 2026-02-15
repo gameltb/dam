@@ -1,5 +1,4 @@
 import { create } from "@bufbuild/protobuf";
-import { type Edge as RFEdge } from "@xyflow/react";
 import { type Infer } from "spacetimedb";
 
 import { PositionSchema } from "@/generated/flowcraft/v1/core/base_pb";
@@ -11,7 +10,7 @@ import {
   NodeTransformsRow,
   ViewportStateRow,
 } from "@/generated/spacetime";
-import { type AppNode, AppNodeType, type DynamicNodeData, Scope } from "@/types";
+import { type AppEdge, type AppNode, AppNodeType, type DynamicNodeData, NodeStatus, Scope } from "@/types";
 
 import { convertStdbToPb } from "./pb-client";
 
@@ -22,11 +21,11 @@ import { convertStdbToPb } from "./pb-client";
  */
 export const GraphMapper = {
   applyData(node: AppNode, dataRow: Infer<typeof NodeDataRow>): AppNode {
-    const pbData = convertStdbToPb("nodeData", dataRow as unknown as Record<string, unknown>) as DynamicNodeData;
+    const pbData = convertStdbToPb("nodeData", dataRow as unknown as Record<string, unknown>);
     return {
       ...node,
       _lastSync: Date.now(),
-      data: pbData,
+      data: pbData as DynamicNodeData,
       scopeId: node.scopeId ?? Scope.ROOT,
     };
   },
@@ -52,20 +51,29 @@ export const GraphMapper = {
   },
 
   applyTransform(node: AppNode, transformRow: Infer<typeof NodeTransformsRow>): AppNode {
+    const x = typeof transformRow.x === "number" && !isNaN(transformRow.x) ? transformRow.x : (node.position?.x ?? 0);
+    const y = typeof transformRow.y === "number" && !isNaN(transformRow.y) ? transformRow.y : (node.position?.y ?? 0);
+
     return {
       ...node,
       _lastSync: Date.now(),
-      height: transformRow.height,
-      position: { x: transformRow.x, y: transformRow.y },
+      height: transformRow.height || node.height || 200,
+      position: { x, y },
       presentation: node.presentation
         ? {
             ...node.presentation,
-            height: transformRow.height,
-            position: create(PositionSchema, { x: transformRow.x, y: transformRow.y }),
-            width: transformRow.width,
+            height: transformRow.height || node.presentation.height,
+            position: create(PositionSchema, { x, y }),
+            width: transformRow.width || node.presentation.width,
           }
-        : undefined,
-      width: transformRow.width,
+        : ({
+            // Ensure presentation exists if transform exists
+            height: transformRow.height,
+            isInitialized: true,
+            position: create(PositionSchema, { x, y }),
+            width: transformRow.width,
+          } as any),
+      width: transformRow.width || node.width || 300,
     };
   },
 
@@ -78,11 +86,14 @@ export const GraphMapper = {
         displayName: "Loading…",
         extension: { case: undefined, value: undefined },
         inputPorts: [],
+        metadata: {},
         outputPorts: [],
         schemaVersion: 1,
+        status: NodeStatus.IDLE,
         taskId: "",
         widgets: [],
       } as unknown as DynamicNodeData, // Initial loading state
+      graphId: nodeRow.graphId,
       height: 200,
       id: nodeRow.nodeId,
       position: { x: 0, y: 0 },
@@ -92,20 +103,21 @@ export const GraphMapper = {
     };
   },
 
-  toEdge(edgeRow: Infer<typeof EdgesRow>): RFEdge {
-    const pbEdge = convertStdbToPb("edges", edgeRow as unknown as Record<string, unknown>) as any;
+  toEdge(edgeRow: Infer<typeof EdgesRow>): AppEdge {
+    const pbEdge = convertStdbToPb("edges", edgeRow as unknown as Record<string, unknown>);
     return {
       data: pbEdge.metadata,
+      graphId: edgeRow.graphId,
       id: pbEdge.edgeId,
       source: pbEdge.sourceNodeId,
-      sourceHandle: pbEdge.sourceHandle ?? undefined,
+      sourceHandle: pbEdge.sourceHandle || undefined,
       target: pbEdge.targetNodeId,
-      targetHandle: pbEdge.targetHandle ?? undefined,
+      targetHandle: pbEdge.targetHandle || undefined,
     };
   },
 
   toViewport(entry: Infer<typeof ViewportStateRow>) {
-    const remote = convertStdbToPb("viewportState", entry as unknown as Record<string, unknown>) as any;
+    const remote = convertStdbToPb("viewportState", entry as unknown as Record<string, unknown>);
     return remote && typeof remote.x === "number" && !isNaN(remote.x)
       ? { x: remote.x, y: remote.y, zoom: remote.zoom }
       : null;

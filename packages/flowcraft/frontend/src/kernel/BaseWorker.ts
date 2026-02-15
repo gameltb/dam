@@ -22,7 +22,7 @@ export abstract class BaseWorker {
     protected tags: Record<string, string> = {},
   ) {
     this.kernel = new NodeKernel(conn);
-    const workerType = process.env["WORKER_TYPE"] || "generic";
+    const workerType = process.env.WORKER_TYPE || "generic";
     this.workerId = `worker-${workerType}-${crypto.randomUUID()}`;
   }
 

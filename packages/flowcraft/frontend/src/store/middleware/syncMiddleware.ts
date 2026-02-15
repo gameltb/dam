@@ -1,7 +1,6 @@
-import { type Edge } from "@xyflow/react";
 import { type Patch } from "immer";
 
-import { type AppNode, type DynamicNodeData, type MutationContext } from "@/types";
+import { type AppNode, type MutationContext } from "@/types";
 import { log } from "@/utils/logger";
 import { type PbConnection } from "@/utils/pb-client";
 
@@ -52,10 +51,17 @@ const SYNC_REGISTRY: SyncDescriptor[] = [
       conn.reducers.setNodePosition({ nodeId: id, x: node.position.x, y: node.position.y });
       conn.reducers.setNodeSize({ height: node.height, nodeId: id, width: node.width });
     },
-    matches: (path) =>
-      path[0] === "nodesById" &&
-      (["height", "position", "width"].includes(path[2] as string) ||
-        (path[2] === "presentation" && ["height", "position", "width"].includes(path[3] as string))),
+    matches: (path) => {
+      if (path[0] !== "nodesById") return false;
+      const field = path[2];
+      if (typeof field !== "string") return false;
+      if (["height", "position", "width"].includes(field)) return true;
+      if (field === "presentation") {
+        const subField = path[3];
+        return typeof subField === "string" && ["height", "position", "width"].includes(subField);
+      }
+      return false;
+    },
   },
   // 3. Node Hierarchy Layer (Immediate for direct calls, Deferred for drag-drops)
   {
@@ -69,8 +75,15 @@ const SYNC_REGISTRY: SyncDescriptor[] = [
       if (!node) throw new Error(`[Sync] Node ${id} not found for hierarchy`);
       conn.reducers.setNodeParent({ nodeId: id, parentId: node.parentId ?? "" });
     },
-    matches: (path) =>
-      path[0] === "nodesById" && (path[2] === "parentId" || (path[2] === "presentation" && path[3] === "parentId")),
+    matches: (path) => {
+      if (path[0] !== "nodesById") return false;
+      const field = path[2];
+      if (field === "parentId") return true;
+      if (field === "presentation") {
+        return path[3] === "parentId";
+      }
+      return false;
+    },
   },
   // 4. Node Domain Data Layer (Immediate)
   {
@@ -83,11 +96,10 @@ const SYNC_REGISTRY: SyncDescriptor[] = [
   },
   // 5. Node Structure Layer (Immediate)
   {
-    execute: (id, patch, _, conn) => {
+    execute: (id, patch, store, conn) => {
       if (patch.op === "add") {
         const node = patch.value as AppNode;
-        const data = node.data as DynamicNodeData;
-        const templateId = data.templateId;
+        const templateId = (node.data as any).templateId as string | undefined;
 
         if (!node) throw new Error("[Sync] Missing node value");
         if (!templateId)
@@ -95,6 +107,7 @@ const SYNC_REGISTRY: SyncDescriptor[] = [
 
         conn.pbreducers.createNodePb({
           node: {
+            graphId: store.activeGraphId || "default",
             nodeId: id,
             nodeKind: 1,
             presentation: {
@@ -121,9 +134,18 @@ const SYNC_REGISTRY: SyncDescriptor[] = [
   },
   // 6. Graph Topology Layer (Immediate)
   {
-    execute: (id, patch, _, conn) => {
+    execute: (id, patch, store, conn) => {
       if (patch.op === "add" && patch.value && typeof patch.value === "object" && "source" in patch.value) {
-        conn.pbreducers.addEdgePb({ edge: patch.value as Edge });
+        const edge = patch.value as any;
+        conn.pbreducers.addEdgePb({
+          edge: {
+            ...edge,
+            edgeId: id,
+            graphId: store.activeGraphId || "default",
+            sourceNodeId: edge.source,
+            targetNodeId: edge.target,
+          },
+        });
       } else if (patch.op === "remove") {
         conn.reducers.removeEdge({ id });
       }
@@ -151,22 +173,26 @@ export const syncMiddleware: GraphMiddleware = (event, next) => {
   const executed = new Set<string>();
 
   patches.forEach((patch) => {
-    const id = patch.path[1] as string;
+    const [, id] = patch.path;
+    if (typeof id !== "string") return;
 
     for (const descriptor of SYNC_REGISTRY) {
       if (descriptor.matches(patch.path)) {
         const key = `${SYNC_REGISTRY.indexOf(descriptor)}-${id}`;
 
         if (!executed.has(key)) {
-          // LOG: Outgoing sync
-          const pathStr = patch.path.join(".");
-          log.sync("OUT", `Syncing ${pathStr}`, {
-            context,
-            entityId: id,
-            op: patch.op,
-            path: patch.path,
-            value: patch.value,
-          });
+          // PERFORMANCE: Only log if not a high-frequency transform update
+          const isTransform = ["height", "position", "width"].includes(patch.path[2] as string);
+          if (!isTransform) {
+            const pathStr = patch.path.join(".");
+            log.sync("OUT", `Syncing ${pathStr}`, {
+              context,
+              entityId: id,
+              op: patch.op,
+              path: patch.path,
+              value: patch.value,
+            });
+          }
 
           descriptor.execute(id, patch, store, conn, context);
 

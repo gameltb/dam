@@ -11,6 +11,7 @@ import {
 } from "spacetimedb";
 
 export default __t.object("Nodes", {
+  graphId: __t.string(),
   nodeId: __t.string(),
   nodeKind: __t.u32(),
   templateId: __t.string(),

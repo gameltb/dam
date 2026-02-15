@@ -1,5 +1,5 @@
-import { describe, it, beforeAll } from "vitest";
 import { enablePatches } from "immer";
+import { beforeAll, describe, it } from "vitest";
 
 import { commit } from "../orchestrator";
 

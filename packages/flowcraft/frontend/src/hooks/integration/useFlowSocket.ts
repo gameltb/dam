@@ -5,8 +5,6 @@ import { useTable } from "spacetimedb/react";
 import { ActionExecutionRequestSchema } from "@/generated/flowcraft/v1/core/action_pb";
 import { ViewportSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import { TaskStatus, TaskUpdateSchema } from "@/generated/flowcraft/v1/core/kernel_pb";
-import { type NodeTemplate } from "@/generated/flowcraft/v1/core/node_pb";
-import { type InferenceConfigDiscoveryResponse } from "@/generated/flowcraft/v1/core/service_pb";
 import { tables } from "@/generated/spacetime";
 import { useFlowStore } from "@/store/flowStore";
 import { convertStdbToPb } from "@/utils/pb-client";
@@ -18,7 +16,7 @@ export const useFlowSocket = (_args?: unknown) => {
 
   const templates = useMemo(() => {
     return stTemplates.map((t) => {
-      const pbTemplate = convertStdbToPb("nodeTemplates", t as any) as NodeTemplate;
+      const pbTemplate = convertStdbToPb("nodeTemplates", t as any);
       return {
         ...pbTemplate,
         templateId: t.templateId,
@@ -29,7 +27,7 @@ export const useFlowSocket = (_args?: unknown) => {
   const inferenceConfig = useMemo(() => {
     if (stInferenceConfig.length === 0) return null;
     const firstConfig = stInferenceConfig[0]!;
-    return convertStdbToPb("inferenceConfig", firstConfig as any) as InferenceConfigDiscoveryResponse;
+    return convertStdbToPb("inferenceConfig", firstConfig as any);
   }, [stInferenceConfig]);
 
   const executeTask = useCallback(

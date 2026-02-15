@@ -1,4 +1,5 @@
 import { create, toJsonString } from "@bufbuild/protobuf";
+
 import { ChatMessagePartSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 import { NodeDataSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import { AppNodeType, RenderMode } from "@/types";
@@ -6,7 +7,13 @@ import { AppNodeType, RenderMode } from "@/types";
 /**
  * Creates the initial state for a new Chat Message node.
  */
-export function createChatMessageNode(id: string, parentId: string, content: string, scopeId: string, position: { x: number, y: number }) {
+export function createChatMessageNode(
+  id: string,
+  parentId: string,
+  content: string,
+  scopeId: string,
+  position: { x: number; y: number },
+) {
   return {
     data: {
       $typeName: NodeDataSchema.typeName,

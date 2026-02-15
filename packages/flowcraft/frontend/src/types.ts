@@ -1,6 +1,6 @@
 import type { Edge, Node, Viewport } from "@xyflow/react";
 
-import { MediaType, MutationSource, PortMainType, type Presentation } from "@/generated/flowcraft/v1/core/base_pb";
+import { MediaType, MutationSource, NodeStatus, PortMainType, type Presentation } from "@/generated/flowcraft/v1/core/base_pb";
 import { TaskStatus } from "@/generated/flowcraft/v1/core/kernel_pb";
 import {
   type NodeData,
@@ -17,7 +17,7 @@ import {
   type VisualNodeState,
 } from "@/generated/flowcraft/v1/nodes/media_node_pb";
 
-export { MediaType, MutationSource, PortMainType, PortStyle, RenderMode, TaskStatus };
+export { MediaType, MutationSource, NodeStatus, PortMainType, PortStyle, RenderMode, TaskStatus };
 
 export enum AppNodeType {
   CHAT_MESSAGE = "chatMessage",
@@ -111,6 +111,10 @@ export interface AppAction {
   actionId: string;
   nodeId: string;
 }
+export type AppEdge = Edge & {
+  graphId: string;
+};
+
 export type AppNode = ChatMessageAppNode | DynamicAppNode | GroupAppNode | ProcessingAppNode;
 
 /**
@@ -121,6 +125,7 @@ export interface BaseAppNode {
   _rev?: number;
   draggable?: boolean;
   dragging?: boolean;
+  graphId: string; // The "Universe" this node belongs to
   height: number;
   hidden?: boolean;
   id: string;

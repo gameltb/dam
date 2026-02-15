@@ -12,6 +12,7 @@ import {
 
 export default __t.object("NodeMetadata", {
   displayName: __t.string(),
+  graphId: __t.string(),
   nodeId: __t.string(),
   parentId: __t.string(),
   scopeId: __t.string(),

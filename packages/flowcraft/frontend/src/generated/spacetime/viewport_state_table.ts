@@ -11,6 +11,7 @@ import {
 } from "spacetimedb";
 
 export default __t.row({
+  graphId: __t.string(),
   id: __t.string().primaryKey(),
   state: __t.byteArray(),
 });

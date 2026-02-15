@@ -136,7 +136,6 @@ ${fields.join(",\n")}
 
   const code = `/** AUTO-GENERATED - DO NOT EDIT **/ 
 /* eslint-disable */
-import { type GenMessage } from "@bufbuild/protobuf/codegenv2";
 ${importStatements}
 import { type DbConnection } from "./spacetime";
 
@@ -150,7 +149,7 @@ ${pbReducerEntries.join(",\n")}
 /**
  * Mapping between Tables and Protobuf Schemas
  */
-export const TABLE_TO_PROTO: Record<string, { schema: GenMessage<any>, field: string }> = {
+export const TABLE_TO_PROTO = {
 ${tableToProtoMetadata.join(",\n")} 
 } as const;
 

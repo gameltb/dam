@@ -81,6 +81,7 @@ message Viewport {
   double x = 1;
   double y = 2;
   double zoom = 3;
+  string graph_id = 4;
 }
 
 message MediaContent {
@@ -97,4 +98,14 @@ enum MediaType {
   MEDIA_VIDEO = 2;
   MEDIA_AUDIO = 3;
   MEDIA_MARKDOWN = 4;
+}
+
+enum NodeStatus {
+  NODE_STATUS_UNSPECIFIED = 0;
+  NODE_STATUS_IDLE = 1;
+  NODE_STATUS_PENDING = 2;
+  NODE_STATUS_RUNNING = 3;
+  NODE_STATUS_COMPLETED = 4;
+  NODE_STATUS_FAILED = 5;
+  NODE_STATUS_CANCELLED = 6;
 }

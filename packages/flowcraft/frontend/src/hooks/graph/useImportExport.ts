@@ -1,10 +1,10 @@
 import { create as createProto, toJsonString } from "@bufbuild/protobuf";
-import { type Edge as RFEdge } from "@xyflow/react";
 
 import { ChatMessagePartSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 import { NotificationType, useNotificationStore } from "@/store/notificationStore";
 import { commit } from "@/store/orchestrator";
-import { type AppNode, AppNodeType, type DynamicNodeData } from "@/types";
+import { useFlowStore } from "@/store/flowStore";
+import { type AppEdge, type AppNode, AppNodeType, type DynamicNodeData } from "@/types";
 import { log } from "@/utils/logger";
 
 import { useLayoutOperations } from "./useLayoutOperations";
@@ -52,7 +52,7 @@ function calculateMessagePosition(sessionIndex: number, messageIndex: number) {
   };
 }
 
-function createChatNode(session: ImportedSession, sessionIndex: number): AppNode {
+function createChatNode(session: ImportedSession, sessionIndex: number, graphId: string): AppNode {
   const sessionRootId = session.conv.id ?? `session-${String(sessionIndex)}`;
   return {
     data: {
@@ -68,6 +68,7 @@ function createChatNode(session: ImportedSession, sessionIndex: number): AppNode
         },
       },
     } as DynamicNodeData,
+    graphId,
     height: LAYOUT.SESSION_ROOT_HEIGHT,
     id: sessionRootId,
     position: { x: sessionIndex * LAYOUT.SESSION_HORIZONTAL_SPACING, y: 0 },
@@ -77,8 +78,9 @@ function createChatNode(session: ImportedSession, sessionIndex: number): AppNode
   };
 }
 
-function createEdge(sourceId: string, targetId: string): RFEdge {
+function createEdge(sourceId: string, targetId: string, graphId: string): AppEdge {
   return {
+    graphId,
     id: `e-${sourceId}-${targetId}`,
     source: sourceId,
     target: targetId,
@@ -86,7 +88,7 @@ function createEdge(sourceId: string, targetId: string): RFEdge {
   };
 }
 
-function createMessageNode(msg: ImportedMessage, position: { x: number; y: number }, sessionRootId: string): AppNode {
+function createMessageNode(msg: ImportedMessage, position: { x: number; y: number }, sessionRootId: string, graphId: string): AppNode {
   const partsJson = JSON.stringify([
     JSON.parse(
       toJsonString(
@@ -106,6 +108,7 @@ function createMessageNode(msg: ImportedMessage, position: { x: number; y: numbe
         timestamp: msg.timestamp?.toString(),
       },
     } as unknown as DynamicNodeData,
+    graphId,
     height: LAYOUT.MESSAGE_NODE_HEIGHT,
     id: msg.id,
     parentId: sessionRootId,
@@ -141,6 +144,7 @@ function parseMessage(msg: unknown): ImportedMessage | null {
 export const useImportExport = () => {
   const { autoLayout } = useLayoutOperations();
   const addNotification = useNotificationStore((s) => s.addNotification);
+  const activeGraphId = useFlowStore((s) => s.activeGraphId);
 
   const importGraph = (data: string) => {
     let parsed: ParsedGraph;
@@ -152,18 +156,24 @@ export const useImportExport = () => {
       return;
     }
 
+    const graphId = activeGraphId || "default";
+
     commit(
       (draft) => {
-        draft.nodesById = {};
-        draft.edgesById = {};
-
+        // Note: During import, we don't clear nodesById anymore, 
+        // as we want to support partial imports into the active graph.
+        
         parsed.nodes?.forEach((n: unknown) => {
-          const node = n as { id: string };
-          if (node.id) draft.nodesById[node.id] = node as AppNode;
+          const node = n as any;
+          if (node.id) {
+            draft.nodesById[node.id] = { ...node, graphId } as AppNode;
+          }
         });
         parsed.edges?.forEach((e: unknown) => {
-          const edge = e as { id: string };
-          if (edge.id) draft.edgesById[edge.id] = edge as RFEdge;
+          const edge = e as any;
+          if (edge.id) {
+            draft.edgesById[edge.id] = { ...edge, graphId } as AppEdge;
+          }
         });
       },
       { description: "Import graph from JSON", isHistoryOp: true },
@@ -197,11 +207,13 @@ export const useImportExport = () => {
       log.warn("useImportExport/importConversations", `${String(skippedCount)} invalid sessions skipped`);
     }
 
+    const graphId = activeGraphId || "default";
+
     try {
       commit(
         (draft) => {
           validSessions.forEach((session, sIdx) => {
-            const chatNode = createChatNode(session, sIdx);
+            const chatNode = createChatNode(session, sIdx, graphId);
             draft.nodesById[chatNode.id] = chatNode;
 
             const msgNodes: Record<string, AppNode> = {};
@@ -210,7 +222,7 @@ export const useImportExport = () => {
               if (!msg) return;
 
               const position = calculateMessagePosition(sIdx, mIdx);
-              const node = createMessageNode(msg, position, chatNode.id);
+              const node = createMessageNode(msg, position, chatNode.id, graphId);
               msgNodes[node.id] = node;
               draft.nodesById[node.id] = node;
             });
@@ -220,9 +232,9 @@ export const useImportExport = () => {
               if (!msg) return;
 
               if (msg.parent && msgNodes[msg.parent]) {
-                draft.edgesById[`e-${msg.parent}-${msg.id}`] = createEdge(msg.parent, msg.id);
+                draft.edgesById[`e-${msg.parent}-${msg.id}`] = createEdge(msg.parent, msg.id, graphId);
               } else if (msg.type === "root" || !msg.parent) {
-                draft.edgesById[`e-${chatNode.id}-${msg.id}`] = createEdge(chatNode.id, msg.id);
+                draft.edgesById[`e-${chatNode.id}-${msg.id}`] = createEdge(chatNode.id, msg.id, graphId);
               }
             });
           });

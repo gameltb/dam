@@ -15,6 +15,7 @@ message Node {
   string node_id = 1;           
   string template_id = 2;       
   NodeKind node_kind = 3;       
+  string graph_id = 4;
 
   // 16-30: Layered Data
   Presentation presentation = 16; 
@@ -38,6 +39,7 @@ message NodeData {
   RenderMode active_mode = 2;
   string task_id = 3;
   int32 schema_version = 4;     
+  NodeStatus status = 5;
 
   // 16-50: UI & Common Components
   repeated RenderMode available_modes = 16;
@@ -136,6 +138,7 @@ message Edge {
   string source_handle = 4;
   string target_handle = 5;
   map<string, string> metadata = 6;
+  string graph_id = 7;
 }
 
 

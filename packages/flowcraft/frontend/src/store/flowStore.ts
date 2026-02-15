@@ -1,12 +1,14 @@
 import { create as createProto } from "@bufbuild/protobuf";
-import { applyEdgeChanges, applyNodeChanges, type Edge as RFEdge } from "@xyflow/react";
 import { create } from "zustand";
 
 import { PositionSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import { EdgeSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import { type WidgetSignal } from "@/generated/flowcraft/v1/core/signals_pb";
-import { type AppNode, MutationSource, Scope } from "@/types";
+import { type AppEdge, type AppNode, MutationSource, Scope } from "@/types";
 import { globalToLocal, localToGlobal } from "@/utils/coordinateUtils";
+import { GraphMapper } from "@/utils/graphMapper";
+import { log } from "@/utils/logger";
+import { sanitizeNode } from "@/utils/nodeUtils";
 import { socketClient } from "@/utils/SocketClient";
 
 import { commit } from "./orchestrator";
@@ -14,16 +16,63 @@ import { type RFState } from "./types";
 import { computeView } from "./viewLogic";
 
 export const useFlowStore = create<RFState>((set, get) => ({
+  activeGraphId: "default",
   activeScopeId: null,
   addNode: (node) => {
+    const { activeGraphId } = get();
     commit(
       (draft) => {
-        draft.nodesById[node.id] = node;
+        const newNode = { ...node, graphId: activeGraphId || "default" };
+        draft.nodesById[node.id] = newNode;
       },
       { description: `Added node ${node.id}` },
     );
   },
   clipboard: null,
+  commitNodes: (nodes) => {
+    log.debug("Store", `Committing persistent transform for ${nodes.length} nodes`);
+    commit(
+      (draft) => {
+        nodes.forEach((n) => {
+          const dn = draft.nodesById[n.id];
+          if (dn) {
+            // 1. Precise sync of UI properties ONLY
+            if (n.position) {
+              dn.position = { x: n.position.x, y: n.position.y };
+            }
+            if (n.width) dn.width = n.width;
+            if (n.height) dn.height = n.height;
+            if (n.measured) dn.measured = { ...n.measured };
+            dn.selected = !!n.selected;
+            dn.dragging = !!n.dragging;
+            dn.resizing = !!n.resizing;
+
+            // 2. Sync presentation state for persistence (Atomic updates to PB nested message)
+            if (dn.presentation) {
+              const nextPos = n.position || dn.position;
+              dn.presentation.position ??= createProto(PositionSchema, { x: 0, y: 0 });
+              dn.presentation.position.x = nextPos.x;
+              dn.presentation.position.y = nextPos.y;
+              if (n.width) dn.presentation.width = n.width;
+              if (n.height) dn.presentation.height = n.height;
+            }
+          }
+        });
+      },
+      { description: "Interaction commit", isInteractionEnd: true, source: MutationSource.SOURCE_USER },
+    );
+  },
+  deleteNodes: (ids) => {
+    log.debug("Store", `Deleting nodes: ${ids.join(", ")}`);
+    commit(
+      (draft) => {
+        ids.forEach((id) => {
+          delete draft.nodesById[id];
+        });
+      },
+      { description: "Nodes removed", source: MutationSource.SOURCE_USER },
+    );
+  },
   dispatchNodeEvent: (type, payload) => {
     set({ lastNodeEvent: { payload, timestamp: Date.now(), type } });
   },
@@ -54,8 +103,10 @@ export const useFlowStore = create<RFState>((set, get) => ({
   nodesById: {},
 
   onConnect: (connection) => {
+    const { activeGraphId } = get();
     const protoEdge = createProto(EdgeSchema, {
       edgeId: crypto.randomUUID(),
+      graphId: activeGraphId || "default",
       sourceHandle: connection.sourceHandle ?? "",
       sourceNodeId: connection.source,
       targetHandle: connection.targetHandle ?? "",
@@ -64,7 +115,8 @@ export const useFlowStore = create<RFState>((set, get) => ({
 
     commit(
       (draft) => {
-        const edge: RFEdge = {
+        const edge: AppEdge = {
+          graphId: activeGraphId || "default",
           id: protoEdge.edgeId,
           source: protoEdge.sourceNodeId,
           sourceHandle: protoEdge.sourceHandle,
@@ -77,102 +129,14 @@ export const useFlowStore = create<RFState>((set, get) => ({
     );
   },
 
-  onEdgesChange: (changes) => {
-    const hasRemoval = changes.some((c) => c.type === "remove");
-    if (hasRemoval) {
-      commit(
-        (draft) => {
-          const currentEdges = Object.values(draft.edgesById);
-          const updatedEdges = applyEdgeChanges(changes, currentEdges);
-          const nextIds = new Set(updatedEdges.map((e) => e.id));
-
-          Object.keys(draft.edgesById).forEach((id) => {
-            if (!nextIds.has(id)) delete draft.edgesById[id];
-          });
-
-          updatedEdges.forEach((e) => {
-            draft.edgesById[e.id] = e;
-          });
-        },
-        { description: "Edges removed", source: MutationSource.SOURCE_USER },
-      );
-    } else {
-      set((state) => {
-        const currentEdges = Object.values(state.edgesById);
-        const updatedEdges = applyEdgeChanges(changes, currentEdges);
-        const nextEdgesById: Record<string, RFEdge> = {};
-        updatedEdges.forEach((e) => {
-          nextEdgesById[e.id] = e;
-        });
-        return { edgesById: nextEdgesById };
-      });
-      get().refreshView();
-    }
+  onEdgesChange: (_changes) => {
+    // Uncontrolled: React Flow handles internal edge state.
+    // Side effects (like removal) are handled via granular event hooks.
   },
 
-  onNodesChange: (changes) => {
-    const isInteractionEnd = changes.some(
-      (c) => (c.type === "position" && !c.dragging) || (c.type === "dimensions" && !c.resizing),
-    );
-    const hasStructureChanges = changes.some((c) => c.type === "remove");
-    const hasDataChanges = changes.some((c) => c.type === "position" || c.type === "dimensions");
-
-    if (hasStructureChanges || (hasDataChanges && isInteractionEnd)) {
-      commit(
-        (draft) => {
-          const currentNodes = Object.values(draft.nodesById);
-          const updatedNodes = applyNodeChanges(changes, currentNodes);
-          const nextIds = new Set(updatedNodes.map((n) => n.id));
-
-          // 1. Handle Removals
-          Object.keys(draft.nodesById).forEach((id) => {
-            if (!nextIds.has(id)) delete draft.nodesById[id];
-          });
-
-          // 2. Handle Updates/Adds
-          updatedNodes.forEach((n) => {
-            const dn = draft.nodesById[n.id];
-            if (dn) {
-              // Merge React Flow properties
-              Object.assign(dn, n);
-
-              // Sync presentation state for persistence
-              if (dn.presentation) {
-                if (dn.presentation.position) {
-                  dn.presentation.position.x = n.position.x;
-                  dn.presentation.position.y = n.position.y;
-                } else {
-                  dn.presentation.position = createProto(PositionSchema, { x: n.position.x, y: n.position.y });
-                }
-                dn.presentation.width = n.width ?? dn.presentation.width;
-                dn.presentation.height = n.height ?? dn.presentation.height;
-              }
-            } else {
-              draft.nodesById[n.id] = n;
-            }
-          });
-        },
-        {
-          description: hasStructureChanges ? "Nodes removed" : "Interaction commit",
-          isInteractionEnd: true,
-          source: MutationSource.SOURCE_USER,
-        },
-      );
-    } else {
-      // Intermediate updates (dragging/resizing) - performance optimized bypass
-      set((state) => {
-        const nextNodes = applyNodeChanges(changes, Object.values(state.nodesById));
-        const nextNodesById = { ...state.nodesById };
-        nextNodes.forEach((n) => {
-          const existing = nextNodesById[n.id];
-          if (existing) {
-            nextNodesById[n.id] = { ...existing, ...n };
-          }
-        });
-        return { nodesById: nextNodesById };
-      });
-      get().refreshView();
-    }
+  onNodesChange: (_changes) => {
+    // Uncontrolled: React Flow handles internal node positions and selection.
+    // Business logic is triggered onDragStop or onNodesDelete.
   },
 
   redo: () => {
@@ -192,10 +156,34 @@ export const useFlowStore = create<RFState>((set, get) => ({
 
   redoStack: [],
 
-  refreshView: () => {
-    const { edgesById, nodesById } = get();
-    const { edges, nodeRelations, nodes } = computeView(nodesById, edgesById);
-    set({ edges, nodeRelations, nodes });
+  refreshView: (options) => {
+    const { edgesById, nodes, nodeRelations, nodesById } = get();
+    const existingRelations = options?.skipLayout ? nodeRelations : undefined;
+    const {
+      edges,
+      nodeRelations: nextRelations,
+      nodes: nextNodes,
+    } = computeView(nodesById, edgesById, existingRelations);
+
+    // Metadata Preservation: Ensure that transient UI state (measured size, interaction flags)
+    // is carried over from the current view to the new view array.
+    const reconciledNodes = nextNodes.map((n) => {
+      const current = nodes.find((vn) => vn.id === n.id);
+      if (current) {
+        const isInteracting = current.dragging || (current as any).resizing;
+        return {
+          ...n,
+          dragging: current.dragging,
+          measured: current.measured,
+          position: isInteracting ? current.position : n.position,
+          resizing: (current as any).resizing,
+          selected: current.selected,
+        };
+      }
+      return n;
+    });
+
+    set({ edges: reconciledNodes.length > 0 ? (edges as AppEdge[]) : [], nodeRelations: nextRelations, nodes: reconciledNodes });
   },
 
   reparentNode: (nodeId, newParentId) => {
@@ -242,29 +230,38 @@ export const useFlowStore = create<RFState>((set, get) => ({
       },
     });
   },
+
+  setActiveGraph: (id) => {
+    set({ activeGraphId: id, activeScopeId: null, edgesById: {}, nodesById: {} });
+    get().syncWithDatabase();
+  },
+
   setClipboard: (content) => {
     set({ clipboard: content });
   },
-
   setEdges: (edges) => {
-    const edgesById: Record<string, RFEdge> = {};
-    edges.forEach((e) => (edgesById[e.id] = e));
+    const edgesById: Record<string, AppEdge> = {};
+    edges.forEach((e) => (edgesById[e.id] = e as AppEdge));
     set({ edgesById });
     get().refreshView();
   },
 
   setGraph: (g) => {
     const nodesById: Record<string, AppNode> = {};
-    const edgesById: Record<string, RFEdge> = {};
-    g.nodes.forEach((n) => (nodesById[n.id] = n));
-    g.edges.forEach((e) => (edgesById[e.id] = e));
+    const edgesById: Record<string, AppEdge> = {};
+    g.nodes.forEach((n) => {
+      nodesById[n.id] = sanitizeNode(n);
+    });
+    g.edges.forEach((e) => (edgesById[e.id] = e as AppEdge));
     set({ edgesById, nodesById });
     get().refreshView();
   },
 
   setNodes: (nodes) => {
     const nodesById: Record<string, AppNode> = {};
-    nodes.forEach((n) => (nodesById[n.id] = n));
+    nodes.forEach((n) => {
+      nodesById[n.id] = sanitizeNode(n);
+    });
     set({ nodesById });
     get().refreshView();
   },
@@ -274,6 +271,52 @@ export const useFlowStore = create<RFState>((set, get) => ({
   },
 
   spacetimeConn: null,
+
+  syncWithDatabase: () => {
+    const { activeGraphId, spacetimeConn: conn } = get();
+    if (!conn) return;
+
+    const nextNodesById = { ...get().nodesById };
+    const nextEdgesById: Record<string, AppEdge> = {};
+
+    // 1. Sync Base Nodes (Filtered by graphId)
+    for (const row of conn.db.nodes.iter()) {
+      if (row.graphId === activeGraphId) {
+        if (!nextNodesById[row.nodeId]) {
+          nextNodesById[row.nodeId] = GraphMapper.createSkeleton(row);
+        }
+      }
+    }
+
+    // 2. Sync Edges (Filtered by graphId)
+    for (const row of conn.db.edges.iter()) {
+      if (row.graphId === activeGraphId) {
+        const edge = GraphMapper.toEdge(row);
+        nextEdgesById[edge.id] = edge;
+      }
+    }
+
+    // 3. Sync Transforms
+    for (const row of conn.db.nodeTransforms.iter()) {
+      const n = nextNodesById[row.nodeId];
+      if (n) nextNodesById[row.nodeId] = GraphMapper.applyTransform(n, row);
+    }
+
+    // 4. Sync Metadata
+    for (const row of conn.db.nodeMetadata.iter()) {
+      const n = nextNodesById[row.nodeId];
+      if (n) nextNodesById[row.nodeId] = GraphMapper.applyMetadata(n, row);
+    }
+
+    // 5. Sync Data
+    for (const row of conn.db.nodeData.iter()) {
+      const n = nextNodesById[row.nodeId];
+      if (n) nextNodesById[row.nodeId] = GraphMapper.applyData(n, row);
+    }
+
+    set({ edgesById: nextEdgesById, nodesById: nextNodesById });
+    get().refreshView();
+  },
   takeSnapshot: () => {
     const { edgesById, nodesById, undoStack } = get();
     const snapshot = structuredClone({ edgesById, nodesById });

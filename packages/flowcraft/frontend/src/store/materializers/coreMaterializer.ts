@@ -20,6 +20,9 @@ export const coreMaterializer = {
         // Force refresh view to ensure templates are propagated to menus
         useFlowStore.getState().refreshView();
       })
+      .onError((ctx) => {
+        log.error("Sync", `Core Subscription Error: ${ctx.event}`);
+      })
       .subscribe([
         "SELECT * FROM node_templates",
         "SELECT * FROM inference_config",

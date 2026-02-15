@@ -1,6 +1,5 @@
 /** AUTO-GENERATED - DO NOT EDIT **/ 
 /* eslint-disable */
-import { type GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { ChatSyncMessageSchema } from "@/generated/flowcraft/v1/actions/chat_actions_pb";
 import { EdgeSchema, NodeDataSchema, NodeSchema, NodeTemplateSchema } from "@/generated/flowcraft/v1/core/node_pb";
 import { AddSubGraphRequestSchema, ChatMessageSchema, InferenceConfigDiscoveryResponseSchema, ResetNodeRequestSchema } from "@/generated/flowcraft/v1/core/service_pb";
@@ -68,7 +67,7 @@ export const PB_REDUCERS_MAP = {
 /**
  * Mapping between Tables and Protobuf Schemas
  */
-export const TABLE_TO_PROTO: Record<string, { schema: GenMessage<any>, field: string }> = {
+export const TABLE_TO_PROTO = {
   "nodeSignals": { schema: NodeSignalSchema, field: "payload" },
   "chatMessages": { schema: ChatMessageSchema, field: "state" },
   "edges": { schema: EdgeSchema, field: "state" },

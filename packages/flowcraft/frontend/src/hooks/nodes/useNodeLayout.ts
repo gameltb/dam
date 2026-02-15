@@ -14,8 +14,8 @@ const DEFAULT_NODE_WIDTH = 180;
  */
 export function useNodeLayout(data: DynamicNodeData) {
   return useMemo(() => {
-    const portRows = Math.max(data.inputPorts?.length ?? 0, data.outputPorts?.length ?? 0);
-    const widgetsCount = data.widgets?.length ?? 0;
+    const portRows = Math.max(data.inputPorts.length, data.outputPorts.length);
+    const widgetsCount = data.widgets.length;
 
     const portsHeight = portRows * PORT_HEIGHT_PER_ROW;
     const widgetsHeight = widgetsCount * WIDGET_HEIGHT;

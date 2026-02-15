@@ -1,6 +1,6 @@
-import { type Edge, type OnConnect, type OnEdgesChange, type OnNodesChange } from "@xyflow/react";
+import { type OnConnect, type OnEdgesChange, type OnNodesChange } from "@xyflow/react";
 
-import { type AppNode, FlowEvent, InboundChangeCategory } from "@/types";
+import { type AppEdge, type AppNode, FlowEvent, InboundChangeCategory } from "@/types";
 import { type PbConnection } from "@/utils/pb-client";
 
 export interface AppAction {
@@ -14,15 +14,19 @@ export type Result<T, E = string> = { error: E; ok: false } | { ok: true; value:
  * RFState (V14.1 - Orchestrated & Fixed)
  */
 export interface RFState {
+  activeGraphId: null | string;
   activeScopeId: null | string;
   addNode: (node: AppNode) => void;
   // Clipboard state MUST remain in store
-  clipboard: null | { edges: Edge[]; nodes: AppNode[] };
+  clipboard: null | { edges: AppEdge[]; nodes: AppNode[] };
+
+  commitNodes: (nodes: AppNode[]) => void;
+  deleteNodes: (ids: string[]) => void;
 
   dispatchNodeEvent: (type: FlowEvent, payload: unknown) => void;
-  edges: Edge[];
+  edges: AppEdge[];
 
-  edgesById: Record<string, Edge>;
+  edgesById: Record<string, AppEdge>;
   handleIncomingWidgetSignal: (payload: unknown) => void;
 
   // New: Track incoming change signals from DB
@@ -56,25 +60,28 @@ export interface RFState {
 
   redo: () => void;
 
-  redoStack: { edgesById: Record<string, Edge>; nodesById: Record<string, AppNode> }[];
+  redoStack: { edgesById: Record<string, AppEdge>; nodesById: Record<string, AppNode> }[];
 
-  refreshView: () => void;
+  refreshView: (options?: { skipLayout?: boolean }) => void;
 
   reparentNode: (nodeId: string, newParentId: null | string) => void;
 
   resetStore: () => void;
+
   sendNodeSignal: (signal: unknown) => void;
   sendWidgetSignal: (signal: unknown) => void;
-  setClipboard: (content: null | { edges: Edge[]; nodes: AppNode[] }) => void;
-  setEdges: (edges: Edge[]) => void;
-  setGraph: (g: { edges: Edge[]; nodes: AppNode[] }) => void;
+  setActiveGraph: (id: null | string) => void;
+  setClipboard: (content: null | { edges: AppEdge[]; nodes: AppNode[] }) => void;
+  setEdges: (edges: AppEdge[]) => void;
+  setGraph: (g: { edges: AppEdge[]; nodes: AppNode[] }) => void;
   setNodes: (nodes: AppNode[]) => void;
-
   setSpacetimeConn: (conn: null | PbConnection) => void;
+
   spacetimeConn: null | PbConnection;
+  syncWithDatabase: () => void;
   takeSnapshot: () => void;
   undo: () => void;
-  undoStack: { edgesById: Record<string, Edge>; nodesById: Record<string, AppNode> }[];
+  undoStack: { edgesById: Record<string, AppEdge>; nodesById: Record<string, AppNode> }[];
 
   viewport: { x: number; y: number; zoom: number };
 }

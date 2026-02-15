@@ -41,7 +41,7 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
     let aspectRatio = 1.33;
     let galleryUrls: string[] = [];
 
-    if (data.extension?.case === "visual") {
+    if (data.extension.case === "visual") {
       const v = data.extension.value;
       type = mapToMediaType(v.mimeType.startsWith("video/") ? MediaType.MEDIA_VIDEO : MediaType.MEDIA_IMAGE);
       url = v.url;
@@ -50,11 +50,11 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
       if ("galleryUrls" in v && Array.isArray(v.galleryUrls)) {
         galleryUrls = v.galleryUrls as string[];
       }
-    } else if (data.extension?.case === "document") {
+    } else if (data.extension.case === "document") {
       const d = data.extension.value;
       type = MediaType.MEDIA_MARKDOWN;
       content = d.content;
-    } else if (data.extension?.case === "acoustic") {
+    } else if (data.extension.case === "acoustic") {
       const a = data.extension.value;
       type = MediaType.MEDIA_AUDIO;
       url = a.url;
@@ -76,8 +76,8 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
 
   const media = getNormalizedMedia();
   if (!media) {
-    const isSubgraph = data.extension?.case === "subgraph";
-    const subgraphData = data.extension?.case === "subgraph" ? data.extension.value : undefined;
+    const isSubgraph = data.extension.case === "subgraph";
+    const subgraphData = data.extension.case === "subgraph" ? data.extension.value : undefined;
 
     if (isSubgraph && subgraphData) {
       return (
@@ -87,9 +87,7 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
           </div>
           <div className="flex flex-col items-center">
             <span className="text-xs font-black uppercase tracking-widest opacity-60">Subgraph / Session</span>
-            <span className="text-[10px] font-mono opacity-40">
-              {String(subgraphData?.subgraphId || id).slice(0, 8)}
-            </span>
+            <span className="text-[10px] font-mono opacity-40">{(subgraphData.subgraphId || id).slice(0, 8)}</span>
           </div>
           <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 rounded text-[9px] font-bold opacity-70">
             <MessageSquareText size={10} />
@@ -113,7 +111,7 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
   };
 
   const handleDimensionsLoad = (ratio: number) => {
-    if (Math.abs((media.aspectRatio ?? 0) - ratio) > 0.01) {
+    if (Math.abs(media.aspectRatio - ratio) > 0.01) {
       onChange(id, {
         media: create(MediaContentSchema, { ...media, aspectRatio: ratio }),
       });
@@ -148,7 +146,7 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
         index={index}
         onDimensionsLoad={handleDimensionsLoad}
         onEdit={(newContent: string) => {
-          if (data.extension?.case === "document") {
+          if (data.extension.case === "document") {
             onChange(id, {
               extension: {
                 case: "document",
@@ -193,7 +191,7 @@ const MediaContentComponent: React.FC<MediaContentProps> = memo(({ data, height,
         )}
 
         <div className="pointer-events-none">
-          {data.outputPorts?.map((port: Port, idx: number) => (
+          {data.outputPorts.map((port: Port, idx: number) => (
             <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-auto" key={port.id || idx}>
               <PortHandle
                 color={getPortColor(port.type)}

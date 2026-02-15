@@ -23,18 +23,21 @@ export class ChatWorker extends BaseWorker {
 
     await ctx.updateProgress(10, "Initializing…");
 
-    const stNode = this.conn.db.nodes.nodeId.find(nodeId);
-    if (!stNode) {
-      await ctx.fail(`Node ${nodeId} not found`);
+    const stNodeData = this.conn.db.nodeData.nodeId.find(nodeId);
+    if (!stNodeData) {
+      await ctx.fail(`Node data for ${nodeId} not found`);
       return;
     }
 
-    const pbNode = convertStdbToPb("nodes", stNode, this.conn.db);
-    const nodeData = pbNode?.state;
-    const extension = nodeData?.extension;
-    const chatData = extension?.value && extension?.tag === "chat" ? extension.value : null;
-    const treeId = chatData?.treeId || nodeId;
-    const parentId = chatData?.conversationHeadId ?? "";
+    const nodeData = convertStdbToPb("nodeData", stNodeData);
+    if (nodeData.extension.case !== "chat") {
+      await ctx.fail(`Node ${nodeId} is not a chat node`);
+      return;
+    }
+
+    const chatData = nodeData.extension.value;
+    const treeId = chatData.treeId || nodeId;
+    const parentId = chatData.conversationHeadId || "";
 
     await ctx.updateProgress(20, "Fetching history…");
     const history = await getChatHistory(treeId);

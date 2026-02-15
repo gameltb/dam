@@ -6,12 +6,12 @@ import { create, type DescMessage, fromBinary, fromJson, type MessageShape } fro
  */
 export function stdbToPb<T extends DescMessage>(pbSchema: T, stdbObj: unknown): MessageShape<T> {
   if (stdbObj === null || stdbObj === undefined) {
-    return create(pbSchema) as MessageShape<T>;
+    return create(pbSchema);
   }
 
   // 1. Binary to PB
   if (stdbObj instanceof Uint8Array) {
-    return fromBinary(pbSchema, stdbObj) as MessageShape<T>;
+    return fromBinary(pbSchema, stdbObj);
   }
 
   // 2. JSON String (WKT) to PB
@@ -19,7 +19,7 @@ export function stdbToPb<T extends DescMessage>(pbSchema: T, stdbObj: unknown): 
     try {
       return fromJson(pbSchema, JSON.parse(stdbObj)) as MessageShape<T>;
     } catch {
-      return create(pbSchema) as MessageShape<T>;
+      return create(pbSchema);
     }
   }
 
@@ -30,7 +30,7 @@ export function stdbToPb<T extends DescMessage>(pbSchema: T, stdbObj: unknown): 
     typeof stdbObj === "boolean" ||
     typeof stdbObj === "bigint"
   ) {
-    return stdbObj as any;
+    return stdbObj as unknown as MessageShape<T>;
   }
 
   // 4. Handle SpacetimeDB Enum wrapping (e.g., { mode: 1 } -> 1)
@@ -38,9 +38,9 @@ export function stdbToPb<T extends DescMessage>(pbSchema: T, stdbObj: unknown): 
     const keys = Object.keys(stdbObj);
     const firstKey = keys[0];
     if (keys.length === 1 && firstKey !== undefined) {
-      const val = (stdbObj as any)[firstKey];
+      const val = (stdbObj as Record<string, unknown>)[firstKey];
       if (typeof val === "number") {
-        return val as any;
+        return val as unknown as MessageShape<T>;
       }
     }
   }

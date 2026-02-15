@@ -4,12 +4,13 @@ import { PositionSchema, PresentationSchema } from "@/generated/flowcraft/v1/cor
 import { type AppNode, AppNodeType, type Edge } from "@/types";
 
 export const Generators = {
-  createPlaceholderNode: (id: string, scopeId = "root"): AppNode => {
+  createPlaceholderNode: (id: string, graphId: string, scopeId = "root"): AppNode => {
     return {
       data: {
         availableModes: [],
         displayName: "Generating…",
       } as any,
+      graphId,
       height: 200,
       id,
       position: { x: 0, y: 0 },

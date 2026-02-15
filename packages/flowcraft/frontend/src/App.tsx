@@ -79,7 +79,7 @@ function App() {
 
   const [activeEditorId, setActiveEditorId] = useState<null | string>(null);
   const [previewData, setPreviewData] = useState<null | PreviewData>(null);
-  const [pendingAction, setPendingAction] = useState<{ actionId: string; nodeId: string } | null>(null);
+  const [pendingAction, setPendingAction] = useState<null | { actionId: string; nodeId: string }>(null);
   const [helperLines, setHelperLines] = useState<HelperLines>({});
 
   const { cancelTask, executeTask, streamAction, templates, updateViewport } = useFlowSocket();
@@ -104,6 +104,7 @@ function App() {
     onConnectStart,
     onInit,
     onNodesChangeWithSnapping,
+    onNodesDelete,
   } = useFlowHandlers({
     calculateLines,
     contextMenuDragStop: closeContextMenu,
@@ -196,6 +197,7 @@ function App() {
             onNodeDragStart={onNodeDragReset}
             onNodeDragStop={onNodeDragStop}
             onNodesChange={onNodesChangeWithSnapping}
+            onNodesDelete={onNodesDelete}
             onPaneContextMenu={onPaneContextMenu}
             onSelectionContextMenu={onSelectionContextMenu}
             theme={theme}

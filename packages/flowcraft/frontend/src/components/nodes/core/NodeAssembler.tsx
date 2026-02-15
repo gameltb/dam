@@ -1,14 +1,13 @@
-import { type NodeProps, NodeResizer } from "@xyflow/react";
+import { type NodeProps, NodeResizer, useNodesData } from "@xyflow/react";
 import { memo, useCallback, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { RenderMode } from "@/generated/flowcraft/v1/core/node_pb";
 import { SizingStrategy } from "@/hooks/nodes/useNodeDimensionManager";
 import { useNodeHandlers } from "@/hooks/nodes/useNodeHandlers";
-import { useNodeMutation } from "@/hooks/nodes/useNodeMutation";
 import { useFlowStore } from "@/store/flowStore";
 import { useUiStore } from "@/store/uiStore";
-import { type DynamicNodeType } from "@/types";
+import { type DynamicNodeData, type DynamicNodeType } from "@/types";
 import { RESIZER_COLOR, RESIZER_HANDLE_STYLE } from "@/utils/themeUtils";
 
 import { NodeShell } from "../../base/NodeShell";
@@ -21,10 +20,17 @@ import { resolveNodeComponent } from "./NodeRegistry";
  * Universal entry point that coordinates Shell, Resizer, and Content.
  */
 export const NodeAssembler = memo((props: NodeProps<DynamicNodeType>) => {
-  const { data, id, selected } = props;
+  const { id, selected } = props;
 
-  // 1. Surgical Store Access
-  // We only subscribe to what determines the core strategy or identity.
+  // 1. Reactive Data Access via useNodesData
+  // This hook ensures this specific node only re-renders when ITS data changes.
+  const node = useNodesData(id);
+  const nodeData = node?.data as unknown as DynamicNodeData | undefined;
+
+  // Fallback to props.data for initial render or if hook is unavailable
+  const data = nodeData || props.data;
+
+  // 2. Surgical Store Access for metadata/logic
   const { exists, presentationHeight } = useFlowStore(
     useShallow((s) => {
       const n = s.nodesById[id];
@@ -37,11 +43,10 @@ export const NodeAssembler = memo((props: NodeProps<DynamicNodeType>) => {
 
   const setNavigatingNode = useUiStore((s) => s.setNavigatingNode);
   const resetNavigatingNode = useUiStore((s) => s.resetNavigatingNode);
-  const { updateLayout } = useNodeMutation(id);
 
   const { containerStyle, shouldLockAspectRatio } = useNodeHandlers(data, selected);
 
-  // 2. Implementation Resolution
+  // 3. Implementation Resolution
   const extension = data.extension as undefined | { case: string };
   const extensionCase = extension?.case;
   const implementation = useMemo(() => {
@@ -54,7 +59,7 @@ export const NodeAssembler = memo((props: NodeProps<DynamicNodeType>) => {
 
   const ContentComponent = implementation?.component ?? GenericNode;
 
-  // 3. Dimension Management Strategy
+  // 4. Dimension Management Strategy
   const sizingStrategy = useMemo(() => {
     if (extensionCase === "visual" || extensionCase === "acoustic") {
       return SizingStrategy.ASPECT_RATIO;
@@ -68,14 +73,18 @@ export const NodeAssembler = memo((props: NodeProps<DynamicNodeType>) => {
   // Handle resizing end by updating both local and persistence state
   const handleResizeEnd = useCallback(
     (_: unknown, params: { height: number; width: number }) => {
-      updateLayout({ height: params.height, width: params.width });
+      const { commitNodes, nodesById } = useFlowStore.getState();
+      const existing = nodesById[id];
+      if (existing) {
+        commitNodes([{ ...existing, ...params }]);
+      }
     },
-    [updateLayout],
+    [id],
   );
 
   const minConstraints = implementation?.constraints ?? { minHeight: 100, minWidth: 200 };
 
-  // 4. Interaction Handlers
+  // 5. Interaction Handlers
   const onMouseEnter = useCallback(
     (e: React.MouseEvent) => {
       setNavigatingNode(id, false);

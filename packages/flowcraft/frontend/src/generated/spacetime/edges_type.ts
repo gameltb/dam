@@ -12,6 +12,7 @@ import {
 
 export default __t.object("Edges", {
   edgeId: __t.string(),
+  graphId: __t.string(),
   sourceNodeId: __t.string(),
   state: __t.byteArray(),
   targetNodeId: __t.string(),

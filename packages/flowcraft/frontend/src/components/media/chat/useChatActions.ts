@@ -15,13 +15,13 @@ import { NodeSignalSchema } from "@/generated/flowcraft/v1/core/signals_pb";
 import { TaskQueue } from "@/kernel/protocol";
 import { useFlowStore } from "@/store/flowStore";
 import { commit, editNode } from "@/store/orchestrator";
-import { type ChatNodeData, ChatStatus, isChatNode } from "@/types";
+import { type AppEdge, type ChatNodeData, ChatStatus, isChatNode } from "@/types";
 import { log } from "@/utils/logger";
 
+import { mapAttachmentsToParts, processAttachments } from "./attachment-utils";
+import { createChatMessageNode } from "./chat-node-factory";
 import { type ChatMessage, ChatRole, type ContextNode } from "./types";
 import { useLocalInference } from "./useLocalInference";
-import { processAttachments, mapAttachmentsToParts } from "./attachment-utils";
-import { createChatMessageNode } from "./chat-node-factory";
 
 export function useChatActions(
   nodeId: string,
@@ -84,27 +84,33 @@ export function useChatActions(
       commit(
         (draft) => {
           const chatNode = draft.nodesById[nodeId];
+          const graphId = draft.activeGraphId || "default";
           if (chatNode && isChatNode(chatNode)) {
             const data = chatNode.data as ChatNodeData;
             const currentHead = data.extension.value.conversationHeadId;
 
             // 1. Add message node
-            draft.nodesById[userMsgId] = createChatMessageNode(
-              userMsgId,
-              nodeId,
-              content,
-              chatNode.scopeId,
-              chatNode.position
-            ) as any;
+            draft.nodesById[userMsgId] = {
+              ...createChatMessageNode(
+                userMsgId,
+                nodeId,
+                content,
+                chatNode.scopeId,
+                chatNode.position,
+              ),
+              graphId,
+            } as any;
 
             // 2. Establish connection (from old Head to new message)
             const sourceId = currentHead || nodeId;
             const edgeId = `e-${sourceId}-${userMsgId}`;
-            draft.edgesById[edgeId] = {
+            const newEdge: AppEdge = {
+              graphId,
               id: edgeId,
               source: sourceId,
               target: userMsgId,
             };
+            draft.edgesById[edgeId] = newEdge;
 
             // 3. Update Head
             data.extension.value.conversationHeadId = userMsgId;

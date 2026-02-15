@@ -1,9 +1,37 @@
 import { create } from "@bufbuild/protobuf";
 import { type Edge } from "@xyflow/react";
 
-import { MediaType, NodeKind, PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
+import { MediaType, NodeKind, NodeStatus, PortMainType } from "@/generated/flowcraft/v1/core/base_pb";
 import { PortStyle, PortTypeSchema } from "@/generated/flowcraft/v1/core/node_pb";
-import { type AppNode, AppNodeType, type ClientPort, isDynamicNode } from "@/types";
+import { type AppNode, AppNodeType, type ClientPort, isDynamicNode, Scope } from "@/types";
+
+export function sanitizeNode(node: Partial<AppNode> & { id: string }): AppNode {
+  return {
+    ...node,
+    data: node.data || {
+      activeMode: 0,
+      availableModes: [],
+      displayName: "New Node",
+      extension: { case: undefined, value: undefined },
+      inputPorts: [],
+      metadata: {},
+      outputPorts: [],
+      schemaVersion: 1,
+      status: NodeStatus.IDLE,
+      taskId: "",
+      widgets: [],
+    },
+    dragging: node.dragging ?? false,
+    graphId: node.graphId || "default",
+    height: node.height ?? 200,
+    position: node.position || { x: 0, y: 0 },
+    resizing: node.resizing ?? false,
+    scopeId: node.scopeId || Scope.ROOT,
+    selected: node.selected ?? false,
+    type: node.type || AppNodeType.DYNAMIC,
+    width: node.width ?? 300,
+  } as AppNode;
+}
 
 export const PORT_MAIN_TYPE_TO_PROTO: Record<string, PortMainType> = {
   any: PortMainType.ANY,
@@ -123,7 +151,7 @@ export function calculateNodeRelations(
     for (let i = 0; i < childrenIds.length; i++) {
       const currentId = childrenIds[i];
       if (!currentId) continue;
-      
+
       const currentRel = relations[currentId];
       if (!currentRel) continue;
 

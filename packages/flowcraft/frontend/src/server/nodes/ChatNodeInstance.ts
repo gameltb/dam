@@ -10,6 +10,7 @@ import { convertStdbToPb, wrapReducers } from "@/utils/pb-client";
 
 import { addChatMessage, getChatHistory } from "../services/ChatService";
 import { inferenceService } from "../services/InferenceService";
+import { type TaskRuntimeContext } from "../services/NodeInstance";
 import { NodeInstance } from "../services/NodeInstance";
 import { eventBus } from "../services/PersistenceService";
 import { getSpacetimeConn } from "../spacetimeClient";
@@ -25,12 +26,10 @@ export class ChatNodeInstance extends NodeInstance {
     const conn = getSpacetimeConn();
     if (!conn || !this.nodeId) return;
 
-    const stNode = conn.db.nodes.nodeId.find(this.nodeId);
-    if (!stNode) return;
+    const stNodeData = conn.db.nodeData.nodeId.find(this.nodeId);
+    if (!stNodeData) return;
 
-    const pbNode = convertStdbToPb("nodes", stNode, conn.db);
-    const nodeData = pbNode?.state;
-    if (!nodeData) return;
+    const nodeData = convertStdbToPb("nodeData", stNodeData);
     const node = {
       data: nodeData,
       id: this.nodeId,
@@ -40,9 +39,8 @@ export class ChatNodeInstance extends NodeInstance {
     if (!isChatNode(node)) return;
 
     const extension = nodeData.extension;
-    if (!extension) return;
-    const chatData = extension.chat || (extension.value && extension.tag === "chat" ? extension.value : undefined);
-    if (!chatData) return;
+    if (extension.case !== "chat") return;
+    const chatData = extension.value;
 
     const handlers: Partial<Record<NodeSignalCase, () => Promise<void> | void>> = {
       [NodeSignalCase.CHAT_EDIT]: () => {
@@ -94,20 +92,12 @@ export class ChatNodeInstance extends NodeInstance {
   protected onReady(_params: unknown): Promise<void> {
     const conn = getSpacetimeConn();
     if (conn && this.nodeId) {
-      const stNode = conn.db.nodes.nodeId.find(this.nodeId);
-      if (stNode) {
+      const stNodeData = conn.db.nodeData.nodeId.find(this.nodeId);
+      if (stNodeData) {
         try {
-          const pbNode = convertStdbToPb("nodes", stNode, conn.db);
-          const nodeData = pbNode?.state;
-          if (nodeData) {
-            const extension = nodeData.extension;
-            if (extension) {
-              const chatData =
-                extension.chat || (extension.value && extension.tag === "chat" ? extension.value : undefined);
-              if (chatData) {
-                this.treeId = chatData.treeId || uuidv4();
-              }
-            }
+          const nodeData = convertStdbToPb("nodeData", stNodeData);
+          if (nodeData.extension.case === "chat") {
+            this.treeId = nodeData.extension.value.treeId || uuidv4();
           }
         } catch (e) {
           logger.error("Failed to parse node data on ready", e);
@@ -118,7 +108,7 @@ export class ChatNodeInstance extends NodeInstance {
     return Promise.resolve();
   }
 
-  private async generateResponse(headId: string, modelId: string, endpointId: string, ctx: any) {
+  private async generateResponse(headId: string, modelId: string, endpointId: string, ctx: TaskRuntimeContext) {
     const genTaskId = ctx.taskId;
     logger.info(`generateResponse started for task ${genTaskId}. Head: ${headId}`);
 

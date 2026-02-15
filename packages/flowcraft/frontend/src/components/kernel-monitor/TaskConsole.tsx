@@ -9,17 +9,17 @@ import { type MutationLogEntry } from "@/types";
 import { ScrollArea } from "../ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
-interface TaskConsoleProps {
-  mutationLogs: MutationLogEntry[];
-  taskId: string;
-}
-
 interface MutationPayload {
   $typeName?: string;
+  [key: string]: unknown;
   id?: string;
   nodeId?: string;
   targetId?: string;
-  [key: string]: unknown;
+}
+
+interface TaskConsoleProps {
+  mutationLogs: MutationLogEntry[];
+  taskId: string;
 }
 
 export const TaskConsole: React.FC<TaskConsoleProps> = ({ mutationLogs, taskId }) => {

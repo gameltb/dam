@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 
 import { useSyncedBinding } from "@/hooks/core/useSyncedBinding";
 import { useNodeController } from "@/hooks/nodes/useNodeController";
-import { ChatStatus } from "@/types";
+import { ChatStatus, NodeStatus } from "@/types";
 import { ChatLenses } from "@/utils/lenses";
 
 import { type ChatMessage } from "./types";
@@ -19,9 +19,10 @@ export function useChatController(_conversationHeadId: string, nodeId: string, _
 
   const status = useMemo(() => {
     switch (nodeController.status) {
-      case "busy":
+      case NodeStatus.PENDING:
+      case NodeStatus.RUNNING:
         return ChatStatus.STREAMING;
-      case "error":
+      case NodeStatus.FAILED:
         return ChatStatus.ERROR;
       default:
         return ChatStatus.READY;
@@ -45,7 +46,7 @@ export function useChatController(_conversationHeadId: string, nodeId: string, _
   return {
     appendUserMessage,
     handleStreamChunk,
-    messages: (messages || []) as ChatMessage[],
+    messages: messages || [],
     sliceHistory,
     status,
     streamingMessage: null as ChatMessage | null,

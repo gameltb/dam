@@ -5,6 +5,7 @@ import { useTable } from "spacetimedb/react";
 import { ResetNodeRequestSchema } from "@/generated/flowcraft/v1/core/service_pb";
 import { tables } from "@/generated/spacetime";
 import { useFlowStore } from "@/store/flowStore";
+import { NodeStatus } from "@/types";
 
 export interface NodeController {
   error: null | string;
@@ -12,7 +13,7 @@ export interface NodeController {
   message: string;
   progress: number;
   reset: (clearData?: boolean) => void;
-  status: "busy" | "error" | "idle";
+  status: NodeStatus;
 }
 
 /**
@@ -22,33 +23,36 @@ export interface NodeController {
 export function useNodeController(nodeId: string): NodeController {
   const [runtimeStates] = useTable(tables.nodeRuntimeStates);
   const spacetimeConn = useFlowStore((s) => s.spacetimeConn);
+  const node = useFlowStore((s) => s.nodesById[nodeId]);
 
   const state = useMemo(() => {
     const entry = runtimeStates.find((s) => s.nodeId === nodeId);
+    const nodeStatus = node?.data?.status ?? NodeStatus.IDLE;
+
     if (!entry) {
       return {
         activeUserId: null,
         error: null,
         message: "",
         progress: 0,
-        status: "idle" as const,
+        status: nodeStatus,
       };
     }
+
+    // Map transient status string to NodeStatus if necessary, or prioritize NodeData.status
+    // In our new ECP model, NodeData.status is the source of truth for the state machine.
     return {
       activeUserId: entry.activeUserId ?? null,
       error: entry.error ?? null,
       message: entry.message,
       progress: entry.progress,
-      status: entry.status as "busy" | "error" | "idle",
+      status: nodeStatus,
     };
-  }, [runtimeStates, nodeId]);
+  }, [runtimeStates, nodeId, node?.data?.status]);
 
   const reset = useCallback(
     (clearData = false) => {
       if (spacetimeConn) {
-        // Direct call to specialized reset reducer
-        // Since ResetNodeRequest was added to FlowMessage, we might need a dedicated reducer in STDB
-        // or send it as a message.
         const pbreducers = spacetimeConn.pbreducers as any;
         if (pbreducers.resetNode) {
           pbreducers.resetNode({

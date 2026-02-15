@@ -21,7 +21,7 @@ export const kernelReducers = {
       const task = ctx.db.tasks.id.find(taskId);
       if (!task) throw new Error("TASK_NOT_FOUND");
 
-      const status = task.status as number;
+      const status = task.status;
 
       // State transition validation
       if (status !== (TaskStatus.PENDING as number)) {
@@ -156,7 +156,7 @@ export const kernelReducers = {
 
       // 2. Busy Guard (only for new tasks that are not idempotent duplicates)
       const busy = Array.from(ctx.db.tasks.iter()).some((t) => {
-        const s = t.status as number;
+        const s = t.status;
         return (
           t.nodeId === task.nodeId &&
           (s === (TaskStatus.CLAIMED as number) ||
@@ -201,7 +201,7 @@ export const kernelReducers = {
       if (!task) return;
 
       // State transition validation: can only update RUNNING or CLAIMED tasks
-      const currentStatus = task.status as number;
+      const currentStatus = task.status;
       if (currentStatus !== (TaskStatus.CLAIMED as number) && currentStatus !== (TaskStatus.RUNNING as number)) {
         return;
       }

@@ -6,7 +6,7 @@ import { ChatMessagePartSchema } from "@/generated/flowcraft/v1/actions/chat_act
 import { PositionSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import { type NodeDataRow, type NodesRow, type NodeTransformsRow } from "@/generated/spacetime";
 import { useFlowStore } from "@/store/flowStore";
-import { type DynamicNodeData, isChatNode, Scope } from "@/types";
+import { type DynamicNodeData, isChatNode } from "@/types";
 import { GraphMapper } from "@/utils/graphMapper";
 import { type SyncedLens } from "@/utils/lens-types";
 import { log } from "@/utils/logger";
@@ -16,7 +16,7 @@ import { applySyncInsert, applySyncUpdate } from "@/utils/syncUtils";
 export const nodeMaterializer = {
   name: "node",
 
-  setup: (conn: PbConnection, activeScopeId: null | string) => {
+  setup: (conn: PbConnection, _activeScopeId: null | string) => {
     const onInsert = (_ctx: unknown, row: Infer<typeof NodesRow>) => {
       log.sync("IN", `Node Insert: ${row.nodeId}`, { row });
       applySyncInsert(row.nodeId, GraphMapper.createSkeleton(row));
@@ -27,7 +27,7 @@ export const nodeMaterializer = {
       _oldRow: Infer<typeof NodeTransformsRow> | null,
       row: Infer<typeof NodeTransformsRow>,
     ) => {
-      log.sync("IN", `Transform Update: ${row.nodeId}`, { row });
+      // SILENT: Transforms are high-frequency
       applySyncUpdate(row.nodeId, (n) => GraphMapper.applyTransform(n, row));
     };
 
@@ -49,20 +49,22 @@ export const nodeMaterializer = {
     conn.db.nodeData.onUpdate(onUpdateData);
     conn.db.nodeData.onInsert(onInsertData);
 
-    // 3. Selective Subscriptions
-    const scopeFilter = activeScopeId ? `'${activeScopeId}'` : `'${Scope.ROOT}'`;
+    // 3. Simplified Subscriptions (SpacetimeDB does not support subqueries in subscriptions)
     const sub = conn
       .subscriptionBuilder()
       .onApplied(() => {
-        log.sync("IN", "Subscription Applied");
-        useFlowStore.getState().refreshView();
+        log.sync("IN", "Subscription Applied - Running Full Sync");
+        useFlowStore.getState().syncWithDatabase();
+      })
+      .onError((ctx) => {
+        log.error("Sync", `Node Subscription Error: ${ctx.event}`);
       })
       .subscribe([
-        `SELECT * FROM nodes WHERE nodeId IN (SELECT nodeId FROM node_metadata WHERE scopeId = ${scopeFilter})`,
-        `SELECT * FROM node_metadata WHERE scopeId = ${scopeFilter}`,
-        `SELECT * FROM node_transforms WHERE nodeId IN (SELECT nodeId FROM node_metadata WHERE scopeId = ${scopeFilter})`,
-        `SELECT * FROM node_data WHERE nodeId IN (SELECT nodeId FROM node_metadata WHERE scopeId = ${scopeFilter})`,
-        `SELECT * FROM edges`,
+        "SELECT * FROM nodes",
+        "SELECT * FROM node_metadata",
+        "SELECT * FROM node_transforms",
+        "SELECT * FROM node_data",
+        "SELECT * FROM edges",
       ]);
 
     return () => {
@@ -86,7 +88,8 @@ export const NodeLenses = {
     description: `Update chat head for ${nodeId}`,
     get: (s) => {
       const n = s.nodesById[nodeId];
-      return n && isChatNode(n) ? n.data.extension.value.conversationHeadId : "";
+      if (!n || !isChatNode(n)) return "";
+      return n.data.extension.value.conversationHeadId;
     },
     id: nodeId,
     set: (d, messageId) => {
@@ -103,8 +106,8 @@ export const NodeLenses = {
     description: `Read chat tree id for ${nodeId}`,
     get: (s) => {
       const n = s.nodesById[nodeId];
-      if (n && isChatNode(n)) return n.data.extension.value.treeId || nodeId;
-      return nodeId;
+      if (!n || !isChatNode(n)) return nodeId;
+      return n.data.extension.value.treeId || nodeId;
     },
     id: nodeId,
     set: () => {},
@@ -115,27 +118,37 @@ export const NodeLenses = {
     description: `Update transform for node ${nodeId}`,
     get: (s) => {
       const n = s.nodesById[nodeId];
-      return { height: n?.height, width: n?.width, x: n?.position.x, y: n?.position.y };
+      if (!n?.position) return {};
+      return {
+        height: n.height,
+        width: n.width,
+        x: n.position.x,
+        y: n.position.y,
+      };
     },
     id: nodeId,
     set: (d, layout) => {
       const node = d.nodesById[nodeId];
       if (!node) return;
-      if (layout.x !== undefined) node.position.x = layout.x;
-      if (layout.y !== undefined) node.position.y = layout.y;
+
+      if (layout.x !== undefined || layout.y !== undefined) {
+        if (!node.position) node.position = { x: 0, y: 0 };
+        if (layout.x !== undefined) node.position.x = layout.x;
+        if (layout.y !== undefined) node.position.y = layout.y;
+      }
+
       if (layout.width !== undefined) node.width = layout.width;
       if (layout.height !== undefined) node.height = layout.height;
 
       if (node.presentation) {
-        if (node.presentation.position) {
-          if (layout.x !== undefined) node.presentation.position.x = layout.x;
-          if (layout.y !== undefined) node.presentation.position.y = layout.y;
-        } else if (layout.x !== undefined || layout.y !== undefined) {
+        if (!node.presentation.position) {
           node.presentation.position = createProto(PositionSchema, {
-            x: layout.x ?? node.position.x,
-            y: layout.y ?? node.position.y,
+            x: node.position.x,
+            y: node.position.y,
           });
         }
+        if (layout.x !== undefined) node.presentation.position.x = layout.x;
+        if (layout.y !== undefined) node.presentation.position.y = layout.y;
         if (layout.width !== undefined) node.presentation.width = layout.width;
         if (layout.height !== undefined) node.presentation.height = layout.height;
       }
@@ -147,14 +160,13 @@ export const NodeLenses = {
     description: `Update node ${nodeId} message content`,
     get: (s) => {
       const n = s.nodesById[nodeId];
+      if (!n) return "";
       try {
-        const metadata = n?.data?.metadata;
+        const metadata = n.data.metadata;
         const json = metadata ? metadata.parts_json : undefined;
         if (!json) return "";
-        const rawParts = JSON.parse(json);
-        const parts = rawParts.map((p: Record<string, unknown>) =>
-          fromJsonString(ChatMessagePartSchema, JSON.stringify(p)),
-        );
+        const rawParts = JSON.parse(json) as unknown[];
+        const parts = rawParts.map((p) => fromJsonString(ChatMessagePartSchema, JSON.stringify(p)));
         return partsToText(parts).trim();
       } catch {
         return "";
@@ -176,7 +188,11 @@ export const NodeLenses = {
   prop: <K extends keyof DynamicNodeData>(nodeId: string, key: K): SyncedLens<DynamicNodeData[K]> => ({
     category: "node",
     description: `Update node ${nodeId}.${String(key)}`,
-    get: (s) => (s.nodesById[nodeId]?.data as DynamicNodeData)?.[key],
+    get: (s) => {
+      const n = s.nodesById[nodeId];
+      if (!n) return undefined as any;
+      return (n.data as DynamicNodeData)[key];
+    },
     id: nodeId,
     set: (d, val) => {
       const node = d.nodesById[nodeId];

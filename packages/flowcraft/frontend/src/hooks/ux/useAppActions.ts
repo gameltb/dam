@@ -13,7 +13,7 @@ import { useNavigationStore } from "@/store/ui/navigationStore";
 import { AppNodeType, Scope } from "@/types";
 
 export const useAppActions = (
-  setPendingAction: (a: { actionId: string; nodeId: string } | null) => void,
+  setPendingAction: (a: null | { actionId: string; nodeId: string }) => void,
   contextMenu: ContextMenuData | null,
   closeContextMenu: () => void,
 ) => {
@@ -23,6 +23,7 @@ export const useAppActions = (
   const handleAddNode = useCallback(
     (t: NodeTemplate) => {
       const nodeId = crypto.randomUUID();
+      const { activeGraphId } = useFlowStore.getState();
 
       const defaultData = t.defaultState ? { ...t.defaultState } : {};
 
@@ -40,6 +41,7 @@ export const useAppActions = (
 
       addNode({
         data: nodeData as any,
+        graphId: activeGraphId || "default",
         height: t.defaultHeight || 200,
         id: nodeId,
         parentId: activeScopeId || undefined,

@@ -6,6 +6,8 @@ import { SizingStrategy, useNodeDimensionManager } from "@/hooks/nodes/useNodeDi
 import { useNodeVisibility } from "@/hooks/nodes/useNodeVisibility";
 import { cn } from "@/lib/utils";
 
+import { NodeStatus } from "@/types";
+
 import { NodeStatusOverlay } from "../nodes/parts/NodeStatusOverlay";
 
 export interface NodeShellProps {
@@ -40,8 +42,8 @@ export const NodeShell: React.FC<NodeShellProps> = memo(
     style,
   }) => {
     const controller = useNodeController(nodeId);
-    const isBusy = controller.status === "busy";
-    const isError = controller.status === "error";
+    const isBusy = controller.status === NodeStatus.PENDING || controller.status === NodeStatus.RUNNING;
+    const isError = controller.status === NodeStatus.FAILED;
 
     const containerRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);

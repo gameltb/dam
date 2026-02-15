@@ -7,16 +7,26 @@ import { calculateNodeRelations } from "@/utils/nodeUtils";
 /**
  * Computes which nodes and edges should be displayed in the current scope.
  */
-export function computeView(nodesById: Record<string, AppNode>, edgesById: Record<string, RFEdge>) {
+export function computeView(
+  nodesById: Record<string, AppNode>,
+  edgesById: Record<string, RFEdge>,
+  existingRelations?: Record<string, any>,
+) {
   const allNodes = Object.values(nodesById);
   const allEdges = Object.values(edgesById);
   const { activeScopeId } = useNavigationStore.getState();
   const currentScope = activeScopeId || Scope.ROOT;
 
-  // 1. Filter nodes by logical scopeId
-  const currentLevelNodes = allNodes.filter((n) => {
-    return n.scopeId === currentScope;
-  });
+  // 1. Filter nodes by logical scopeId and ensure they are valid for React Flow
+  const currentLevelNodes = allNodes
+    .filter((n) => n.scopeId === currentScope)
+    .map((n) => {
+      if (!n.position) {
+        console.warn(`[computeView] Node ${n.id} is missing position! Fixing to {0,0}.`, n);
+        return { ...n, position: { x: 0, y: 0 } };
+      }
+      return n;
+    });
 
   const nextNodes = [...currentLevelNodes];
 
@@ -43,7 +53,7 @@ export function computeView(nodesById: Record<string, AppNode>, edgesById: Recor
     return true;
   });
 
-  const nodeRelations = calculateNodeRelations(allNodes, allEdges);
+  const nodeRelations = existingRelations || calculateNodeRelations(allNodes, allEdges);
 
   return {
     edges: nextEdges,

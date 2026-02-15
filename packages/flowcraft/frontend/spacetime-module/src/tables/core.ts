@@ -1,11 +1,25 @@
 import { t, table } from "spacetimedb/server";
 
+export const graphs = table(
+  {
+    name: "graphs",
+    public: true,
+  },
+  {
+    graphId: t.string().primaryKey(),
+    name: t.string(),
+    ownerId: t.string().index(),
+    createdAt: t.u64(),
+  },
+);
+
 export const nodes = table(
   {
     name: "nodes",
     public: true,
   },
   {
+    graphId: t.string().index(),
     nodeId: t.string().primaryKey(),
     nodeKind: t.u32(),
     templateId: t.string().index(),
@@ -19,6 +33,7 @@ export const edges = table(
   },
   {
     edgeId: t.string().primaryKey(),
+    graphId: t.string().index(),
     sourceNodeId: t.string().index(),
     state: Object.assign(t.byteArray(), { __pb_schema: "Edge" }),
     targetNodeId: t.string().index(),
@@ -46,6 +61,7 @@ export const nodeMetadata = table(
   },
   {
     displayName: t.string(),
+    graphId: t.string().index(),
     nodeId: t.string().primaryKey(),
     parentId: t.string().index(), // Use empty string for no parent
     scopeId: t.string().index(),
@@ -69,7 +85,8 @@ export const viewportState = table(
     public: true,
   },
   {
-    id: t.string().primaryKey(),
+    graphId: t.string().index(),
+    id: t.string().primaryKey(), // id here is usually the scopeId
     state: Object.assign(t.byteArray(), { __pb_schema: "Viewport" }),
   },
 );

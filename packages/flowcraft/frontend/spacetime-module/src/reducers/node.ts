@@ -1,19 +1,16 @@
 import { toBinary } from "@bufbuild/protobuf";
 import { type ReducerCtx, t } from "spacetimedb/server";
 
-import { ViewportSchema } from "../generated/flowcraft/v1/core/base_pb";
+import { ViewportSchema, type Viewport } from "../generated/flowcraft/v1/core/base_pb";
 import {
   type Edge,
+  EdgeSchema,
   type Node,
   type NodeData,
-  EdgeSchema,
   NodeDataSchema,
   NodeSchema,
 } from "../generated/flowcraft/v1/core/node_pb";
-import {
-  type AddSubGraphRequest,
-  AddSubGraphRequestSchema,
-} from "../generated/flowcraft/v1/core/service_pb";
+import { type AddSubGraphRequest, AddSubGraphRequestSchema } from "../generated/flowcraft/v1/core/service_pb";
 import { type AppSchema } from "../schema";
 
 export const nodeReducers = {
@@ -22,6 +19,7 @@ export const nodeReducers = {
     handler: (ctx: ReducerCtx<AppSchema>, { edge, edgeBinary }: { edge: Edge; edgeBinary: Uint8Array }) => {
       ctx.db.edges.insert({
         edgeId: edge.edgeId,
+        graphId: edge.graphId,
         sourceNodeId: edge.sourceNodeId,
         state: edgeBinary,
         targetNodeId: edge.targetNodeId,
@@ -38,9 +36,11 @@ export const nodeReducers = {
       // 1. Batch create nodes
       req.nodes.forEach((node) => {
         const nodeId = node.nodeId;
+        const graphId = node.graphId || "default";
 
         // Identity
         ctx.db.nodes.insert({
+          graphId,
           nodeId,
           nodeKind: node.nodeKind as unknown as number,
           templateId: node.templateId,
@@ -58,6 +58,7 @@ export const nodeReducers = {
         // Metadata: Correctly mapping scopeId and parentId
         ctx.db.nodeMetadata.insert({
           displayName: node.state?.displayName ?? "",
+          graphId,
           nodeId,
           parentId: node.presentation?.parentId ?? "",
           scopeId: node.presentation?.scopeId ?? "root",
@@ -76,6 +77,7 @@ export const nodeReducers = {
       req.edges.forEach((edge) => {
         ctx.db.edges.insert({
           edgeId: edge.edgeId,
+          graphId: edge.graphId || "default",
           sourceNodeId: edge.sourceNodeId,
           state: toBinary(EdgeSchema, edge),
           targetNodeId: edge.targetNodeId,
@@ -91,9 +93,11 @@ export const nodeReducers = {
     args: { node: NodeSchema },
     handler: (ctx: ReducerCtx<AppSchema>, { node }: { node: Node }) => {
       const nodeId = node.nodeId;
+      const graphId = node.graphId || "default";
 
       // 1. Identity
       ctx.db.nodes.insert({
+        graphId,
         nodeId,
         nodeKind: node.nodeKind as unknown as number,
         templateId: node.templateId,
@@ -111,6 +115,7 @@ export const nodeReducers = {
       // 3. Metadata: Supporting both scope and parent hierarchy
       ctx.db.nodeMetadata.insert({
         displayName: node.state?.displayName ?? "",
+        graphId,
         nodeId,
         parentId: node.presentation?.parentId ?? "",
         scopeId: node.presentation?.scopeId ?? "root",
@@ -233,12 +238,13 @@ export const nodeReducers = {
 
   update_viewport: {
     args: { id: t.string(), viewport: ViewportSchema },
-    handler: (ctx: ReducerCtx<AppSchema>, { id, viewportBinary }: { id: string; viewportBinary: Uint8Array }) => {
+    handler: (ctx: ReducerCtx<AppSchema>, { id, viewport, viewportBinary }: { id: string; viewport: Viewport; viewportBinary: Uint8Array }) => {
       const existing = ctx.db.viewportState.id.find(id);
+      const graphId = viewport.graphId || "default";
       if (existing) {
-        ctx.db.viewportState.id.update({ id, state: viewportBinary });
+        ctx.db.viewportState.id.update({ graphId, id, state: viewportBinary });
       } else {
-        ctx.db.viewportState.insert({ id, state: viewportBinary });
+        ctx.db.viewportState.insert({ graphId, id, state: viewportBinary });
       }
     },
   },

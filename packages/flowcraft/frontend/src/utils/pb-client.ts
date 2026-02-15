@@ -1,10 +1,4 @@
-import {
-  create,
-  type DescMessage,
-  type MessageShape,
-  toBinary as pbToBinary,
-  toJson,
-} from "@bufbuild/protobuf";
+import { create, type DescMessage, type MessageShape, toBinary as pbToBinary, toJson } from "@bufbuild/protobuf";
 import { type GenMessage } from "@bufbuild/protobuf/codegenv2";
 
 import { PB_REDUCERS_MAP, TABLE_TO_PROTO } from "@/generated/pb_metadata";
@@ -35,6 +29,12 @@ export type PbReducersProjection<R, M> = {
 };
 
 /**
+ * Type utility: Extract message shape for a specific table
+ */
+export type TablePbMessage<T extends keyof typeof TABLE_TO_PROTO> =
+  (typeof TABLE_TO_PROTO)[T]["schema"] extends GenMessage<infer M> ? M : never;
+
+/**
  * Type utility: Replace specific fields in the parameter object with PB message types
  */
 export type TransformPbParams<P, PbMapping> = {
@@ -57,8 +57,14 @@ type ProjectedReducers = PbReducersProjection<DbConnection["reducers"], typeof P
  * Cross-table aggregation logic removed, reverted to atomic component mapping.
  * @param _db Deprecated, no longer need to manually handle view joins
  */
-export function convertStdbToPb(tableName: string, row: Record<string, unknown>, _db?: unknown): unknown {
-  const meta = TABLE_TO_PROTO[tableName];
+export function convertStdbToPb<T extends keyof typeof TABLE_TO_PROTO>(
+  tableName: T,
+  row: Record<string, unknown>,
+  _db?: unknown,
+): TablePbMessage<T>;
+export function convertStdbToPb(tableName: string, row: Record<string, unknown>, _db?: unknown): any;
+export function convertStdbToPb(tableName: string, row: Record<string, unknown>, _db?: unknown): any {
+  const meta = (TABLE_TO_PROTO as Record<string, any>)[tableName];
   if (!meta) return row; // If no mapping exists, return the original row directly
 
   const rawVal = row[meta.field] as Uint8Array | undefined;
@@ -68,7 +74,7 @@ export function convertStdbToPb(tableName: string, row: Record<string, unknown>,
 
   // Core Improvement: All mapped tables must go through create() to ensure default values (e.g., empty arrays) exist.
   // This ensures that the FE won't crash when accessing .length.
-  return create(meta.schema, pbObj as any);
+  return create(meta.schema, pbObj);
 }
 
 /**
@@ -76,16 +82,13 @@ export function convertStdbToPb(tableName: string, row: Record<string, unknown>,
  * If a PB mapping exists, convert it to JSON format (enum names, including default values).
  */
 export function convertStdbToPbJson(tableName: string, row: Record<string, unknown>): unknown {
-  const meta = TABLE_TO_PROTO[tableName];
+  const meta = (TABLE_TO_PROTO as Record<string, any>)[tableName];
   if (!meta) return row;
 
   // 1. Convert to PB Message
-  const msg = convertStdbToPb(tableName, row) as any;
+  const msg = convertStdbToPb(tableName, row);
 
   // 2. Convert Message to JSON
-  // useProtoFieldName: false -> camelCase keys (standard for JSON)
-  // emitDefaultValues: true -> show all fields
-  // enumAsInteger: false -> show Enum names (readable)
   try {
     return toJson(meta.schema, msg, {
       emitDefaultValues: true,

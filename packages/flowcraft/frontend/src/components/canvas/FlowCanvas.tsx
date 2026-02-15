@@ -14,13 +14,15 @@ import {
   type ReactFlowInstance,
   type Edge as RFEdge,
   SelectionMode,
+  useReactFlow,
 } from "@xyflow/react";
-import React, { useCallback } from "react";
+import React, { memo, useCallback, useEffect } from "react";
 
 import { defaultEdgeOptions, edgeTypes, nodeTypes } from "@/flowConfig";
 import { useGraphMutation } from "@/hooks/graph/useGraphMutation";
 import { type HelperLines } from "@/hooks/graph/useHelperLines";
 import { useFileDrop } from "@/hooks/ux/useFileDrop";
+import { useFlowStore } from "@/store/flowStore";
 import { type AppNode, DragMode, Theme } from "@/types";
 
 import { HelperLinesRenderer } from "../HelperLinesRenderer";
@@ -43,14 +45,71 @@ interface FlowCanvasProps {
   onNodeDragStart: (e: React.MouseEvent, node: AppNode) => void;
   onNodeDragStop: (e: React.MouseEvent, node: AppNode) => void;
   onNodesChange: OnNodesChange<AppNode>;
+  onNodesDelete: (nodes: AppNode[]) => void;
   onPaneContextMenu: (e: MouseEvent | React.MouseEvent) => void;
   onSelectionContextMenu: (e: React.MouseEvent, nodes: AppNode[]) => void;
   theme: Theme;
 }
 
-export const FlowCanvas: React.FC<FlowCanvasProps> = (props) => {
+export const FlowCanvas: React.FC<FlowCanvasProps> = memo((props) => {
   const { handleDragOver, handleDrop } = useFileDrop();
   const { updateViewport } = useGraphMutation();
+  const { setEdges, setNodes, updateNodeData } = useReactFlow();
+
+  // 1. Reactive Sync Bridge: Push business data changes to RF internal store
+  useEffect(() => {
+    const lastDataJson = new Map<string, string>();
+
+    const unsubscribe = useFlowStore.subscribe((state) => {
+      // PERFORMANCE GUARD: Skip heavy serialization/sync during high-frequency interactions
+      const isInteracting = state.nodes.some((n) => n.dragging || (n as any).resizing);
+      if (isInteracting) return;
+
+      const nodesById = state.nodesById;
+
+      Object.entries(nodesById).forEach(([id, node]) => {
+        const appNode = node;
+        const currentJson = JSON.stringify(appNode.data);
+        if (lastDataJson.get(id) !== currentJson) {
+          updateNodeData(id, appNode.data);
+          lastDataJson.set(id, currentJson);
+        }
+      });
+    });
+    return unsubscribe;
+  }, [updateNodeData]);
+
+  // 2. Structural Sync: Handle adds/removes or external position updates (DB pushes)
+  const activeScopeId = useFlowStore((s) => s.activeScopeId);
+  useEffect(() => {
+    // If scope changes, we force a complete reset of RF internal nodes
+    setNodes(props.nodes);
+  }, [activeScopeId, setNodes, props.nodes]);
+
+  useEffect(() => {
+    const unsubscribe = useFlowStore.subscribe((state) => {
+      const newNodes = state.nodes;
+      setNodes((currentRfNodes) => {
+        return newNodes.map((n) => {
+          const existing = currentRfNodes.find((rn) => rn.id === n.id);
+          // If the node exists and is being interacted with, preserve its transient UI state
+          if (existing && (existing.dragging || (existing as any).resizing)) {
+            return { ...n, ...existing };
+          }
+          return n;
+        });
+      });
+    });
+    return unsubscribe;
+  }, [setNodes]);
+
+  // Sync Edges
+  useEffect(() => {
+    const unsubscribe = useFlowStore.subscribe((state) => {
+      setEdges(state.edges);
+    });
+    return unsubscribe;
+  }, [setEdges]);
 
   const onMoveEndCallback = props.onMoveEnd;
 
@@ -76,12 +135,14 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = (props) => {
       <ReactFlow<AppNode>
         colorMode={(props.theme === Theme.DARK ? "dark" : "light") as unknown as undefined}
         defaultEdgeOptions={defaultEdgeOptions}
-        edges={props.edges}
+        defaultEdges={props.edges}
+        // Uncontrolled Mode: We do not pass 'nodes' or 'edges' here.
+        // They are initialized and updated via the sync bridge effects.
+        defaultNodes={props.nodes}
         edgeTypes={edgeTypes}
         elevateNodesOnSelect={true}
         maxZoom={2.5}
         minZoom={0.1}
-        nodes={props.nodes}
         nodeTypes={nodeTypes}
         onConnect={props.onConnect}
         onConnectEnd={props.onConnectEnd}
@@ -95,6 +156,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = (props) => {
         onNodeDragStart={props.onNodeDragStart}
         onNodeDragStop={props.onNodeDragStop}
         onNodesChange={props.onNodesChange}
+        onNodesDelete={props.onNodesDelete}
         onPaneContextMenu={props.onPaneContextMenu}
         onSelectionContextMenu={props.onSelectionContextMenu}
         panOnDrag={props.dragMode === DragMode.PAN ? [0, 1, 2] : [1, 2]}
@@ -117,4 +179,6 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = (props) => {
       </ReactFlow>
     </div>
   );
-};
+});
+
+FlowCanvas.displayName = "FlowCanvas";

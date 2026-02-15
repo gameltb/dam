@@ -13,7 +13,7 @@ import { useNodeController } from "@/hooks/nodes/useNodeController";
 import { useNodeMutation } from "@/hooks/nodes/useNodeMutation";
 import { useFlowStore } from "@/store/flowStore";
 import { useTaskStore } from "@/store/taskStore";
-import { ChatStatus as ChatStatusEnum, TaskStatus } from "@/types";
+import { ChatStatus as ChatStatusEnum, NodeStatus, TaskStatus } from "@/types";
 import { NodeLenses } from "@/utils/lenses";
 
 import { ChatConversationArea } from "./chat/ChatConversationArea";
@@ -28,11 +28,7 @@ interface ChatBotProps {
 }
 
 export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
-  const { spacetimeConn } = useFlowStore(
-    useShallow((s) => ({
-      spacetimeConn: s.spacetimeConn,
-    })),
-  );
+  useFlowStore(useShallow(() => ({})));
 
   const { inferenceConfig } = useFlowSocket();
   const nodeController = useNodeController(nodeId);
@@ -59,7 +55,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({ nodeId }) => {
 
   // Combine local chat status with global task execution status
   const effectiveStatus = useMemo(() => {
-    return nodeController.status === "busy" ? ChatStatusEnum.STREAMING : chatStatus;
+    return nodeController.status === NodeStatus.RUNNING || nodeController.status === NodeStatus.PENDING ? ChatStatusEnum.STREAMING : chatStatus;
   }, [nodeController.status, chatStatus]);
 
   const failedTask = useTaskStore((s) =>

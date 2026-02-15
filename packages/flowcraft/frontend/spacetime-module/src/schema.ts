@@ -4,6 +4,7 @@ import { nodeSignals, operationLogs, taskAuditLog } from "./tables/audit";
 import { chatMessages, chatStreams } from "./tables/chat";
 import {
   edges,
+  graphs,
   nodeData,
   nodeMetadata,
   nodes,
@@ -16,6 +17,7 @@ import { clientTaskAssignments, nodeRuntimeStates, tasks, workers } from "./tabl
 import { inferenceConfig, nodeTemplates } from "./tables/registry";
 
 export const spacetimedb = schema(
+  graphs,
   nodes,
   nodeTransforms,
   nodeMetadata,

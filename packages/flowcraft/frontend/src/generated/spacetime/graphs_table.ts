@@ -10,10 +10,9 @@ import {
   type Infer as __Infer,
 } from "spacetimedb";
 
-export default __t.object("ViewportState", {
-  graphId: __t.string(),
-  id: __t.string(),
-  state: __t.byteArray(),
+export default __t.row({
+  graphId: __t.string().primaryKey(),
+  name: __t.string(),
+  ownerId: __t.string(),
+  createdAt: __t.u64(),
 });
-
-

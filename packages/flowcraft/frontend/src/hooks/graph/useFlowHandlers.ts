@@ -1,10 +1,7 @@
-import { create as createProto } from "@bufbuild/protobuf";
-import { type NodeChange, type NodePositionChange, type XYPosition } from "@xyflow/react";
+import { type NodeChange, type XYPosition } from "@xyflow/react";
 import { useCallback } from "react";
 
-import { PositionSchema } from "@/generated/flowcraft/v1/core/base_pb";
 import { useFlowStore } from "@/store/flowStore";
-import { commit } from "@/store/orchestrator";
 import { useNavigationStore } from "@/store/ui/navigationStore";
 import { type AppNode } from "@/types";
 
@@ -39,95 +36,91 @@ export const useFlowHandlers = ({
 }: FlowHandlersProps) => {
   const onNodesChangeWithSnapping = useCallback(
     (changes: NodeChange<AppNode>[]) => {
-      const { nodesById, reparentNode } = useFlowStore.getState();
-      const activeScopeId = useNavigationStore.getState().activeScopeId;
+      const { nodesById } = useFlowStore.getState();
 
-      const positionChange = changes.find((c): c is NodePositionChange => c.type === "position");
+      // 1. Map changes to a new array, applying snapping without mutation
+      const nextChanges = changes.map((change) => {
+        if (change.type === "position" && change.dragging && change.position) {
+          const node = nodesById[change.id];
+          if (node) {
+            const { helperLines, snappedPosition } = calculateLines(node, nodes, false, change.position);
+            setHelperLines(helperLines);
 
-      if (positionChange && positionChange.dragging && positionChange.position) {
-        const node = nodesById[positionChange.id];
-        if (node) {
-          const { helperLines, snappedPosition } = calculateLines(
-            node,
-            nodes,
-            false,
-            positionChange.position,
-          );
-          setHelperLines(helperLines);
-
-          if (snappedPosition.x !== undefined) positionChange.position.x = snappedPosition.x;
-          if (snappedPosition.y !== undefined) positionChange.position.y = snappedPosition.y;
+            return {
+              ...change,
+              position: {
+                x: snappedPosition.x ?? change.position.x,
+                y: snappedPosition.y ?? change.position.y,
+              },
+            };
+          }
         }
-      } else {
+        return change;
+      });
+
+      // 2. Clear helper lines if not dragging
+      const isDragging = changes.some((c) => c.type === "position" && c.dragging);
+      if (!isDragging) {
         setHelperLines({ horizontal: undefined, vertical: undefined });
       }
 
-      const dragStopChange = changes.find(
-        (c): c is NodePositionChange => c.type === "position" && c.dragging === false,
-      );
-
-      if (dragStopChange) {
-        const node = nodesById[dragStopChange.id];
-        if (node) {
-          const { moveNodeToScope } = useFlowStore.getState();
-          const allNodesArray = Object.values(nodesById);
-          const potentialParent = allNodesArray.find(
-            (n) =>
-              n.id !== node.id &&
-              n.type === "groupNode" &&
-              node.position.x > 0 &&
-              node.position.y > 0 &&
-              node.position.x < (n.measured?.width ?? 0) &&
-              node.position.y < (n.measured?.height ?? 0),
-          );
-
-          if (potentialParent && node.parentId !== potentialParent.id) {
-            reparentNode(node.id, potentialParent.id);
-          } else if (!potentialParent && node.parentId && node.parentId !== activeScopeId) {
-            const padding = 20;
-            const parent = nodesById[activeScopeId ?? ""];
-            // Perform edge detection only when the parent node is loaded and has dimension information
-            if (
-              parent?.measured &&
-              (node.position.x < -padding ||
-                node.position.y < -padding ||
-                node.position.x > parent.measured.width - padding ||
-                node.position.y > parent.measured.height - padding)
-            ) {
-              // This should be a logical Scope change; may need to decide between reparent or moveScope based on interaction logic
-              // Current logic: Physical dragging out implies moving back to the previous logical level
-              moveNodeToScope(node.id, parent.scopeId || "root");
-            }
-          }
-        }
-      }
-
-      onNodesChange(changes);
-
-      if (dragStopChange) {
-        const node = nodesById[dragStopChange.id];
-        if (node) {
-          commit(
-            (draft) => {
-              const dn = draft.nodesById[node.id];
-              if (dn?.presentation) {
-                dn.presentation.position = createProto(PositionSchema, {
-                  x: node.position.x,
-                  y: node.position.y,
-                });
-              }
-            },
-            { description: "Drag stop sync" },
-          );
-        }
-      }
+      // 3. Pass the new, pure data to the store for transient update
+      onNodesChange(nextChanges);
     },
     [onNodesChange, calculateLines, setHelperLines, nodes],
   );
 
-  const handleNodeDragStop = useCallback(() => {
-    contextMenuDragStop();
-  }, [contextMenuDragStop]);
+  const handleNodeDragStop = useCallback(
+    (_e: React.MouseEvent, node: AppNode) => {
+      console.debug("[Handlers] Node drag stop - Persisting...", node.id);
+      const { commitNodes, moveNodeToScope, nodesById, reparentNode } = useFlowStore.getState();
+      const { activeScopeId } = useNavigationStore.getState();
+
+      // 1. Persistent sync to DB/History
+      commitNodes([node]);
+
+      // 2. Logical Scope/Hierarchy logic
+      const allNodesArray = Object.values(nodesById);
+      const potentialParent = allNodesArray.find(
+        (n) =>
+          n.id !== node.id &&
+          n.type === "groupNode" &&
+          node.position &&
+          node.position.x > 0 &&
+          node.position.y > 0 &&
+          node.position.x < (n.measured?.width ?? 0) &&
+          node.position.y < (n.measured?.height ?? 0),
+      );
+
+      if (potentialParent && node.parentId !== potentialParent.id) {
+        reparentNode(node.id, potentialParent.id);
+      } else if (!potentialParent && node.parentId && node.parentId !== activeScopeId) {
+        const padding = 20;
+        const parent = nodesById[activeScopeId ?? ""];
+        if (
+          parent?.measured &&
+          (node.position.x < -padding ||
+            node.position.y < -padding ||
+            node.position.x > parent.measured.width - padding ||
+            node.position.y > parent.measured.height - padding)
+        ) {
+          moveNodeToScope(node.id, parent.scopeId || "root");
+        }
+      }
+
+      contextMenuDragStop();
+    },
+    [contextMenuDragStop],
+  );
+
+  const onNodesDelete = useCallback((deletedNodes: AppNode[]) => {
+    console.debug(
+      "[Handlers] Nodes deleted",
+      deletedNodes.map((n) => n.id),
+    );
+    const { deleteNodes } = useFlowStore.getState();
+    deleteNodes(deletedNodes.map((n) => n.id));
+  }, []);
 
   const onInit = useCallback(() => {
     console.log("[Flow] Canvas Initialized");
@@ -140,5 +133,6 @@ export const useFlowHandlers = ({
     onConnectStart: () => {},
     onInit,
     onNodesChangeWithSnapping,
+    onNodesDelete,
   };
 };

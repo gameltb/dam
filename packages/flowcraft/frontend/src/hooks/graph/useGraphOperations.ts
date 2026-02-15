@@ -1,18 +1,21 @@
+import { useReactFlow } from "@xyflow/react";
 import { useLayoutOperations } from "@/hooks/graph/useLayoutOperations";
 import { useNodeOperations } from "@/hooks/nodes/useNodeOperations";
 import { useClipboard } from "@/hooks/ux/useClipboard";
 import { useFlowStore } from "@/store/flowStore";
 import { commit } from "@/store/orchestrator";
+import { type AppEdge } from "@/types";
 
 export const useGraphOperations = () => {
   const { addNode, deleteEdge, deleteNode } = useNodeOperations();
   const { autoLayout } = useLayoutOperations();
   const { copy, duplicate, paste } = useClipboard();
+  const { getEdges, getNodes } = useReactFlow();
 
   const handleCopy = () => {
-    const nodes = Object.values(useFlowStore.getState().nodesById).filter((n) => n.selected);
-    const edges = Object.values(useFlowStore.getState().edgesById).filter((e) => e.selected);
-    copy(nodes, edges);
+    const selectedNodes = getNodes().filter((n) => n.selected);
+    const selectedEdges = getEdges().filter((e) => e.selected);
+    copy(selectedNodes as any, selectedEdges as AppEdge[]);
   };
 
   const handlePaste = () => {
@@ -21,9 +24,9 @@ export const useGraphOperations = () => {
   };
 
   const handleDuplicate = () => {
-    const nodes = Object.values(useFlowStore.getState().nodesById).filter((n) => n.selected);
-    const edges = Object.values(useFlowStore.getState().edgesById).filter((e) => e.selected);
-    duplicate(nodes, edges);
+    const selectedNodes = getNodes().filter((n) => n.selected);
+    const selectedEdges = getEdges().filter((e) => e.selected);
+    duplicate(selectedNodes as any, selectedEdges as AppEdge[]);
   };
 
   const handleDeleteSelected = () => {

@@ -12,6 +12,7 @@ import {
 
 export default __t.row({
   edgeId: __t.string().primaryKey(),
+  graphId: __t.string(),
   sourceNodeId: __t.string(),
   state: __t.byteArray(),
   targetNodeId: __t.string(),
