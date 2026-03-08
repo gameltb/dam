@@ -1,5 +1,6 @@
 """CLI commands for generating reports."""
 
+import asyncio
 import csv
 import hashlib
 import math
@@ -295,8 +296,9 @@ async def verify_archive_members(world: World, archive_path: Path, console: Cons
     try:
         async with world.get_context(WorldTransaction)() as transaction:
             # Get the entity ID for the archive path
+            archive_path_resolved = await asyncio.to_thread(archive_path.resolve)
             archive_entity_id_query = select(FileLocationComponent.entity_id).where(
-                FileLocationComponent.url == f"file://{archive_path.resolve()}"
+                FileLocationComponent.url == f"file://{archive_path_resolved}"
             )
             archive_entity_id = (await transaction.session.execute(archive_entity_id_query)).scalar_one_or_none()
             if not archive_entity_id:
@@ -383,7 +385,7 @@ async def execute_delete_report(  # noqa: PLR0912
 
             target_path = Path(target_path_str)
 
-            if not target_path.is_file():
+            if not await asyncio.to_thread(target_path.is_file):
                 console.print(f"[yellow]Skipping (not a file): {target_path}[/yellow]")
                 skipped_count += 1
                 continue
@@ -395,7 +397,7 @@ async def execute_delete_report(  # noqa: PLR0912
                 if is_fully_duplicate_archive:
                     if await verify_archive_members(world, target_path, console):
                         try:
-                            target_path.unlink()
+                            await asyncio.to_thread(target_path.unlink)
                             console.print(f"[green]Deleted archive: {target_path}[/green]")
                             deleted_count += 1
                         except OSError as e:
@@ -414,7 +416,11 @@ async def execute_delete_report(  # noqa: PLR0912
 
                             # Identify non-duplicate members
                             duplicate_members = set(re.findall(r"'[^']+\s->\s([^']+)'.*?is a duplicate", details))
-                            all_members = {str(p.relative_to(temp_path)) for p in temp_path.rglob("*") if p.is_file()}
+
+                            def _get_all_members(tp: Path = temp_path):
+                                return {str(p.relative_to(tp)) for p in tp.rglob("*") if p.is_file()}
+
+                            all_members = await asyncio.to_thread(_get_all_members)
                             non_duplicate_members = all_members - duplicate_members
 
                             if non_duplicate_members:
@@ -429,7 +435,7 @@ async def execute_delete_report(  # noqa: PLR0912
                                     console.print(f"  - Extracted: {destination}")
                                     extracted_count += 1
 
-                        target_path.unlink()
+                        await asyncio.to_thread(target_path.unlink)
                         console.print(f"[green]Deleted archive after partial extraction: {target_path}[/green]")
                         deleted_count += 1
 
@@ -441,7 +447,7 @@ async def execute_delete_report(  # noqa: PLR0912
                 actual_hash = _calculate_file_sha256(target_path)
                 if actual_hash == expected_hash:
                     try:
-                        target_path.unlink()
+                        await asyncio.to_thread(target_path.unlink)
                         console.print(f"[green]Deleted: {target_path}[/green]")
                         deleted_count += 1
                     except OSError as e:

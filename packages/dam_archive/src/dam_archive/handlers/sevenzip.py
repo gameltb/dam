@@ -293,10 +293,10 @@ class SevenZipArchiveHandler(ArchiveHandler):
                         if not member.is_directory:
                             handler.members.append(
                                 ArchiveMemberInfo(
-                                    name=cast(str, member.filename),
-                                    size=cast(int, member.uncompressed),
+                                    name=member.filename,
+                                    size=member.uncompressed,
                                     modified_at=cast(datetime.datetime, member.creationtime),
-                                    compressed_size=cast(int, member.compressed),
+                                    compressed_size=member.compressed,
                                 )
                             )
                     if handler.members:
