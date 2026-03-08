@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 from collections.abc import Callable, Coroutine
 from pathlib import Path
@@ -203,7 +204,7 @@ def _collect_files(paths: list[Path], recursive: bool) -> list[Path]:
 
 async def _get_or_register_entity(target_world: World, file_path: Path) -> tuple[int | None, bool]:
     """Get an existing entity or register a new one. Returns (entity_id, was_skipped)."""
-    mod_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime, tz=datetime.UTC)
+    mod_time = datetime.datetime.fromtimestamp((await asyncio.to_thread(file_path.stat)).st_mtime, tz=datetime.UTC)
     pre_check_cmd = FindEntityByFilePropertiesCommand(file_path=file_path.as_uri(), last_modified_at=mod_time)
     existing_entity_id = await target_world.dispatch_command(pre_check_cmd).get_one_value()
 
@@ -277,7 +278,9 @@ async def add_assets(
     success_count = 0
     skipped_count = 0
     error_count = 0
-    total_size = sum(p.stat().st_size for p in files_to_process)
+    total_size = 0
+    for p in files_to_process:
+        total_size += (await asyncio.to_thread(p.stat)).st_size
     passwords: list[str] = []
     password_attempts: dict[int, int] = {}
 
@@ -312,7 +315,7 @@ async def add_assets(
                 console.print(Traceback())
                 if stop_on_error:
                     raise
-            pbar.update(file_path.stat().st_size)
+            pbar.update((await asyncio.to_thread(file_path.stat)).st_size)
 
     typer.echo("\n--- Summary ---")
     typer.echo(f"Successfully registered: {success_count}")

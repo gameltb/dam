@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -93,7 +94,7 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
                         shutil.copyfileobj(stream, temp_file)
             except Exception:
                 # Ensure cleanup if something goes wrong during stream copying
-                Path(temp_path_str).unlink()
+                await asyncio.to_thread(Path(temp_path_str).unlink)
                 raise
         else:
             file_path = path
@@ -265,7 +266,7 @@ class SevenZipCliArchiveHandler(ArchiveHandler):
             self._temp_dir = None
         if self._temp_file_path:
             try:
-                Path(self._temp_file_path).unlink()
+                await asyncio.to_thread(Path(self._temp_file_path).unlink)
                 self._temp_file_path = None
             except OSError as e:
                 logger.warning("Could not delete temporary file '%s': %s", self._temp_file_path, e)

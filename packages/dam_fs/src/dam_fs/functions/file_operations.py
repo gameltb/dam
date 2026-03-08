@@ -127,7 +127,7 @@ async def create_entity_with_file(transaction: WorldTransaction, file_path: str)
     p_file_path = Path(file_path)
     entity = await ecs_functions.create_entity(transaction.session)
 
-    file_stat = p_file_path.stat()
+    file_stat = await asyncio.to_thread(p_file_path.stat)
     mod_time = datetime.datetime.fromtimestamp(file_stat.st_mtime, tz=datetime.UTC).replace(microsecond=0)
 
     # Add FileLocationComponent

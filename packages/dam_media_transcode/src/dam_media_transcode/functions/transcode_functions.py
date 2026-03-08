@@ -176,10 +176,10 @@ async def apply_transcode_profile(
 
         settings = world.get_resource(TranscodeSettingsComponent)
         temp_transcode_dir = Path(settings.transcoding_temp_dir)
-        temp_transcode_dir.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(temp_transcode_dir.mkdir, parents=True, exist_ok=True)
 
         final_output_dir_base = output_parent_dir or temp_transcode_dir
-        final_output_dir_base.mkdir(parents=True, exist_ok=True)
+        await asyncio.to_thread(final_output_dir_base.mkdir, parents=True, exist_ok=True)
 
         unique_suffix = uuid.uuid4().hex[:8]
         temp_output_filename = f"{Path(source_filepath).stem}_{profile_component.profile_name.replace(' ', '_')}_{unique_suffix}.{profile_component.output_format}"
@@ -206,9 +206,11 @@ async def apply_transcode_profile(
         except FileNotFoundError as e:
             raise TranscodeFunctionsError(f"Transcoding input file error: {e}") from e
 
-        if not transcoded_filepath.exists() or transcoded_filepath.stat().st_size == 0:
-            if transcoded_filepath.exists():
-                transcoded_filepath.unlink(missing_ok=True)
+        transcoded_exists = await asyncio.to_thread(transcoded_filepath.exists)
+        transcoded_stat = await asyncio.to_thread(transcoded_filepath.stat) if transcoded_exists else None
+        if not transcoded_exists or (transcoded_stat and transcoded_stat.st_size == 0):
+            if transcoded_exists:
+                await asyncio.to_thread(transcoded_filepath.unlink, missing_ok=True)
             raise TranscodeFunctionsError(f"Transcoding produced no output or an empty file at {transcoded_filepath}.")
 
         ingestion_command = RegisterLocalFileCommand(file_path=transcoded_filepath)
@@ -235,7 +237,7 @@ async def apply_transcode_profile(
         transcoded_variant_comp = TranscodedVariantComponent(
             original_asset_entity_id=source_asset_entity_id,
             transcode_profile_entity_id=profile_component.entity_id,
-            transcoded_file_size_bytes=transcoded_filepath.stat().st_size,
+            transcoded_file_size_bytes=(await asyncio.to_thread(transcoded_filepath.stat)).st_size,
             quality_metric_vmaf=None,
             quality_metric_ssim=None,
             custom_metrics_json=None,
@@ -249,9 +251,9 @@ async def apply_transcode_profile(
             "TranscodedVariantComponent created and linked for new asset entity ID %d.", transcoded_asset_entity.id
         )
 
-        if transcoded_filepath.exists():
+        if await asyncio.to_thread(transcoded_filepath.exists):
             try:
-                transcoded_filepath.unlink()
+                await asyncio.to_thread(transcoded_filepath.unlink)
                 logger.info("Cleaned up temporary transcoded file: %s", transcoded_filepath)
             except OSError as e:
                 logger.warning("Could not delete temporary transcoded file %s: %s", transcoded_filepath, e)

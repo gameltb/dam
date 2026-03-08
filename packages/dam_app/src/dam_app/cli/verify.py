@@ -127,7 +127,10 @@ async def _verify_archive_contents(
         if not await _extract_archive(archive_path, tmp_path):
             return []
 
-        extracted_files = {p.relative_to(tmp_path).as_posix(): p for p in tmp_path.glob("**/*") if p.is_file()}
+        def _get_extracted_files():
+            return {p.relative_to(tmp_path).as_posix(): p for p in tmp_path.glob("**/*") if p.is_file()}
+
+        extracted_files = await asyncio.to_thread(_get_extracted_files)
 
         for path_in_archive, file_path in extracted_files.items():
             display_path = f"{archive_path.name}/{path_in_archive}"
@@ -183,13 +186,18 @@ async def verify_assets_logic(
     pbar: tqdm[Any] | None = None,
 ) -> tuple[list[dict[str, Any]], int, int, int, int]:
     """Core logic for verifying assets."""
-    files_to_process: list[Path] = []
-    for path in paths:
-        if path.is_file():
-            files_to_process.append(path)
-        elif path.is_dir():
-            pattern = "**/*" if recursive else "*"
-            files_to_process.extend(p for p in path.glob(pattern) if p.is_file())
+
+    def _get_files_to_process():
+        files: list[Path] = []
+        for path in paths:
+            if path.is_file():
+                files.append(path)
+            elif path.is_dir():
+                pattern = "**/*" if recursive else "*"
+                files.extend(p for p in path.glob(pattern) if p.is_file())
+        return files
+
+    files_to_process = await asyncio.to_thread(_get_files_to_process)
 
     all_results: list[dict[str, Any]] = []
     success_count, failed_count, skipped_count, error_count = 0, 0, 0, 0
@@ -281,13 +289,17 @@ async def verify_assets(
 
     typer.echo("Starting asset verification process...")
 
-    files_to_process: list[Path] = []
-    for path in paths:
-        if path.is_file():
-            files_to_process.append(path)
-        elif path.is_dir():
-            pattern = "**/*" if recursive else "*"
-            files_to_process.extend(p for p in path.glob(pattern) if p.is_file())
+    def _get_files_to_process():
+        files: list[Path] = []
+        for path in paths:
+            if path.is_file():
+                files.append(path)
+            elif path.is_dir():
+                pattern = "**/*" if recursive else "*"
+                files.extend(p for p in path.glob(pattern) if p.is_file())
+        return files
+
+    files_to_process = await asyncio.to_thread(_get_files_to_process)
 
     if not files_to_process:
         typer.secho("No files found to process.", fg=typer.colors.YELLOW)

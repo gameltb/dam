@@ -1,6 +1,6 @@
 """Tests for the Jupyter tool executor."""
 
-import asyncio
+import inspect
 import pathlib
 from collections.abc import AsyncGenerator
 
@@ -29,12 +29,12 @@ async def code_executor(request: Any) -> AsyncGenerator[CodeExecutor, None]:
     executor_class = request.param
     try:
         executor = executor_class()
-        if asyncio.iscoroutinefunction(executor.start):
+        if inspect.iscoroutinefunction(executor.start):
             await executor.start()
         else:
             executor.start()
         yield executor
-        if asyncio.iscoroutinefunction(executor.stop):
+        if inspect.iscoroutinefunction(executor.stop):
             await executor.stop()
         else:
             executor.stop()

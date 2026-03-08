@@ -42,7 +42,9 @@ def fs_settings(tmp_path: Path) -> FsSettingsComponent:
 async def test_register_and_find(world_factory: WorldFactory, fs_settings: FsSettingsComponent, temp_asset_file: Path):
     """Tests the full flow of registering a new file and then finding it by its properties."""
     world: World = await world_factory("test_world", [fs_settings])
-    mod_time = datetime.datetime.fromtimestamp(temp_asset_file.stat().st_mtime, tz=datetime.UTC)
+    mod_time = datetime.datetime.fromtimestamp(
+        (await asyncio.to_thread(temp_asset_file.stat)).st_mtime, tz=datetime.UTC
+    )
 
     # 1. Register a new file
     register_cmd = RegisterLocalFileCommand(file_path=temp_asset_file)
@@ -59,7 +61,7 @@ async def test_register_and_find(world_factory: WorldFactory, fs_settings: FsSet
 
         clc = await ecs_functions.get_component(session, entity_id, ContentLengthComponent)
         assert clc is not None
-        assert clc.file_size_bytes == temp_asset_file.stat().st_size
+        assert clc.file_size_bytes == (await asyncio.to_thread(temp_asset_file.stat)).st_size
 
         flc = await ecs_functions.get_component(session, entity_id, FileLocationComponent)
         assert flc is not None
@@ -110,8 +112,10 @@ async def test_first_seen_at_logic(world_factory: WorldFactory, fs_settings: FsS
     # 1. Create and register a file with a recent timestamp
     recent_file = tmp_path / "test_file.txt"
     recent_file.write_text("same content")
-    recent_file.touch()  # Update mtime to now
-    recent_mod_time = datetime.datetime.fromtimestamp(recent_file.stat().st_mtime, tz=datetime.UTC)
+    await asyncio.to_thread(recent_file.touch)  # Update mtime to now
+    recent_mod_time = datetime.datetime.fromtimestamp(
+        (await asyncio.to_thread(recent_file.stat)).st_mtime, tz=datetime.UTC
+    )
 
     register_cmd1 = RegisterLocalFileCommand(file_path=recent_file)
     entity_id = await world.dispatch_command(register_cmd1).get_one_value()
@@ -176,8 +180,10 @@ async def test_reregister_modified_file(
 
     # 2. Modify the file
     await asyncio.sleep(1)  # Ensure mtime changes
-    temp_asset_file.touch()
-    new_mod_time = datetime.datetime.fromtimestamp(temp_asset_file.stat().st_mtime, tz=datetime.UTC)
+    await asyncio.to_thread(temp_asset_file.touch)
+    new_mod_time = datetime.datetime.fromtimestamp(
+        (await asyncio.to_thread(temp_asset_file.stat)).st_mtime, tz=datetime.UTC
+    )
 
     assert new_mod_time > original_mtime
 
